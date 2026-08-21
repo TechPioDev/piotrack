@@ -1,5 +1,6 @@
 import { ActivityTimeline, type Activity } from '@/components/crm/activity-timeline';
 import Heading from '@/components/heading';
+import { InitialAvatar } from '@/components/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,8 +39,11 @@ export default function ContactShow({ contact, activities, deals }: { contact: C
             <Head title={name} />
             <div className="grid gap-4 p-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-1">
-                    <div className="flex items-center justify-between">
-                        <Heading title={name} description={contact.title ?? undefined} />
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <InitialAvatar name={name} className="size-10 text-sm" />
+                            <Heading title={name} description={contact.title ?? undefined} />
+                        </div>
                         {can('crm.contact.delete') && (
                             <Button
                                 variant="ghost"
@@ -59,7 +63,10 @@ export default function ContactShow({ contact, activities, deals }: { contact: C
                                 label="Company"
                                 value={
                                     contact.company ? (
-                                        <Link href={route('crm.companies.show', contact.company.id)} className="hover:underline">
+                                        <Link
+                                            href={route('crm.companies.show', contact.company.id)}
+                                            className="hover:text-brand-strong hover:underline"
+                                        >
                                             {contact.company.name}
                                         </Link>
                                     ) : null

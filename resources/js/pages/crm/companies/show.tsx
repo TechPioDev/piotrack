@@ -1,4 +1,5 @@
 import Heading from '@/components/heading';
+import { InitialAvatar } from '@/components/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -29,7 +30,10 @@ export default function CompanyShow({ company, contacts, deals }: { company: Com
             <Head title={company.name} />
             <div className="grid gap-4 p-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-1">
-                    <Heading title={company.name} description={company.industry ?? undefined} />
+                    <div className="flex items-center gap-3">
+                        <InitialAvatar name={company.name} className="size-10 rounded-md text-sm" />
+                        <Heading title={company.name} description={company.industry ?? undefined} />
+                    </div>
                     <Card>
                         <CardContent className="space-y-2 p-4 text-sm">
                             <div className="flex justify-between">
@@ -59,7 +63,7 @@ export default function CompanyShow({ company, contacts, deals }: { company: Com
                             ) : (
                                 contacts.map((c) => (
                                     <div key={c.id} className="flex justify-between">
-                                        <Link href={route('crm.contacts.show', c.id)} className="hover:underline">
+                                        <Link href={route('crm.contacts.show', c.id)} className="hover:text-brand-strong hover:underline">
                                             {c.name}
                                         </Link>
                                         <span className="text-muted-foreground">{c.email}</span>
@@ -79,7 +83,7 @@ export default function CompanyShow({ company, contacts, deals }: { company: Com
                             ) : (
                                 deals.map((d) => (
                                     <div key={d.id} className="flex items-center justify-between">
-                                        <Link href={route('crm.deals.show', d.id)} className="hover:underline">
+                                        <Link href={route('crm.deals.show', d.id)} className="hover:text-brand-strong hover:underline">
                                             {d.name}
                                         </Link>
                                         <span className="flex items-center gap-2">

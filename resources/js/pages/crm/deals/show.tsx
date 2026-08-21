@@ -7,6 +7,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatMoney } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import { Handshake } from 'lucide-react';
 
 type Deal = {
     id: number;
@@ -38,7 +39,10 @@ export default function DealShow({ deal, activities }: { deal: Deal; activities:
             <Head title={deal.name} />
             <div className="grid gap-4 p-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        <span className="bg-brand-soft text-brand-strong flex size-10 shrink-0 items-center justify-center rounded-lg">
+                            <Handshake className="size-5" aria-hidden />
+                        </span>
                         <Heading title={deal.name} description={`${formatMoney(deal.value)} · ${deal.stage ?? ''}`} />
                         <Badge variant={deal.status === 'won' ? 'default' : deal.status === 'lost' ? 'destructive' : 'secondary'}>
                             {deal.status}
@@ -54,7 +58,7 @@ export default function DealShow({ deal, activities }: { deal: Deal; activities:
                                 label="Contact"
                                 value={
                                     deal.contact ? (
-                                        <Link href={route('crm.contacts.show', deal.contact.id)} className="hover:underline">
+                                        <Link href={route('crm.contacts.show', deal.contact.id)} className="hover:text-brand-strong hover:underline">
                                             {deal.contact.name}
                                         </Link>
                                     ) : null
@@ -64,7 +68,7 @@ export default function DealShow({ deal, activities }: { deal: Deal; activities:
                                 label="Company"
                                 value={
                                     deal.company ? (
-                                        <Link href={route('crm.companies.show', deal.company.id)} className="hover:underline">
+                                        <Link href={route('crm.companies.show', deal.company.id)} className="hover:text-brand-strong hover:underline">
                                             {deal.company.name}
                                         </Link>
                                     ) : null

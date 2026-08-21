@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { formatMoney } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
@@ -95,15 +96,27 @@ export default function Deals({ pipeline, stages }: { pipeline: { id: number; na
                     {stages.map((stage) => (
                         <div key={stage.id} className="bg-muted/30 w-72 shrink-0 rounded-lg border">
                             <div className="flex items-center justify-between border-b p-3">
-                                <span className="font-medium">{stage.name}</span>
-                                <span className="text-muted-foreground text-xs">
+                                <span className="flex items-center gap-2 font-medium">
+                                    <span
+                                        className={cn(
+                                            'size-2 rounded-full',
+                                            stage.is_won ? 'bg-emerald-500' : stage.is_lost ? 'bg-red-500' : 'bg-brand',
+                                        )}
+                                        aria-hidden
+                                    />
+                                    {stage.name}
+                                </span>
+                                <span className="text-muted-foreground text-xs tabular-nums">
                                     {stage.deals.length} · {formatMoney(stage.total)}
                                 </span>
                             </div>
                             <div className="space-y-2 p-2">
                                 {stage.deals.map((deal) => (
-                                    <div key={deal.id} className="bg-background space-y-2 rounded-md border p-2 text-sm shadow-sm">
-                                        <Link href={route('crm.deals.show', deal.id)} className="font-medium hover:underline">
+                                    <div
+                                        key={deal.id}
+                                        className="bg-background hover:border-brand/40 space-y-2 rounded-md border p-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none"
+                                    >
+                                        <Link href={route('crm.deals.show', deal.id)} className="hover:text-brand-strong font-medium hover:underline">
                                             {deal.name}
                                         </Link>
                                         <div className="text-muted-foreground text-xs">

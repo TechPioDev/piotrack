@@ -1,10 +1,12 @@
 import { EmptyState } from '@/components/empty-state';
+import { InitialAvatar } from '@/components/initial-avatar';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -141,33 +143,39 @@ export default function Contacts({ contacts, filters }: { contacts: Paginated; f
                         action={can('crm.contact.create') && <Button onClick={() => setOpen(true)}>New contact</Button>}
                     />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-muted/50 text-muted-foreground">
-                                <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Email</th>
-                                    <th className="p-3 font-medium">Company</th>
-                                    <th className="p-3 font-medium">Owner</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {contacts.data.map((c) => (
-                                    <tr key={c.id} className="hover:bg-muted/40">
-                                        <td className="p-3">
-                                            <Link href={route('crm.contacts.show', c.id)} className="font-medium hover:underline">
-                                                {c.name}
-                                            </Link>
-                                            {c.title && <span className="text-muted-foreground"> · {c.title}</span>}
-                                        </td>
-                                        <td className="text-muted-foreground p-3">{c.email}</td>
-                                        <td className="text-muted-foreground p-3">{c.company ?? '—'}</td>
-                                        <td className="text-muted-foreground p-3">{c.owner ?? '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table>
+                        <TableHeader>
+                            <tr>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Company</TableHead>
+                                <TableHead>Owner</TableHead>
+                            </tr>
+                        </TableHeader>
+                        <TableBody>
+                            {contacts.data.map((c) => (
+                                <TableRow key={c.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2.5">
+                                            <InitialAvatar name={c.name} />
+                                            <div>
+                                                <Link
+                                                    href={route('crm.contacts.show', c.id)}
+                                                    className="hover:text-brand-strong font-medium hover:underline"
+                                                >
+                                                    {c.name}
+                                                </Link>
+                                                {c.title && <span className="text-muted-foreground"> · {c.title}</span>}
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">{c.email}</TableCell>
+                                    <TableCell className="text-muted-foreground">{c.company ?? '—'}</TableCell>
+                                    <TableCell className="text-muted-foreground">{c.owner ?? '—'}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
 
                 {contacts.links.length > 3 && (
@@ -177,7 +185,7 @@ export default function Contacts({ contacts, filters }: { contacts: Paginated; f
                                 <Link
                                     key={i}
                                     href={link.url}
-                                    className={`rounded px-3 py-1 text-sm ${link.active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                                    className={`rounded px-3 py-1 text-sm transition-colors ${link.active ? 'bg-brand text-brand-foreground' : 'hover:bg-muted'}`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />
                             ) : (

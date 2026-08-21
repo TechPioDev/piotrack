@@ -1,10 +1,12 @@
 import { EmptyState } from '@/components/empty-state';
+import { InitialAvatar } from '@/components/initial-avatar';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -106,33 +108,39 @@ export default function Companies({ companies, filters }: { companies: Paginated
                         action={can('crm.company.create') && <Button onClick={() => setOpen(true)}>New company</Button>}
                     />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-muted/50 text-muted-foreground">
-                                <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Industry</th>
-                                    <th className="p-3 text-center font-medium">Contacts</th>
-                                    <th className="p-3 text-center font-medium">Deals</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {companies.data.map((c) => (
-                                    <tr key={c.id} className="hover:bg-muted/40">
-                                        <td className="p-3">
-                                            <Link href={route('crm.companies.show', c.id)} className="font-medium hover:underline">
-                                                {c.name}
-                                            </Link>
-                                            {c.domain && <span className="text-muted-foreground"> · {c.domain}</span>}
-                                        </td>
-                                        <td className="text-muted-foreground p-3">{c.industry ?? '—'}</td>
-                                        <td className="p-3 text-center">{c.contacts_count}</td>
-                                        <td className="p-3 text-center">{c.deals_count}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table>
+                        <TableHeader>
+                            <tr>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Industry</TableHead>
+                                <TableHead className="text-center">Contacts</TableHead>
+                                <TableHead className="text-center">Deals</TableHead>
+                            </tr>
+                        </TableHeader>
+                        <TableBody>
+                            {companies.data.map((c) => (
+                                <TableRow key={c.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2.5">
+                                            <InitialAvatar name={c.name} className="rounded-md" />
+                                            <div>
+                                                <Link
+                                                    href={route('crm.companies.show', c.id)}
+                                                    className="hover:text-brand-strong font-medium hover:underline"
+                                                >
+                                                    {c.name}
+                                                </Link>
+                                                {c.domain && <span className="text-muted-foreground"> · {c.domain}</span>}
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">{c.industry ?? '—'}</TableCell>
+                                    <TableCell className="text-center tabular-nums">{c.contacts_count}</TableCell>
+                                    <TableCell className="text-center tabular-nums">{c.deals_count}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </AppLayout>

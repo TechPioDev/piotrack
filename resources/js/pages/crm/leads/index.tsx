@@ -1,4 +1,5 @@
 import { EmptyState } from '@/components/empty-state';
+import { InitialAvatar } from '@/components/initial-avatar';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -153,39 +155,42 @@ export default function Leads({ leads, filters, statuses }: { leads: Paginated; 
                         action={can('crm.lead.create') && <Button onClick={() => setOpen(true)}>New lead</Button>}
                     />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-muted/50 text-muted-foreground">
-                                <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Company</th>
-                                    <th className="p-3 font-medium">Source</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-right font-medium">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {leads.data.map((lead) => (
-                                    <tr key={lead.id} className="hover:bg-muted/40">
-                                        <td className="p-3">
-                                            <span className="font-medium">{lead.name}</span>
-                                            {lead.email && <span className="text-muted-foreground"> · {lead.email}</span>}
-                                        </td>
-                                        <td className="text-muted-foreground p-3">{lead.company_name ?? '—'}</td>
-                                        <td className="text-muted-foreground p-3">{lead.source ?? '—'}</td>
-                                        <td className="p-3">
-                                            <Badge variant={statusVariant[lead.status] ?? 'secondary'} className="capitalize">
-                                                {lead.status}
-                                            </Badge>
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            {lead.status !== 'converted' && can('crm.lead.update') && <ConvertButton leadId={lead.id} />}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table>
+                        <TableHeader>
+                            <tr>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Company</TableHead>
+                                <TableHead>Source</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </tr>
+                        </TableHeader>
+                        <TableBody>
+                            {leads.data.map((lead) => (
+                                <TableRow key={lead.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2.5">
+                                            <InitialAvatar name={lead.name} />
+                                            <div>
+                                                <span className="font-medium">{lead.name}</span>
+                                                {lead.email && <span className="text-muted-foreground"> · {lead.email}</span>}
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">{lead.company_name ?? '—'}</TableCell>
+                                    <TableCell className="text-muted-foreground">{lead.source ?? '—'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={statusVariant[lead.status] ?? 'secondary'} className="capitalize">
+                                            {lead.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {lead.status !== 'converted' && can('crm.lead.update') && <ConvertButton leadId={lead.id} />}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </AppLayout>
