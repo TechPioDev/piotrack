@@ -13,6 +13,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -68,4 +70,41 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->context(fn () => array_filter([
             'request_id' => request()->attributes->get('request_id'),
         ]));
+
+        // Inertia treats any non-Inertia response as an error and renders it in a
+        // blank modal overlay. Left unhandled, an expired session (419), a
+        // permission block (403) or a server error (500) each pops that white box
+        // over the app. Return proper Inertia responses instead.
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
+            // Inertia requests are themselves AJAX, so only bypass genuine API /
+            // JSON clients (which never carry the Inertia header) - otherwise the
+            // Inertia visit gets a raw JSON error and pops the modal we're fixing.
+            $isInertia = (bool) $request->header('X-Inertia');
+
+            if (! $isInertia && ($request->is('api/*') || $request->expectsJson())) {
+                return $response;
+            }
+
+            $status = $response->getStatusCode();
+
+            // Session/CSRF expired: send the user back with a message rather than
+            // rendering Laravel's "Page Expired" page inside the modal.
+            if ($status === 419) {
+                return back()->with('message', 'Your session expired — please try again.');
+            }
+
+            // Render hard error statuses as a real Inertia page. Keep the detailed
+            // developer error page for 500s while debugging locally.
+            if (in_array($status, [403, 404, 500, 503], true)) {
+                if ($status === 500 && config('app.debug')) {
+                    return $response;
+                }
+
+                return Inertia::render('errors/error', ['status' => $status])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            }
+
+            return $response;
+        });
     })->create();
