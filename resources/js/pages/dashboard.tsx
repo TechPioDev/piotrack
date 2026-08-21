@@ -30,8 +30,29 @@ function money(minor: number): string {
     return `$${dollars.toLocaleString('en-US')}`;
 }
 
-export default function Dashboard({ onboarding, metrics, sources }: { onboarding: Onboarding; metrics: Metrics; sources: Record<string, number> }) {
-    const sourceRows = Object.entries(sources).sort((a, b) => b[1] - a[1]);
+export default function Dashboard({
+    onboarding,
+    metrics,
+    sources,
+}: {
+    onboarding?: Onboarding;
+    metrics?: Partial<Metrics>;
+    sources?: Record<string, number>;
+}) {
+    // Never assume the payload is complete: an older backend, an entitlement
+    // filter or an empty tenant can omit fields. Normalise to zeros so the page
+    // always renders rather than crashing to a blank screen.
+    const m: Metrics = {
+        leads: metrics?.leads ?? 0,
+        sqls: metrics?.sqls ?? 0,
+        meetings: metrics?.meetings ?? 0,
+        opportunities: metrics?.opportunities ?? 0,
+        qualified_pipeline: metrics?.qualified_pipeline ?? 0,
+        closed_won: metrics?.closed_won ?? 0,
+        mrr: metrics?.mrr ?? 0,
+        arr: metrics?.arr ?? 0,
+    };
+    const sourceRows = Object.entries(sources ?? {}).sort((a, b) => b[1] - a[1]);
     const sourceTotal = sourceRows.reduce((sum, [, n]) => sum + n, 0);
 
     // Grow the source bars in from zero on first paint - a small, calm flourish.
@@ -47,17 +68,17 @@ export default function Dashboard({ onboarding, metrics, sources }: { onboarding
             <div className="space-y-6 p-4">
                 <PageHeader title="Dashboard" description="Your growth at a glance — pipeline, revenue, and where leads are coming from." />
 
-                {!onboarding.complete && <OnboardingChecklist onboarding={onboarding} />}
+                {onboarding && !onboarding.complete && <OnboardingChecklist onboarding={onboarding} />}
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard label="New Leads" value={metrics.leads.toLocaleString('en-US')} icon={UserPlus} />
-                    <StatCard label="SQLs" value={metrics.sqls.toLocaleString('en-US')} icon={Users} />
-                    <StatCard label="Meetings" value={metrics.meetings.toLocaleString('en-US')} icon={CalendarCheck} />
-                    <StatCard label="Open Opportunities" value={metrics.opportunities.toLocaleString('en-US')} icon={Handshake} />
-                    <StatCard label="Qualified Pipeline" value={money(metrics.qualified_pipeline)} icon={TrendingUp} />
-                    <StatCard label="Customers Won" value={metrics.closed_won.toLocaleString('en-US')} icon={Handshake} />
-                    <StatCard label="New MRR" value={money(metrics.mrr)} icon={DollarSign} />
-                    <StatCard label="ARR" value={money(metrics.arr)} icon={DollarSign} />
+                    <StatCard label="New Leads" value={m.leads.toLocaleString('en-US')} icon={UserPlus} />
+                    <StatCard label="SQLs" value={m.sqls.toLocaleString('en-US')} icon={Users} />
+                    <StatCard label="Meetings" value={m.meetings.toLocaleString('en-US')} icon={CalendarCheck} />
+                    <StatCard label="Open Opportunities" value={m.opportunities.toLocaleString('en-US')} icon={Handshake} />
+                    <StatCard label="Qualified Pipeline" value={money(m.qualified_pipeline)} icon={TrendingUp} />
+                    <StatCard label="Customers Won" value={m.closed_won.toLocaleString('en-US')} icon={Handshake} />
+                    <StatCard label="New MRR" value={money(m.mrr)} icon={DollarSign} />
+                    <StatCard label="ARR" value={money(m.arr)} icon={DollarSign} />
                 </div>
 
                 <div className="border-border bg-card rounded-lg border">
