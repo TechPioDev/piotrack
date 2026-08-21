@@ -25,19 +25,30 @@ export function StatCard({
     const DeltaIcon = delta?.direction === 'down' ? TrendingDown : TrendingUp;
 
     return (
-        <div className={cn('border-border bg-card rounded-lg border p-4', className)}>
+        <div
+            className={cn(
+                'group border-border bg-card rounded-lg border p-4 transition duration-200',
+                'hover:border-brand/50 hover:-translate-y-0.5 hover:shadow-md',
+                'motion-reduce:transform-none motion-reduce:transition-none',
+                className,
+            )}
+        >
             <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground text-sm font-medium">{label}</span>
-                {Icon && <Icon className="text-muted-foreground size-4" aria-hidden />}
+                {Icon && (
+                    <span className="bg-brand-soft text-brand-strong flex size-8 items-center justify-center rounded-lg transition duration-200 group-hover:scale-105 motion-reduce:transform-none">
+                        <Icon className="size-4" aria-hidden />
+                    </span>
+                )}
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-foreground text-2xl font-semibold tracking-tight tabular-nums">{value}</span>
+            <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-foreground text-3xl font-semibold tracking-tight tabular-nums">{value}</span>
                 {delta && (
                     <span
                         className={cn(
-                            'inline-flex items-center gap-0.5 text-xs font-medium',
-                            delta.direction === 'up' && 'text-emerald-600 dark:text-emerald-400',
-                            delta.direction === 'down' && 'text-red-600 dark:text-red-400',
+                            'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold',
+                            delta.direction === 'up' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                            delta.direction === 'down' && 'bg-red-500/10 text-red-600 dark:text-red-400',
                             delta.direction === 'neutral' && 'text-muted-foreground',
                         )}
                     >
