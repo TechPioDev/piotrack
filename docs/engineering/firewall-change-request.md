@@ -4,15 +4,15 @@ For whoever administers the SonicWall at `192.168.1.1` (SonicOS 7).
 
 ## What is being asked for
 
-Publish an internal web server to the internet on `piotrack.com`, and stop the
-appliance itself from intercepting port 443 on the WAN.
+Publish an internal web server to the internet on `piotrack.com` over HTTPS only,
+and stop the appliance itself from intercepting port 443 on the WAN.
 
-|                 |                                                 |
-| --------------- | ----------------------------------------------- |
-| Public hostname | `piotrack.com`, `www.piotrack.com`              |
-| Public address  | `14.194.100.170` (already in DNS at GoDaddy)    |
-| Internal server | `192.168.1.230`                                 |
-| Ports           | TCP 443 (site), TCP 80 (redirect to HTTPS only) |
+|                 |                                              |
+| --------------- | -------------------------------------------- |
+| Public hostname | `piotrack.com`, `www.piotrack.com`           |
+| Public address  | `14.194.100.170` (already in DNS at GoDaddy) |
+| Internal server | `192.168.1.230`                              |
+| Ports           | **TCP 443 only** — deliberately not port 80  |
 
 The server, its TLS certificate and its Apache configuration are all done and
 verified. The firewall is the only remaining piece.
@@ -56,14 +56,18 @@ least once from outside — but please confirm both, since one without the other
 silently.
 
 - **NAT policy**: original destination = WAN interface IP, translated destination =
-  `192.168.1.230`, services HTTP and HTTPS, inbound interface WAN.
-- **Access rule**: WAN → LAN, allow HTTP/HTTPS to that host.
+  `192.168.1.230`, service **HTTPS only**, inbound interface WAN.
+- **Access rule**: WAN → LAN, allow **HTTPS only** to that host.
 - **Loopback NAT policy**: so machines on the LAN can reach the site by its public
   name. Without it, internal testing fails in a way that looks identical to a broken
   rule.
 
-Quick Configuration → **Public Server Wizard** (Web Server, HTTP + HTTPS,
-`192.168.1.230`) creates all three together.
+Quick Configuration → **Public Server Wizard** (Web Server, `192.168.1.230`) creates
+all three together — but **deselect HTTP and leave only HTTPS**. The wizard offers
+both by default, and HTTP is specifically not wanted here (see the last section).
+
+If a NAT policy or access rule for port 80 already exists from an earlier attempt,
+please remove it.
 
 ## Change 3 — optional, but retires a recurring manual task
 
@@ -91,13 +95,30 @@ echo | openssl s_client -connect piotrack.com:443 -servername piotrack.com 2>/de
 Expect `HTTP/1.1 200` and an issuer of `Let's Encrypt`. Anything mentioning SonicWALL
 means change 1 has not taken effect.
 
-## What this exposes, so the risk is understood
+## Why port 80 is deliberately excluded
 
-`192.168.1.230` will be reachable from the internet on 80 and 443. That host also
-runs a production IT Support Portal (osTicket) on port 80, served by a catch-all
-virtual host — it answers any hostname that is not `piotrack.com`. **Publishing port
-80 therefore also publishes the helpdesk** to anyone who reaches that address by IP.
+`192.168.1.230` also runs a production IT Support Portal (osTicket) on port 80, served
+by a catch-all virtual host that answers **any** hostname. Publishing port 80 would
+therefore publish the helpdesk to anyone who reached that address by IP, whether or
+not they knew the hostname. That is not wanted, so the request is HTTPS only.
 
-If that is not intended, restrict the change to port 443 only. The site will still
-work; visitors typing the bare hostname without `https://` will get nothing rather
-than a redirect.
+The trade-off is small. Apache does have a `:80` vhost that redirects `piotrack.com`
+to HTTPS, and it stays in place for use on the LAN — it simply will not be reachable
+from outside. What that costs externally:
+
+- Current browsers try HTTPS first for a hostname typed into the address bar, so
+  `piotrack.com` reaches the site normally.
+- The site sends HSTS with a one-year lifetime, so after a visitor's first successful
+  visit their browser upgrades `http://` to `https://` by itself, without asking the
+  network.
+- Only an explicit, hand-written `http://piotrack.com` link, from a browser that has
+  never visited before, fails to connect.
+
+Keeping the helpdesk off the internet is worth that.
+
+## What remains exposed
+
+`192.168.1.230:443` becomes reachable from the internet. That is the whole
+application, not only the public marketing pages — the login page, and behind it
+multi-tenant CRM data. Before this goes live, two-factor authentication should be
+enrolled for every account with data access. Login is rate-limited per IP already.
