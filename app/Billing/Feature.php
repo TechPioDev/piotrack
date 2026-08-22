@@ -23,6 +23,7 @@ enum Feature: string
     case Api = 'api';
     case Teams = 'teams';
     case WhiteLabel = 'white_label';
+    case Chat = 'chat';
 
     /**
      * @return list<string>

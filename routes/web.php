@@ -61,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
+require __DIR__.'/chat.php';
 require __DIR__.'/crm.php';
 require __DIR__.'/marketing.php';
 require __DIR__.'/seo.php';

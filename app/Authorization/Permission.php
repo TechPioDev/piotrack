@@ -136,6 +136,13 @@ enum Permission: string
     case WebPagesManage = 'web.pages.manage';
     case WebTaxonomyManage = 'web.taxonomy.manage';
 
+    // Website Chat / Conversations
+    case ChatView = 'chat.view';
+    case ChatInboxHandle = 'chat.inbox.handle';
+    case ChatConversationsAssign = 'chat.conversations.assign';
+    case ChatWidgetManage = 'chat.widget.manage';
+    case ChatSettingsManage = 'chat.settings.manage';
+
     // Settings
     case SettingsManage = 'settings.manage';
 

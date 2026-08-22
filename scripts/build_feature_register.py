@@ -368,6 +368,92 @@ QA_FINDINGS += s("SUPP", "Support System", [
     ("Support tickets", "Ticket notifications to requester and assignee", "QA §53 (2026-08-20)"),
 ])
 
+# Website Chat / Conversations — a whole module the source inventory never named:
+# an embeddable conversational lead-qualification widget for the tenant's own site.
+# Requested 2026-08-22; Phase 1 (core vertical slice) delivered.
+QA_FINDINGS += s("CHAT", "Website Chat", [
+    ("Chat widgets", "Embeddable website chat widget", "Module brief (2026-08-22)"),
+    ("Chat widgets", "Multiple widgets per tenant", "Module brief (2026-08-22)"),
+    ("Chat widgets", "Widget appearance and branding", "Module brief (2026-08-22)"),
+    ("Chat widgets", "Floating launcher and welcome teaser", "Module brief (2026-08-22)"),
+    ("Chat widgets", "One-line installation snippet", "Module brief (2026-08-22)"),
+    ("Chat widgets", "Authorized domain restriction", "Module brief (2026-08-22)"),
+    ("Qualification", "Configurable conversation flow", "Module brief (2026-08-22)"),
+    ("Qualification", "Conditional branching by answer", "Module brief (2026-08-22)"),
+    ("Qualification", "Message, choice and input node types", "Module brief (2026-08-22)"),
+    ("Qualification", "Visual flow builder", "Module brief (2026-08-22)"),
+    ("Qualification", "Flow template library", "Module brief (2026-08-22)"),
+    ("Qualification", "MSP and cybersecurity qualification templates", "Module brief (2026-08-22)"),
+    ("Qualification", "Existing-customer support routing", "Module brief (2026-08-22)"),
+    ("Qualification", "High-priority security incident routing", "Module brief (2026-08-22)"),
+    ("Lead capture", "Contact capture with configurable fields", "Module brief (2026-08-22)"),
+    ("Lead capture", "Duplicate detection on capture", "Module brief (2026-08-22)"),
+    ("Lead capture", "Progressive profiling for known visitors", "Module brief (2026-08-22)"),
+    ("Lead capture", "CRM contact and lead creation", "Module brief (2026-08-22)"),
+    ("Lead capture", "Chat lead scoring", "Module brief (2026-08-22)"),
+    ("Lead capture", "Sales routing and assignment", "Module brief (2026-08-22)"),
+    ("Lead capture", "Hot-lead sales alert", "Module brief (2026-08-22)"),
+    ("Lead capture", "Chat source attribution", "Module brief (2026-08-22)"),
+    ("Lead capture", "In-chat appointment booking", "Module brief (2026-08-22)"),
+    ("Privacy", "Configurable consent gate", "Module brief (2026-08-22)"),
+    ("Privacy", "Per-tenant privacy and terms links", "Module brief (2026-08-22)"),
+    ("Inbox", "Agent conversation inbox", "Module brief (2026-08-22)"),
+    ("Inbox", "Conversation transcript view", "Module brief (2026-08-22)"),
+    ("Inbox", "Conversation status workflow", "Module brief (2026-08-22)"),
+    ("Inbox", "Agent replies", "Module brief (2026-08-22)"),
+    ("Inbox", "Internal notes", "Module brief (2026-08-22)"),
+    ("Inbox", "Team @mentions", "Module brief (2026-08-22)"),
+    ("Live chat", "Live human chat", "Module brief (2026-08-22)"),
+    ("Live chat", "Bot to human handoff", "Module brief (2026-08-22)"),
+    ("Live chat", "Agent availability states", "Module brief (2026-08-22)"),
+    ("Live chat", "Business hours and offline capture", "Module brief (2026-08-22)"),
+    ("Targeting", "Page targeting rules", "Module brief (2026-08-22)"),
+    ("Targeting", "Visitor behavior targeting", "Module brief (2026-08-22)"),
+    ("Analytics", "Chat engagement analytics", "Module brief (2026-08-22)"),
+    ("Analytics", "Conversion funnel report", "Module brief (2026-08-22)"),
+    ("Analytics", "Per-question drop-off report", "Module brief (2026-08-22)"),
+    ("Analytics", "Chat A/B testing", "Module brief (2026-08-22)"),
+    ("Notifications", "Chat notifications to agents", "Module brief (2026-08-22)"),
+])
+
+
+
+# Delivery status for QA_FINDINGS rows, keyed by feature name:
+#   (status, backend, frontend, tests)
+# Anything not listed stays Planned/Pending, which is the honest default — the
+# register must never claim more than the code does.
+DELIVERED = {
+    # Website Chat, Phase 1 (core vertical slice), 2026-08-22.
+    "Embeddable website chat widget": ("Tested", "Done", "Done", "Done"),
+    "Multiple widgets per tenant": ("Tested", "Done", "Done", "Done"),
+    "Widget appearance and branding": ("Partially Implemented", "Done", "Pending", "Done"),
+    "Floating launcher and welcome teaser": ("Tested", "Done", "Done", "Done"),
+    "One-line installation snippet": ("Tested", "Done", "Done", "Done"),
+    "Authorized domain restriction": ("Tested", "Done", "Done", "Done"),
+    "Configurable conversation flow": ("Partially Implemented", "Done", "Pending", "Done"),
+    "Conditional branching by answer": ("Tested", "Done", "Done", "Done"),
+    "Message, choice and input node types": ("Tested", "Done", "Done", "Done"),
+    "MSP and cybersecurity qualification templates": ("Tested", "Done", "Done", "Done"),
+    "Existing-customer support routing": ("Tested", "Done", "Done", "Done"),
+    "High-priority security incident routing": ("Tested", "Done", "Done", "Done"),
+    "Contact capture with configurable fields": ("Partially Implemented", "Done", "Pending", "Done"),
+    "Duplicate detection on capture": ("Tested", "Done", "Done", "Done"),
+    "CRM contact and lead creation": ("Tested", "Done", "Done", "Done"),
+    "Chat lead scoring": ("Tested", "Done", "Done", "Done"),
+    "Sales routing and assignment": ("Tested", "Done", "Done", "Done"),
+    "Hot-lead sales alert": ("Tested", "Done", "Done", "Done"),
+    "Chat source attribution": ("Tested", "Done", "Done", "Done"),
+    "In-chat appointment booking": ("Partially Implemented", "Done", "Done", "Done"),
+    "Configurable consent gate": ("Tested", "Done", "Done", "Done"),
+    "Per-tenant privacy and terms links": ("Tested", "Done", "Done", "Done"),
+    "Agent conversation inbox": ("Tested", "Done", "Done", "Done"),
+    "Conversation transcript view": ("Tested", "Done", "Done", "Done"),
+    "Conversation status workflow": ("Tested", "Done", "Done", "Done"),
+    "Agent replies": ("Implemented", "Done", "Done", "Pending"),
+    "Internal notes": ("Implemented", "Done", "Done", "Pending"),
+    "Chat engagement analytics": ("Partially Implemented", "Done", "Pending", "Done"),
+}
+
 
 def main():
     existing = load_existing_state()
@@ -419,6 +505,7 @@ def main():
     for (code, module, sub, feat, src) in QA_FINDINGS:
         counters[code] = counters.get(code, 0) + 1
         fid = f"{code}-{counters[code]:03d}"
+        delivered = DELIVERED.get(feat)
         out_rows.append({
             "id": fid,
             "module_code": code,
@@ -427,9 +514,10 @@ def main():
             "feature": feat,
             "origin": "QA Audit",
             "source": src,
-            "status": "Planned",
-            "backend": "Pending", "frontend": "Pending",
-            "tests": "Pending", "docs": "Pending",
+            "status": delivered[0] if delivered else "Planned",
+            "backend": delivered[1] if delivered else "Pending",
+            "frontend": delivered[2] if delivered else "Pending",
+            "tests": delivered[3] if delivered else "Pending", "docs": "Pending",
             "depends_on": "", "notes": "",
         })
 

@@ -95,6 +95,11 @@ class RolePermissions
         // Website platform + taxonomy (Stage 15).
         $webAll = [Permission::WebView, Permission::WebPagesManage, Permission::WebTaxonomyManage];
 
+        // Website Chat groupings. Managers get everything; reps/marketing users
+        // work the inbox (and marketing users build widgets); read-only roles view.
+        $chatAll = array_values(array_filter($all, fn (Permission $p) => str_starts_with($p->value, 'chat.')));
+        $chatWork = [Permission::ChatView, Permission::ChatInboxHandle, Permission::ChatConversationsAssign];
+
         return [
             Role::Owner->value => $all,
             Role::Admin->value => $adminExceptDelete,
@@ -118,6 +123,7 @@ class RolePermissions
                 ...$aiAll,
                 ...$deliveryAll,
                 ...$webAll,
+                ...$chatAll,
             ],
             Role::SalesManager->value => [
                 Permission::OrganizationView,
@@ -140,6 +146,7 @@ class RolePermissions
                 ...$aiAll,
                 ...$deliveryAll,
                 Permission::WebView,
+                ...$chatAll,
             ],
             Role::MarketingUser->value => [
                 Permission::OrganizationView,
@@ -165,6 +172,8 @@ class RolePermissions
                 Permission::StrategyView,
                 Permission::StrategyManage,
                 ...$webAll,
+                ...$chatWork,
+                Permission::ChatWidgetManage,
             ],
             Role::SalesRepresentative->value => [
                 Permission::OrganizationView,
@@ -184,6 +193,7 @@ class RolePermissions
                 Permission::SupportView,
                 Permission::ProjectsView,
                 Permission::StrategyView,
+                ...$chatWork,
             ],
             Role::Analyst->value => [
                 Permission::OrganizationView,
@@ -205,6 +215,7 @@ class RolePermissions
                 Permission::AiAgentUse,
                 ...$deliveryReadOnly,
                 Permission::WebView,
+                Permission::ChatView,
             ],
             Role::BillingAdministrator->value => [
                 Permission::OrganizationView,
@@ -225,6 +236,7 @@ class RolePermissions
                 Permission::AiView,
                 ...$deliveryReadOnly,
                 Permission::WebView,
+                Permission::ChatView,
             ],
             // The client portal role is deliberately minimal: portal access and
             // approving its own deliverables. No CRM, marketing, sales,

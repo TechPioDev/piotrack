@@ -37,7 +37,7 @@ class PlanCatalog
                 'description' => 'For growing MSP marketing teams.',
                 'sort_order' => 2,
                 'prices' => ['monthly' => 14900, 'annual' => 143000],
-                'features' => [Feature::Crm, Feature::Marketing, Feature::Content, Feature::Seo, Feature::Automation, Feature::Teams, Feature::AuditLog],
+                'features' => [Feature::Crm, Feature::Marketing, Feature::Content, Feature::Seo, Feature::Automation, Feature::Teams, Feature::AuditLog, Feature::Chat],
                 'limits' => [Limit::Members->value => 10, Limit::Contacts->value => 10000, Limit::Emails->value => 25000],
             ],
             [
@@ -49,7 +49,7 @@ class PlanCatalog
                 'features' => [
                     Feature::Crm, Feature::Marketing, Feature::Content, Feature::Seo, Feature::Advertising, Feature::Sales,
                     Feature::Analytics, Feature::Ai, Feature::Automation, Feature::Teams, Feature::AuditLog,
-                    Feature::AiVisibility, Feature::Api,
+                    Feature::AiVisibility, Feature::Api, Feature::Chat,
                 ],
                 'limits' => [
                     Limit::Members->value => 25, Limit::Contacts->value => 50000,
@@ -65,7 +65,7 @@ class PlanCatalog
                 'features' => [
                     Feature::Crm, Feature::Marketing, Feature::Content, Feature::Seo, Feature::Advertising, Feature::Sales,
                     Feature::Analytics, Feature::Ai, Feature::Automation, Feature::Teams, Feature::AuditLog,
-                    Feature::AiVisibility, Feature::Api, Feature::WhiteLabel,
+                    Feature::AiVisibility, Feature::Api, Feature::WhiteLabel, Feature::Chat,
                 ],
                 'limits' => [
                     Limit::Members->value => 100, Limit::Emails->value => 500000,

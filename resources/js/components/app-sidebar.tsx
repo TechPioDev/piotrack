@@ -107,6 +107,11 @@ export function AppSidebar() {
         can('content.view') && { title: 'Outreach', url: '/content/outreach', icon: Send },
     ].filter(Boolean) as NavItem[];
 
+    const chatNavItems: NavItem[] = [
+        can('chat.view') && { title: 'Conversations', url: '/chat', icon: MessagesSquare },
+        can('chat.view') && { title: 'Widgets', url: '/chat/widgets', icon: Code },
+    ].filter(Boolean) as NavItem[];
+
     const websiteNavItems: NavItem[] = [
         can('web.view') && { title: 'Pages', url: '/website', icon: Globe },
         can('web.view') && { title: 'Taxonomy & Locations', url: '/website/taxonomy', icon: MapPin },
@@ -166,6 +171,7 @@ export function AppSidebar() {
         { id: 'seo', label: 'SEO', items: seoNavItems },
         { id: 'ads', label: 'Advertising', items: adsNavItems },
         { id: 'content', label: 'Content', items: contentNavItems },
+        { id: 'chat', label: 'Website Chat', items: chatNavItems },
         { id: 'website', label: 'Website', items: websiteNavItems },
         { id: 'sales', label: 'Sales', items: salesNavItems },
         { id: 'analytics', label: 'Analytics', items: analyticsNavItems },

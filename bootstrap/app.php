@@ -40,7 +40,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Inbound billing webhooks authenticate via provider signature, not CSRF.
         // Public marketing form submits + unsubscribes are unauthenticated,
         // cross-origin capture endpoints protected by honeypot + throttling.
-        $middleware->validateCsrfTokens(except: ['webhooks/*', 'f/*', 'e/*', 'b/*', 's/*']);
+        // wc/* is the public chat-widget API: cross-origin + session-less, so CSRF
+        // does not apply; it is protected by throttling, honeypot and origin checks.
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'f/*', 'e/*', 'b/*', 's/*', 'wc/*']);
 
         $middleware->web(append: [
             SetCurrentOrganization::class,
