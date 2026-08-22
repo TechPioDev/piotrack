@@ -24,9 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Behind a load balancer / platform proxy in production, trust the
-        // forwarded headers so HTTPS, host and client IP are detected correctly.
-        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_FOR
+        // Which forwarded headers to read is fixed here; *which proxies to
+        // believe* is deployment-specific and comes from config/security.php,
+        // applied in AppServiceProvider where config has been loaded. It has to
+        // happen there: this closure runs before the config is read.
+        $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR
             | Request::HEADER_X_FORWARDED_HOST
             | Request::HEADER_X_FORWARDED_PORT
             | Request::HEADER_X_FORWARDED_PROTO

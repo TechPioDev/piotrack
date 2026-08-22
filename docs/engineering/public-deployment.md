@@ -2,12 +2,12 @@
 
 How to take the internal deployment from LAN-only to publicly reachable.
 
-| | Now | Target |
-| --- | --- | --- |
-| URL | `http://192.168.1.230:8080` | `https://app.piotrack.com` |
-| Reachable from | the office LAN | anywhere |
-| TLS | none | Let's Encrypt, auto-renewing |
-| Exposed surface | everything | everything (admin UI included) |
+|                 | Now                         | Target                         |
+| --------------- | --------------------------- | ------------------------------ |
+| URL             | `http://192.168.1.230:8080` | `https://app.piotrack.com`     |
+| Reachable from  | the office LAN              | anywhere                       |
+| TLS             | none                        | Let's Encrypt, auto-renewing   |
+| Exposed surface | everything                  | everything (admin UI included) |
 
 Substitute your own subdomain label for `app` throughout; any label works, and the
 same host serves both the admin UI and the chat widget script.
@@ -74,17 +74,17 @@ the port opens, not after.
 
 Verified in the codebase; no action needed.
 
-| Control | Where |
-| --- | --- |
-| HSTS, one year, includeSubDomains | `SecurityHeaders.php` — self-enables once `$request->secure()` |
-| `X-Frame-Options: DENY`, `frame-ancestors 'none'` | `SecurityHeaders.php` |
-| `X-Content-Type-Options: nosniff` | `SecurityHeaders.php` |
-| Login brute-force throttling | `LoginRequest::ensureIsNotRateLimited()` |
-| Session cookie `httponly`, `samesite=lax` | `config/session.php` |
-| Forwarded-proto handling behind a proxy | `bootstrap/app.php` — `trustProxies` |
-| Widget API CORS scoped to `wc/*` | `config/cors.php` |
-| Per-tenant row isolation | `BelongsToTenant` global scope |
-| Public capture endpoints throttled | `routes/chat.php` — 20–240/min per route |
+| Control                                           | Where                                                          |
+| ------------------------------------------------- | -------------------------------------------------------------- |
+| HSTS, one year, includeSubDomains                 | `SecurityHeaders.php` — self-enables once `$request->secure()` |
+| `X-Frame-Options: DENY`, `frame-ancestors 'none'` | `SecurityHeaders.php`                                          |
+| `X-Content-Type-Options: nosniff`                 | `SecurityHeaders.php`                                          |
+| Login brute-force throttling                      | `LoginRequest::ensureIsNotRateLimited()`                       |
+| Session cookie `httponly`, `samesite=lax`         | `config/session.php`                                           |
+| Forwarded headers ignored unless opted in         | `config/security.php` — `TRUSTED_PROXIES`, empty by default    |
+| Widget API CORS scoped to `wc/*`                  | `config/cors.php`                                              |
+| Per-tenant row isolation                          | `BelongsToTenant` global scope                                 |
+| Public capture endpoints throttled                | `routes/chat.php` — 20–240/min per route                       |
 
 ## Steps
 
@@ -105,9 +105,9 @@ record, but a static IP is worth the line item.
 Everything already in the zone stays untouched. The apex `A @ → WebsiteBuilder Site`
 and `CNAME www → piotrack.com` keep serving the existing website.
 
-| Type | Name | Data | TTL |
-| --- | --- | --- | --- |
-| A | `app` | the public IP from step 1 | 1 Hour |
+| Type | Name  | Data                      | TTL    |
+| ---- | ----- | ------------------------- | ------ |
+| A    | `app` | the public IP from step 1 | 1 Hour |
 
 Do **not** move the nameservers to Cloudflare for a tunnel. The apex A record is a
 GoDaddy-managed pseudo-record whose addresses can change without notice; recreating
@@ -115,10 +115,10 @@ it by hand elsewhere puts the live website at risk to solve a chat problem.
 
 ### 3. Router — forward inbound ports
 
-| External | Internal |
-| --- | --- |
-| TCP 443 | `192.168.1.230:443` |
-| TCP 80 | `192.168.1.230:80` |
+| External | Internal            |
+| -------- | ------------------- |
+| TCP 443  | `192.168.1.230:443` |
+| TCP 80   | `192.168.1.230:80`  |
 
 Port 80 is needed for certbot's HTTP-01 challenge and every renewal. These are 443/80,
 not 8080 — the existing `:8080` vhost keeps working on the LAN unchanged.
@@ -154,12 +154,22 @@ cache and then fails to re-read `.env`, and Laravel silently falls back to frame
 defaults — including `DB_CONNECTION=sqlite`, which is why a bare `php artisan
 optimize:clear` reports a missing `database.sqlite` on a Postgres install.
 
-### 6. Narrow the trusted proxies
+### 6. Leave the trusted proxies empty
 
-`bootstrap/app.php` sets `trustProxies(at: '*')`. Trusting every proxy is fine on a
-LAN, but once the app is internet-facing any client can spoof `X-Forwarded-For` and
-defeat the per-IP login throttle. With a direct port-forward there is no proxy in
-front, so this should become an explicit list — or `null`.
+Nothing to do for a direct port-forward — this is the default — but it is worth
+knowing why. `X-Forwarded-For` and `X-Forwarded-Proto` are client input until a proxy
+is explicitly trusted; believing them unconditionally lets any caller choose the IP
+the login throttle counts against, and claim a plaintext request arrived over TLS.
+So `TRUSTED_PROXIES` stays empty here.
+
+If you later put the app behind Cloudflare or a load balancer, opt in with the proxy's
+addresses — not `*`, unless that proxy is the only way in:
+
+```
+TRUSTED_PROXIES=10.0.0.0/8,192.168.0.0/16
+```
+
+See `config/security.php`.
 
 ### 7. Firewall and intrusion blocking
 
@@ -200,10 +210,10 @@ does not need to be public. The widget resolves its API base from its own script
 origin (`resources/js/widget/embed.ts`), so a single public hostname serving two route
 groups is sufficient:
 
-| Route | Purpose |
-| --- | --- |
-| `GET /widget/piotrack-chat.js` | the widget script, ~17 KB static |
-| `/wc/{publicKey}/*` | config, events, start, message, poll |
+| Route                          | Purpose                              |
+| ------------------------------ | ------------------------------------ |
+| `GET /widget/piotrack-chat.js` | the widget script, ~17 KB static     |
+| `/wc/{publicKey}/*`            | config, events, start, message, poll |
 
 In the 443 vhost, allow those and refuse everything else:
 

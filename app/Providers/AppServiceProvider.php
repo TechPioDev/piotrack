@@ -23,6 +23,7 @@ use App\Seo\Contracts\RankProvider;
 use App\Seo\SeoProviderManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -93,6 +94,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Which proxies may be believed (SEC-002). Set here rather than in
+        // bootstrap/app.php because the middleware configuration closure runs
+        // before the config is loaded. Defaults to trusting none: a direct
+        // deployment that trusts every proxy lets any client spoof
+        // X-Forwarded-For and defeat the per-IP login throttle.
+        // The ?? guards a stale bootstrap/cache/config.php written before
+        // config/security.php existed: at() is typed array|string, so a null
+        // would TypeError on every request rather than fall back.
+        TrustProxies::at(config('security.trusted_proxies') ?? []);
+
         // In production always generate HTTPS URLs (assets, redirects, signed
         // links). Combined with trusted proxies this keeps signed URLs valid
         // behind a TLS-terminating load balancer.
