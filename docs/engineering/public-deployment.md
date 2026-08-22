@@ -4,13 +4,16 @@ How to take the internal deployment from LAN-only to publicly reachable.
 
 |                 | Now                         | Target                         |
 | --------------- | --------------------------- | ------------------------------ |
-| URL             | `http://192.168.1.230:8080` | `https://app.piotrack.com`     |
+| URL             | `http://192.168.1.230:8080` | `https://piotrack.com`         |
 | Reachable from  | the office LAN              | anywhere                       |
 | TLS             | none                        | Let's Encrypt, auto-renewing   |
 | Exposed surface | everything                  | everything (admin UI included) |
 
-Substitute your own subdomain label for `app` throughout; any label works, and the
-same host serves both the admin UI and the chat widget script.
+The apex serves everything from one host: the marketing landing page at `/`, the
+application behind `/login`, and the chat widget script at `/widget/`.
+
+What is on `piotrack.com` today is a GoDaddy "coming soon" placeholder, so pointing
+the apex at this server replaces a placeholder rather than a live site.
 
 > **Scope note.** This publishes the entire application, including `/login`,
 > `/dashboard` and every tenant's CRM data. A narrower option exists — publish only
@@ -44,8 +47,10 @@ APP_DEBUG=false
 Verify afterwards; the CSP must come back without `unsafe-eval`:
 
 ```bash
-curl -sD - -o /dev/null https://app.piotrack.com/login | grep -i content-security
+curl -sD - -o /dev/null http://192.168.1.230:8080/login | grep -i content-security
 ```
+
+This section is done before the domain exists, so it still checks the LAN address.
 
 ### 2. Rotate anything that leaked while debug was on
 
@@ -100,18 +105,30 @@ Ask the ISP whether that address is static. If it is dynamic the site breaks sil
 whenever it changes. GoDaddy has a domain API you can drive from cron to update the
 record, but a static IP is worth the line item.
 
-### 2. DNS — one new record at GoDaddy
+### 2. DNS — repoint the apex at GoDaddy
 
-Everything already in the zone stays untouched. The apex `A @ → WebsiteBuilder Site`
-and `CNAME www → piotrack.com` keep serving the existing website.
+Edit the existing apex `A` record. It currently reads `WebsiteBuilder Site`, a
+GoDaddy-managed pseudo-record pointing at their hosting; replace it with the public
+IP from step 1.
 
-| Type | Name  | Data                      | TTL    |
-| ---- | ----- | ------------------------- | ------ |
-| A    | `app` | the public IP from step 1 | 1 Hour |
+| Type | Name | From                  | To                        | TTL    |
+| ---- | ---- | --------------------- | ------------------------- | ------ |
+| A    | `@`  | `WebsiteBuilder Site` | the public IP from step 1 | 1 Hour |
 
-Do **not** move the nameservers to Cloudflare for a tunnel. The apex A record is a
-GoDaddy-managed pseudo-record whose addresses can change without notice; recreating
-it by hand elsewhere puts the live website at risk to solve a chat problem.
+`www` needs no change — the existing `CNAME www → piotrack.com` follows the apex
+automatically. Leave the `NS`, `SOA`, `_domainconnect` and `_dmarc` records alone.
+
+Two things to expect:
+
+- GoDaddy may refuse to edit the record while a Website Builder site is attached to
+  the domain. Disconnect the site in the Website Builder dashboard first; the
+  placeholder is what currently answers on `piotrack.com`.
+- The TTL is one hour, so allow up to that for the change to be visible everywhere.
+  Certbot will fail until it resolves, which is harmless — rerun it.
+
+Do **not** move the nameservers to Cloudflare for a tunnel. Email authentication
+(`_dmarc`) and domain connect records live in this zone, and recreating them by hand
+risks breaking mail deliverability to solve a hosting problem.
 
 ### 3. Router — forward inbound ports
 
@@ -127,7 +144,7 @@ not 8080 — the existing `:8080` vhost keeps working on the LAN unchanged.
 
 ```bash
 sudo apt install certbot python3-certbot-apache
-sudo certbot --apache -d app.piotrack.com
+sudo certbot --apache -d piotrack.com -d www.piotrack.com
 ```
 
 Point the new vhost's `DocumentRoot` at `/var/www/piotrack/public`, matching the 8080
@@ -138,7 +155,7 @@ vhost. Certbot installs a renewal timer; confirm it with `sudo certbot renew --d
 In `.env`, alongside the `APP_ENV` and `APP_DEBUG` changes from above:
 
 ```
-APP_URL=https://app.piotrack.com
+APP_URL=https://piotrack.com
 SESSION_SECURE_COOKIE=true
 ```
 
@@ -183,7 +200,7 @@ Keep 8080 off the public interface; it should remain LAN-only.
 ## Verify
 
 ```bash
-curl -sD - -o /dev/null https://app.piotrack.com/login | grep -iE "strict-transport|content-security|set-cookie"
+curl -sD - -o /dev/null https://piotrack.com/login | grep -iE "strict-transport|content-security|set-cookie"
 ```
 
 Expect all of:
@@ -196,7 +213,7 @@ Then re-copy the install snippet from **Website Chat → Widgets → Settings**.
 now read:
 
 ```html
-<script src="https://app.piotrack.com/widget/piotrack-chat.js" data-widget="wc_..." async></script>
+<script src="https://piotrack.com/widget/piotrack-chat.js" data-widget="wc_..." async></script>
 ```
 
 HTTPS also restores `navigator.clipboard`, which browsers only expose in a secure
