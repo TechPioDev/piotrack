@@ -115,6 +115,14 @@ IP from step 1.
 | ---- | ---- | --------------------- | ------------------------- | ------ |
 | A    | `@`  | `WebsiteBuilder Site` | the public IP from step 1 | 1 Hour |
 
+> **It must be the public IP, not `192.168.1.230`.** A `192.168.x.x` address is
+> private (RFC 1918) and is not routable on the internet: a visitor's browser would
+> try to reach that address on _their own_ network and find nothing. It fails in a
+> way that is easy to miss, because from inside this office the address does resolve
+> to the server, so the site looks fine while being dead to everyone else. The
+> private address belongs in the router's port-forward rule, not in public DNS. The
+> chain is `piotrack.com` → public IP → router forwards 443 → `192.168.1.230`.
+
 `www` needs no change — the existing `CNAME www → piotrack.com` follows the apex
 automatically. Leave the `NS`, `SOA`, `_domainconnect` and `_dmarc` records alone.
 
