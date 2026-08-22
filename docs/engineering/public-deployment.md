@@ -138,15 +138,56 @@ Do **not** move the nameservers to Cloudflare for a tunnel. Email authentication
 (`_dmarc`) and domain connect records live in this zone, and recreating them by hand
 risks breaking mail deliverability to solve a hosting problem.
 
-### 3. Router — forward inbound ports
+### 3. Firewall — inbound NAT on the SonicWall
 
-| External | Internal            |
-| -------- | ------------------- |
-| TCP 443  | `192.168.1.230:443` |
-| TCP 80   | `192.168.1.230:80`  |
+The gateway at `192.168.1.1` is a SonicWall running SonicOS 7, not a consumer router.
+There is no single "port forwarding" setting: inbound publishing needs **both** a NAT
+policy and a WAN→LAN access rule. With only one of the two, traffic is silently
+dropped and the symptom is indistinguishable from an ISP block.
 
-Port 80 is needed for certbot's HTTP-01 challenge and every renewal. These are 443/80,
-not 8080 — the existing `:8080` vhost keeps working on the LAN unchanged.
+| External | Internal            | Why                               |
+| -------- | ------------------- | --------------------------------- |
+| TCP 443  | `192.168.1.230:443` | the site itself                   |
+| TCP 80   | `192.168.1.230:80`  | serves only the redirect to HTTPS |
+
+Both are needed: the `:80` vhost redirects to HTTPS, so without it anyone typing the
+bare hostname gets nothing.
+
+**The straightforward route** is the Public Server Wizard (Quick Configuration →
+Public Server Wizard). Choose a Web Server, service HTTP + HTTPS, private address
+`192.168.1.230`. It creates the address object, the inbound NAT policy, the access
+rule, and — importantly — the loopback NAT policy in one pass.
+
+**Doing it by hand** means three pieces:
+
+1. **Address object** — Object → Match Objects → Addresses. Host, `192.168.1.230`,
+   zone LAN.
+2. **NAT policy** — Policy → Rules and Policies → NAT Policies. Original destination
+   is the WAN interface IP, translated destination is that host object, original
+   service HTTP (then a second policy for HTTPS), inbound interface WAN.
+3. **Access rule** — Policy → Rules and Policies → Access Rules, WAN → LAN, allowing
+   HTTP/HTTPS to that host.
+
+Two things that catch people out here:
+
+- **A management-port collision.** If HTTPS Management or SSL-VPN is bound to port
+  443 on the WAN interface, the NAT policy for 443 will not take effect — the
+  appliance answers first. Check that before assuming the rule is wrong, and move
+  management to another port if it clashes.
+- **Testing from inside the LAN.** Without the loopback NAT policy, a machine on
+  `192.168.1.x` cannot reach the site via the public IP, and the failure looks
+  exactly like a broken rule. Test from a phone on mobile data instead. The wizard
+  creates that policy; a hand-built config often omits it.
+
+Also confirm with the ISP that inbound 80/443 are permitted on this connection and
+that the public address is static. If inbound is blocked, none of the above is
+reachable regardless of how the firewall is configured.
+
+While in this appliance: the same firewall is what blocks the server's **outbound**
+access, which is why the certificate has to be issued off-box (see
+[certificate-renewal.md](certificate-renewal.md)). Allowing outbound 443 from
+`192.168.1.230` would let certbot renew automatically and retire that manual
+procedure entirely.
 
 ### 4. Apache vhost
 
