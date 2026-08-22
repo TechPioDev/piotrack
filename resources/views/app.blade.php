@@ -9,7 +9,10 @@
         {{-- Instrument Sans is self-hosted and bundled via resources/css/app.css
              (the app CSP blocks the fonts.bunny.net stylesheet). --}}
 
-        @routes
+        {{-- The route table is the only inline script the app ships. The nonce is
+             minted per request by the SecurityHeaders middleware; without it the
+             production CSP blocks this tag and every page fails on `route()`. --}}
+        @routes(nonce: $cspNonce)
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead

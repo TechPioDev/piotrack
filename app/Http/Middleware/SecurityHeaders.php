@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -19,6 +20,13 @@ class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Every page ships exactly one inline <script>: Ziggy's route table, from
+        // the @routes directive. A per-request nonce is what lets it run under a
+        // policy that otherwise forbids inline script, and the view has to stamp
+        // the same value on the tag — so it is minted before $next() renders it.
+        $nonce = base64_encode(random_bytes(16));
+        View::share('cspNonce', $nonce);
+
         /** @var Response $response */
         $response = $next($request);
 
@@ -28,7 +36,7 @@ class SecurityHeaders
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=(), payment=()',
             'Cross-Origin-Opener-Policy' => 'same-origin',
-            'Content-Security-Policy' => $this->contentSecurityPolicy(),
+            'Content-Security-Policy' => $this->contentSecurityPolicy($nonce),
         ];
 
         // HSTS is only meaningful over TLS, and asserting it in local dev would
@@ -46,9 +54,15 @@ class SecurityHeaders
         return $response;
     }
 
-    private function contentSecurityPolicy(): string
+    private function contentSecurityPolicy(string $nonce): string
     {
-        $scriptSrc = app()->isProduction() ? "'self'" : "'self' 'unsafe-inline' 'unsafe-eval'";
+        // A nonce and 'unsafe-inline' are mutually exclusive to the browser: once a
+        // nonce is present the keyword is ignored, so the two are never emitted
+        // together. Local development keeps the keyword because Vite's dev client
+        // and React refresh inject inline script this middleware never sees.
+        $scriptSrc = app()->isProduction()
+            ? "'self' 'nonce-{$nonce}'"
+            : "'self' 'unsafe-inline' 'unsafe-eval'";
 
         return implode('; ', [
             "default-src 'self'",
