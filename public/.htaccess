@@ -19,3 +19,14 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    # The chat embed script is linked from customers' own websites, so its
+    # filename has to stay stable and cannot be fingerprinted like the app
+    # bundles. Without an explicit lifetime browsers cache it heuristically,
+    # and a fix we ship might not reach a customer's visitors for days. Five
+    # minutes keeps it cheap while staying correctable.
+    <FilesMatch "^piotrack-chat\.js$">
+        Header set Cache-Control "public, max-age=300, must-revalidate"
+    </FilesMatch>
+</IfModule>

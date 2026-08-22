@@ -129,6 +129,35 @@ it('shows where visitors stop answering', function () {
     expect($rows[0]['node'])->toBe('in_email');
 });
 
+it('reports each question once, under its own wording', function () {
+    $key = $this->widget->public_key;
+
+    // Two finish, one stalls on the email question.
+    completeChat($key, 'a@example.test');
+    completeChat($key, 'b@example.test');
+    $token = $this->postJson("/wc/{$key}/conversations")->json('token');
+    $this->postJson("/wc/{$key}/conversations/{$token}/messages", ['option' => 'it']);
+
+    app(CurrentOrganization::class)->set($this->org);
+    $rows = app(ChatAnalyticsService::class)->dropOff();
+    app(CurrentOrganization::class)->forget();
+
+    // Answers are stored under a field name and the cursor under a node id; if
+    // those are not mapped together the same question is listed twice, once with
+    // a machine label. Every row must carry the question the visitor actually saw.
+    $labels = array_column($rows, 'label');
+    expect($labels)->not->toContain('email')
+        ->and($labels)->not->toContain('service');
+
+    $email = collect($rows)->firstWhere('node', 'in_email');
+    expect($email['label'])->toBe('Your email?')
+        ->and($email['reached'])->toBe(3)     // all three got there
+        ->and($email['abandoned'])->toBe(1);  // one stopped there
+
+    // One row per step, not one per storage key.
+    expect(count($rows))->toBe(count(array_unique(array_column($rows, 'node'))));
+});
+
 it('compares widgets without claiming a winner', function () {
     app(CurrentOrganization::class)->set($this->org);
     $this->widget->update(['settings' => ['experiment' => 'greeting', 'variant' => 'A']]);

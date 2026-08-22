@@ -105,15 +105,21 @@ class ChatAnalyticsService
         }
 
         // Labels come from each widget's own flow, so a step reads as its question.
+        // Answers are stored under a step's FIELD name while the cursor holds its
+        // NODE id, so the two must be mapped onto each other or the same question
+        // appears twice — once as "email", once as "What is your email?".
         $labels = [];
-        $order = [];
+        $nodeForField = [];
         foreach (ChatWidget::query()->get(['id', 'flow']) as $widget) {
             foreach ((array) (($widget->flow['nodes'] ?? [])) as $id => $node) {
                 if (! is_array($node)) {
                     continue;
                 }
                 $labels[$id] ??= (string) ($node['text'] ?? $id);
-                $order[$id] ??= count($order);
+                $field = (string) ($node['field'] ?? '');
+                if ($field !== '') {
+                    $nodeForField[$field] ??= (string) $id;
+                }
             }
         }
 
@@ -124,12 +130,14 @@ class ChatAnalyticsService
             $answers = $conversation->answers ?? [];
             $cursor = $answers['_node'] ?? null;
 
-            // Every stored field means its step was answered, i.e. reached.
+            // Every stored field means its step was answered, i.e. reached. Count
+            // it against the step that asked, not the field it was stored in.
             foreach (array_keys($answers) as $key) {
                 if (str_starts_with((string) $key, '_')) {
                     continue;
                 }
-                $reached[(string) $key] = ($reached[(string) $key] ?? 0) + 1;
+                $node = $nodeForField[(string) $key] ?? (string) $key;
+                $reached[$node] = ($reached[$node] ?? 0) + 1;
             }
 
             if ($cursor !== null && ! str_starts_with((string) $cursor, '_')) {

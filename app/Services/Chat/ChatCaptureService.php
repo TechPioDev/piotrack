@@ -110,7 +110,10 @@ class ChatCaptureService
         if ($contact === null) {
             $contact = Contact::create([
                 'first_name' => (string) ($answers['first_name'] ?? 'Website'),
-                'last_name' => (string) ($answers['last_name'] ?? 'Visitor'),
+                // Leave the surname empty rather than inventing one: a flow that
+                // never asks would otherwise produce "Michael Visitor" and that
+                // would end up in an email addressed to the person.
+                'last_name' => $answers['last_name'] ?? null,
                 'email' => $email,
                 'phone' => $answers['phone'] ?? null,
                 'lead_source' => 'website_chat',

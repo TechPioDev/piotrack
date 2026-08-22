@@ -26,7 +26,7 @@ import {
     UserCheck,
     XCircle,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /** One step in the conversation. Shape mirrors the server-side flow graph. */
 type Option = { id: string; label: string; score?: number; next?: string | null; priority?: string };
@@ -147,6 +147,21 @@ export default function FlowBuilder({
     const [validation, setValidation] = useState<Validation>(initialValidation);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // Applying a template (or any server round-trip) sends a new flow down as a
+    // prop. Local state is seeded from it once, so without this the editor would
+    // keep showing the previous conversation and the next save would overwrite
+    // the template the tenant just chose.
+    const serverFlow = useRef(JSON.stringify(initialFlow));
+    useEffect(() => {
+        const incoming = JSON.stringify(initialFlow);
+        if (incoming === serverFlow.current) return;
+        serverFlow.current = incoming;
+        setFlow({ start: initialFlow.start ?? null, nodes: initialFlow.nodes ?? {} });
+        setValidation(initialValidation);
+        setSelected(initialFlow.start ?? Object.keys(initialFlow.nodes ?? {})[0] ?? null);
+        setDirty(false);
+    }, [initialFlow, initialValidation]);
 
     const ids = useMemo(() => Object.keys(flow.nodes), [flow.nodes]);
     const node = selected ? flow.nodes[selected] : null;
