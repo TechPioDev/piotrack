@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import { Check, Copy, MessagesSquare } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Check, Copy, MessagesSquare, Workflow } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -153,6 +153,11 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
                                         <TableCell className="text-right">
                                             {can('chat.widget.manage') && (
                                                 <div className="flex justify-end gap-2">
+                                                    <Button size="sm" variant="outline" asChild>
+                                                        <Link href={route('chat.flow.edit', widget.id)}>
+                                                            <Workflow className="size-3.5" aria-hidden /> Conversation
+                                                        </Link>
+                                                    </Button>
                                                     <Button size="sm" variant="outline" onClick={() => copyEmbed(widget)}>
                                                         {copied === widget.id ? (
                                                             <>

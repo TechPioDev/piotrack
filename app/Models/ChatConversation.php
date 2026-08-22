@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
  * @property array<string, mixed>|null $answers
  * @property array<string, mixed>|null $attribution
  * @property int $lead_score
+ * @property bool $is_preview
  * @property Carbon|null $last_message_at
  */
 class ChatConversation extends Model
@@ -33,6 +34,7 @@ class ChatConversation extends Model
         'token',
         'status',
         'visitor_id',
+        'is_preview',
         'assignee_id',
         'contact_id',
         'lead_id',
@@ -58,6 +60,7 @@ class ChatConversation extends Model
             'answers' => 'array',
             'attribution' => 'array',
             'lead_score' => 'integer',
+            'is_preview' => 'boolean',
             'last_message_at' => 'datetime',
         ];
     }

@@ -96,6 +96,7 @@ class PublicChatController extends Controller
 
         $conversation = ChatConversation::create([
             'chat_widget_id' => $widget->id,
+            'status' => 'new',
             'visitor_id' => $data['visitor'] ?? null,
             'attribution' => array_filter([
                 'source' => 'website_chat',

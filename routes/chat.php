@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Chat\ChatFlowController;
 use App\Http\Controllers\Chat\ChatInboxController;
 use App\Http\Controllers\Chat\ChatWidgetController;
 use App\Http\Controllers\Public\PublicChatController;
@@ -43,6 +44,16 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
 
         Route::get('widgets', [ChatWidgetController::class, 'index'])
             ->middleware('can:chat.view')->name('widgets.index');
+
+        // Flow builder. Everything here shapes what visitors see, so it is
+        // management-only — including the preview, which writes a conversation row.
+        Route::middleware('can:chat.widget.manage')->group(function () {
+            Route::get('widgets/{widget}/flow', [ChatFlowController::class, 'edit'])->name('flow.edit');
+            Route::put('widgets/{widget}/flow', [ChatFlowController::class, 'update'])->name('flow.update');
+            Route::post('widgets/{widget}/flow/validate', [ChatFlowController::class, 'validateFlow'])->name('flow.validate');
+            Route::post('widgets/{widget}/flow/template', [ChatFlowController::class, 'applyTemplate'])->name('flow.template');
+            Route::post('widgets/{widget}/flow/test', [ChatFlowController::class, 'test'])->name('flow.test');
+        });
         Route::post('widgets', [ChatWidgetController::class, 'store'])
             ->middleware('can:chat.widget.manage')->name('widgets.store');
         Route::patch('widgets/{widget}', [ChatWidgetController::class, 'update'])

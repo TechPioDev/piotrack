@@ -1,9 +1,11 @@
-# Module Completion Report — Website Chat / Conversations (CHAT), Phase 1
+# Module Completion Report — Website Chat / Conversations (CHAT)
 
 **Date:** 2026-08-22
 **Module:** Website Chat / Conversations
-**Phase:** 1 of 4 — core vertical slice
-**Verdict:** Phase 1 **PASSED**. The module as a whole is **NOT COMPLETE** (Phases 2–4 outstanding).
+**Phases delivered:** 1 (core vertical slice) and 2 (flow builder)
+**Verdict:** Phases 1 and 2 **PASSED**. The module as a whole is **NOT COMPLETE** (Phases 3–4 outstanding).
+
+> Phase 2 results are in the appendix at the end of this report.
 
 ---
 
@@ -28,13 +30,13 @@ inbox are all real.
 | CHAT-004 | Floating launcher and welcome teaser | Tested |
 | CHAT-005 | One-line installation snippet | Tested |
 | CHAT-006 | Authorized domain restriction | Tested |
-| CHAT-007 | Configurable conversation flow | Partially Implemented |
+| CHAT-007 | Configurable conversation flow | Tested *(completed in Phase 2)* |
 | CHAT-008 | Conditional branching by answer | Tested |
 | CHAT-009 | Message, choice and input node types | Tested |
 | CHAT-012 | MSP and cybersecurity qualification templates | Tested |
 | CHAT-013 | Existing-customer support routing | Tested |
 | CHAT-014 | High-priority security incident routing | Tested |
-| CHAT-015 | Contact capture with configurable fields | Partially Implemented |
+| CHAT-015 | Contact capture with configurable fields | Tested *(completed in Phase 2)* |
 | CHAT-016 | Duplicate detection on capture | Tested |
 | CHAT-018 | CRM contact and lead creation | Tested |
 | CHAT-019 | Chat lead scoring | Tested |
@@ -51,8 +53,9 @@ inbox are all real.
 | CHAT-030 | Internal notes | Implemented |
 | CHAT-038 | Chat engagement analytics | Partially Implemented |
 
-Deferred to later phases and correctly recorded **Planned**: visual flow builder (CHAT-010),
-template library (CHAT-011), progressive profiling (CHAT-017), @mentions (CHAT-031), live
+Deferred at the end of Phase 1 and correctly recorded **Planned** at the time: visual flow
+builder (CHAT-010) and template library (CHAT-011) — both delivered in Phase 2 — plus
+progressive profiling (CHAT-017), @mentions (CHAT-031), live
 human chat + handoff + availability + business hours (CHAT-032…035), page/behaviour
 targeting (CHAT-036/037), funnel + drop-off + A/B analytics (CHAT-039…041), agent
 notifications (CHAT-042).
@@ -141,10 +144,10 @@ Two defects were found **by this QA pass and fixed** before sign-off:
 
 Open limitations, all recorded honestly in the register as Planned/Partial:
 
-- No visual flow builder yet — flows are the stored JSON graph (default template seeded per
-  widget); editing requires the API. **Phase 2.**
+- ~~No visual flow builder~~ — delivered in Phase 2 (see appendix).
 - No live human chat, handoff, presence or business hours. **Phase 3.**
 - No appearance/targeting/consent editor UI — configurable through the update endpoint only.
+  **Phase 4.**
 - Booking hands off to the existing public booking page rather than picking slots in-chat;
   the product has no availability engine (pre-existing gap, BOOK-003).
 - Analytics events are recorded but the funnel/drop-off/A-B **reports** are not built.
@@ -157,3 +160,80 @@ Open limitations, all recorded honestly in the register as Planned/Partial:
 scored, routed, attributed CRM lead with a bookable meeting — works end to end and is
 covered by tests. Per the brief's instruction not to declare the module finished early, the
 module remains **INCOMPLETE** until Phases 2–4 land.
+
+---
+
+# Appendix — Phase 2: the conversation flow builder
+
+**Date:** 2026-08-22 · **Verdict:** Phase 2 **PASSED**.
+
+## What Phase 2 delivers
+
+Tenants now design their own conversations in a visual builder instead of living with
+the seeded default. No JSON is ever edited.
+
+- **Step list + inspector.** Every step is listed with its type, a plain-English summary
+  and a start marker; selecting one opens a typed editor for it. Steps can be added,
+  duplicated, deleted and re-pointed; deleting a step clears every connection into it so
+  the graph never keeps a dead link.
+- **Nine step types**, up from four: Message, Question (multiple choice with per-answer
+  score and its own onward connection), Collect answer (text/email/phone/number/company,
+  optionally skippable), **Condition** (branch on an earlier answer — is / is not /
+  contains / has any value / at least / at most), **Add score**, **Tag**, **Assign** (route
+  to a named salesperson), and End (lead / lead+meeting / existing-customer outcomes).
+- **Live validation.** Every edit is validated server-side. Errors (a step connected to
+  nothing, a pointer to a deleted step, a question with no answers, no start step, a step
+  with no text) **block publishing and disable the Publish button**; warnings (unreachable
+  steps, no reachable ending) are advisory. Each error links to the offending step.
+- **Test conversation.** Runs the *unsaved draft* through the **real engine** visitors hit —
+  not a simulation — so what is tested is what ships. Preview conversations are flagged
+  `is_preview` and are excluded from the CRM, alerts, analytics and the inbox.
+- **Six templates** (§57): MSP lead qualification, Cybersecurity (with a high-priority
+  incident route), CMMC readiness, Book a consultation, Existing-customer routing,
+  After-hours capture. All are ordinary editable flows.
+- **Draft vs publish.** A draft saves at any time; publishing requires a valid graph and
+  takes the widget live.
+
+## Automated testing
+
+| Suite | Result |
+|---|---|
+| Pest (backend) | **650 passed**, 2524 assertions — 13 new builder tests, zero regressions |
+| Vitest (frontend) | **30 passed** |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
+
+New tests (`tests/Feature/Chat/ChatFlowBuilderTest.php`): valid graph accepted; every
+stranding case rejected; unreachable-step warning; **all six templates validate**; draft
+saves but broken publish is refused; valid publish activates the widget; template
+application; condition branching both ways; score + tag steps; preview creates no CRM
+records; previews excluded from the inbox; builder restricted to `chat.widget.manage`;
+cross-tenant flow edit blocked.
+
+## Manual testing — live, in-browser
+
+| Check | Result |
+|---|---|
+| Builder loads the saved flow (19 steps) with toolbar and inspector | **PASS** |
+| Validation banner reflects real state ("ready to publish") | **PASS** |
+| Test dialog runs the real engine, shows the CRM disclaimer | **PASS** |
+| Branching inside the preview (Cybersecurity → security-specific question) | **PASS** |
+| Breaking a connection → Publish **disabled**, banner flips, specific error shown | **PASS** |
+| Preview isolation verified in the live database | **PASS** — 1 preview, 0 contacts created |
+
+## Defects found by this pass and fixed
+
+1. **Previews silently ran the wrong conversation.** `validate()` strips undeclared keys, so
+   `flow.start` was dropped from the request and the engine fell back to the default flow —
+   the tenant would have been testing something other than their draft. Now declared in
+   every flow endpoint.
+2. **NULL status crash.** A freshly created conversation has no `status` in memory (the
+   default is applied by the database), so the engine wrote `status = NULL` and the insert
+   violated the NOT NULL constraint. The engine now treats unset as new, and both
+   controllers set the status explicitly on create. This affected the public path too.
+
+## Still outstanding (recorded Planned in the register)
+
+Progressive profiling, @mentions, live human chat + handoff + agent availability +
+business hours (Phase 3), page/behaviour targeting, funnel + per-question drop-off +
+A/B analytics reports, agent notification channels, and the widget appearance editor
+(theme is still configured through the API, not a UI) — **Phase 4**.

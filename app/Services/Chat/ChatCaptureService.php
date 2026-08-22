@@ -31,6 +31,14 @@ class ChatCaptureService
      */
     public function complete(ChatWidget $widget, ChatConversation $conversation, string $outcome): array
     {
+        // Builder previews run through this same engine so a tenant tests the real
+        // conversation — but they must never reach the CRM, alerts or analytics.
+        if ($conversation->is_preview) {
+            $conversation->forceFill(['status' => 'closed'])->save();
+
+            return $outcome === 'meeting' ? ['booking_url' => null, 'preview_outcome' => 'meeting'] : ['preview_outcome' => $outcome];
+        }
+
         // Existing-customer/support outcomes never become sales leads (§13).
         if ($outcome === 'support') {
             $conversation->forceFill(['status' => 'closed'])->save();

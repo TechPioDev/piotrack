@@ -151,6 +151,14 @@ class ChatFlowEngine
                 continue;
             }
 
+            // Action nodes do their work and pass straight through; the visitor
+            // never sees them.
+            if (in_array($node['type'], ['score', 'tag', 'assign', 'condition'], true)) {
+                $nodeId = $this->applyAction($conversation, $node);
+
+                continue;
+            }
+
             if ($node['type'] === 'end') {
                 $this->say($conversation, (string) ($node['text'] ?? 'Thanks for chatting with us!'), $nodeId);
                 $answers = $conversation->answers ?? [];
@@ -173,7 +181,9 @@ class ChatFlowEngine
             $answers = $conversation->answers ?? [];
             $answers[self::CURSOR] = $nodeId;
             $conversation->answers = $answers;
-            $conversation->status = $conversation->status === 'new' ? 'open' : $conversation->status;
+            // A freshly created row has no status in memory (the default is applied
+            // by the database), so treat "unset" as new rather than writing null.
+            $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
             $conversation->save();
 
             return [
@@ -188,6 +198,73 @@ class ChatFlowEngine
         $conversation->forceFill(['status' => 'closed'])->save();
 
         return ['messages' => $this->drain(), 'node' => null, 'done' => true];
+    }
+
+    /**
+     * Silent action nodes: adjust score, tag the conversation, hint at an owner,
+     * or branch on an answer already collected. Returns the next node id.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function applyAction(ChatConversation $conversation, array $node): ?string
+    {
+        $answers = $conversation->answers ?? [];
+
+        switch ($node['type']) {
+            case 'score':
+                $conversation->lead_score += (int) ($node['points'] ?? 0);
+                break;
+
+            case 'tag':
+                $tag = trim((string) ($node['tag'] ?? ''));
+                if ($tag !== '') {
+                    $tags = (array) ($answers['_tags'] ?? []);
+                    if (! in_array($tag, $tags, true)) {
+                        $tags[] = $tag;
+                    }
+                    $answers['_tags'] = array_values($tags);
+                    $conversation->answers = $answers;
+                }
+                break;
+
+            case 'assign':
+                if (! empty($node['assignee_id'])) {
+                    $conversation->assignee_id = (int) $node['assignee_id'];
+                }
+                break;
+
+            case 'condition':
+                $conversation->save();
+
+                return $this->matches($answers, $node)
+                    ? ($node['next'] ?? null)
+                    : ($node['otherwise'] ?? null);
+        }
+
+        $conversation->save();
+
+        return $node['next'] ?? null;
+    }
+
+    /**
+     * Evaluate a condition node against the answers collected so far.
+     *
+     * @param  array<string, mixed>  $answers
+     * @param  array<string, mixed>  $node
+     */
+    private function matches(array $answers, array $node): bool
+    {
+        $actual = $answers[(string) ($node['field'] ?? '')] ?? null;
+        $expected = $node['value'] ?? null;
+
+        return match ($node['operator'] ?? 'equals') {
+            'not_equals' => (string) $actual !== (string) $expected,
+            'contains' => $actual !== null && str_contains(mb_strtolower((string) $actual), mb_strtolower((string) $expected)),
+            'is_set' => $actual !== null && $actual !== '',
+            'gte' => is_numeric($actual) && is_numeric($expected) && (float) $actual >= (float) $expected,
+            'lte' => is_numeric($actual) && is_numeric($expected) && (float) $actual <= (float) $expected,
+            default => (string) $actual === (string) $expected,
+        };
     }
 
     /**

@@ -26,6 +26,8 @@ class ChatInboxController extends Controller
         $filter = $request->string('filter', 'all')->toString();
 
         $conversations = ChatConversation::query()
+            // Builder previews are not real visitor conversations.
+            ->where('is_preview', false)
             ->with(['widget:id,name', 'assignee:id,name', 'contact:id,first_name,last_name,email,lead_score'])
             ->when($filter === 'unassigned', fn ($q) => $q->whereNull('assignee_id'))
             ->when($filter === 'mine', fn ($q) => $q->where('assignee_id', $request->user()->id))
