@@ -85,7 +85,7 @@ class ChatFlowController extends Controller
             resourceId: (string) $widget->id,
         );
 
-        return back()->with('message', $publishing ? 'Conversation published.' : 'Draft saved.');
+        return back()->with('status', $publishing ? 'Conversation published.' : 'Draft saved.');
     }
 
     /** Live validation while editing, without saving. */
@@ -119,7 +119,7 @@ class ChatFlowController extends Controller
             resourceId: (string) $widget->id,
         );
 
-        return back()->with('message', 'Template applied — edit it to suit your business.');
+        return back()->with('status', 'Template applied — edit it to suit your business.');
     }
 
     /**

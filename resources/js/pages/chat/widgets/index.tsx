@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
+import { copyText } from '@/lib/clipboard';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Check, Copy, MessagesSquare, Settings, Workflow } from 'lucide-react';
@@ -39,6 +40,7 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
     const { can } = usePermissions();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState<number | null>(null);
+    const [copyFailed, setCopyFailed] = useState<number | null>(null);
     const form = useForm({ name: '', description: '' });
 
     const create: FormEventHandler = (e) => {
@@ -53,8 +55,15 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
     };
 
     const copyEmbed = async (widget: Widget) => {
-        await navigator.clipboard.writeText(widget.embed);
-        setCopied(widget.id);
+        const ok = await copyText(widget.embed);
+        // Say what actually happened: on a locked-down browser the copy can fail,
+        // and claiming success would leave them pasting stale clipboard contents.
+        setCopied(ok ? widget.id : null);
+        if (!ok) {
+            setCopyFailed(widget.id);
+            setTimeout(() => setCopyFailed(null), 4000);
+            return;
+        }
         setTimeout(() => setCopied(null), 2000);
     };
 
@@ -168,6 +177,8 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
                                                             <>
                                                                 <Check className="size-3.5" aria-hidden /> Copied
                                                             </>
+                                                        ) : copyFailed === widget.id ? (
+                                                            <>Press Ctrl+C</>
                                                         ) : (
                                                             <>
                                                                 <Copy className="size-3.5" aria-hidden /> Install code

@@ -62,7 +62,7 @@ class ChatWidgetController extends Controller
 
         $this->audit->log('chat.widget.created', ['name' => $widget->name], resourceType: 'chat_widget', resourceId: (string) $widget->id);
 
-        return back()->with('message', 'Widget created.');
+        return back()->with('status', 'Widget created.');
     }
 
     /** The widget's own settings: appearance, targeting, hours, consent, mode. */
@@ -139,7 +139,7 @@ class ChatWidgetController extends Controller
         $widget->update($data);
         $this->audit->log('chat.widget.updated', ['fields' => array_keys($data)], resourceType: 'chat_widget', resourceId: (string) $widget->id);
 
-        return back()->with('message', 'Widget updated.');
+        return back()->with('status', 'Widget updated.');
     }
 
     public function destroy(ChatWidget $widget): RedirectResponse
@@ -147,6 +147,6 @@ class ChatWidgetController extends Controller
         $widget->delete();
         $this->audit->log('chat.widget.deleted', ['name' => $widget->name], resourceType: 'chat_widget', resourceId: (string) $widget->id);
 
-        return back()->with('message', 'Widget deleted.');
+        return back()->with('status', 'Widget deleted.');
     }
 }

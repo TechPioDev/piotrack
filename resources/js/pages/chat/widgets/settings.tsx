@@ -4,10 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { copyText } from '@/lib/clipboard';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Check, Copy } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 type Widget = {
     id: number;
@@ -49,6 +50,8 @@ function Section({ title, description, children }: { title: string; description?
 
 export default function WidgetSettings({ widget }: { widget: Widget }) {
     const [copied, setCopied] = useState(false);
+    const [copyFailed, setCopyFailed] = useState(false);
+    const snippetRef = useRef<HTMLPreElement>(null);
 
     const hours = (widget.business_hours.days ?? {}) as Record<string, [string, string] | null>;
 
@@ -116,7 +119,15 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
     };
 
     const copy = async () => {
-        await navigator.clipboard.writeText(widget.embed);
+        const ok = await copyText(widget.embed);
+        if (!ok) {
+            // Copying can be blocked; select the snippet so Ctrl+C still works.
+            snippetRef.current?.focus();
+            window.getSelection()?.selectAllChildren(snippetRef.current as Node);
+            setCopyFailed(true);
+            setTimeout(() => setCopyFailed(false), 5000);
+            return;
+        }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -148,12 +159,20 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                     title="Widget settings"
                     description="How this widget looks, who sees it, and when your team is available."
                     actions={
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
+                            {/* Confirmation next to the button, not only at the top
+                                of the page: on a long form the flash banner can be
+                                scrolled out of sight and the save looks ignored. */}
+                            {form.recentlySuccessful && (
+                                <span className="flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                    <Check className="size-4" aria-hidden /> Saved
+                                </span>
+                            )}
                             <Button variant="outline" asChild>
                                 <Link href={route('chat.flow.edit', widget.id)}>Edit conversation</Link>
                             </Button>
                             <Button type="submit" disabled={form.processing}>
-                                Save settings
+                                {form.processing ? 'Saving…' : 'Save settings'}
                             </Button>
                         </div>
                     }
@@ -479,18 +498,27 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                     </Section>
 
                     <Section title="Install" description="Paste this before the closing body tag of your website.">
-                        <pre className="bg-muted overflow-x-auto rounded-md p-3 font-mono text-xs">{widget.embed}</pre>
-                        <Button type="button" variant="outline" onClick={copy}>
-                            {copied ? (
-                                <>
-                                    <Check className="size-3.5" aria-hidden /> Copied
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="size-3.5" aria-hidden /> Copy install code
-                                </>
+                        <pre ref={snippetRef} tabIndex={-1} className="bg-muted overflow-x-auto rounded-md p-3 font-mono text-xs">
+                            {widget.embed}
+                        </pre>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button type="button" variant="outline" onClick={copy}>
+                                {copied ? (
+                                    <>
+                                        <Check className="size-3.5" aria-hidden /> Copied
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="size-3.5" aria-hidden /> Copy install code
+                                    </>
+                                )}
+                            </Button>
+                            {copyFailed && (
+                                <span className="text-muted-foreground text-xs">
+                                    Your browser blocked copying — the code is selected, press Ctrl+C.
+                                </span>
                             )}
-                        </Button>
+                        </div>
 
                         <div className="grid gap-1">
                             <Label htmlFor="domains">Allowed domains</Label>
