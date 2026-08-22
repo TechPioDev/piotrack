@@ -29,4 +29,20 @@ return [
         ? '*'
         : array_values(array_filter(array_map('trim', explode(',', $proxies)))),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Require two-factor authentication
+    |--------------------------------------------------------------------------
+    |
+    | When true, a signed-in account that has not completed TOTP enrolment is
+    | redirected to the setup page and can reach nothing else. Off by default so
+    | local development and tests are unaffected, and so enabling it on a
+    | deployment is a deliberate act rather than a surprise.
+    |
+    | Turn this on before the login page is reachable from the internet.
+    |
+    */
+
+    'require_two_factor' => (bool) env('REQUIRE_TWO_FACTOR', false),
+
 ];

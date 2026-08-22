@@ -113,6 +113,12 @@ class HandleInertiaRequests extends Middleware
                 'status' => $request->session()->get('status'),
                 'ai_result' => $request->session()->get('ai_result'),
             ],
+            // Enforcement redirects through password confirmation, which consumes
+            // the flash message explaining why — so the reason is derived per
+            // request instead of being passed along.
+            'twoFactorRequired' => config('security.require_two_factor')
+                && $user !== null
+                && $user->two_factor_confirmed_at === null,
         ]);
     }
 }

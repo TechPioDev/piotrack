@@ -4,6 +4,7 @@ import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import { TwoFactorRequiredNotice } from '@/components/two-factor-required-notice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +29,8 @@ export default function ConfirmPassword() {
             description="This is a secure area of the application. Please confirm your password before continuing."
         >
             <Head title="Confirm password" />
+
+            <TwoFactorRequiredNotice />
 
             <form onSubmit={submit}>
                 <div className="space-y-6">

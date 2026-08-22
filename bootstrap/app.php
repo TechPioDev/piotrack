@@ -4,6 +4,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureEntitled;
 use App\Http\Middleware\EnsureHasOrganization;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetApiOrganization;
 use App\Http\Middleware\SetCurrentOrganization;
@@ -38,6 +39,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Baseline security headers on every response, API and web alike (SEC-002).
         $middleware->append(SecurityHeaders::class);
+
+        // Optional 2FA enforcement (AUTH-004), off unless REQUIRE_TWO_FACTOR is set.
+        // In the web group so it runs after the session and route are resolved.
+        $middleware->web(append: [RequireTwoFactor::class]);
 
         // Inbound billing webhooks authenticate via provider signature, not CSRF.
         // Public marketing form submits + unsubscribes are unauthenticated,

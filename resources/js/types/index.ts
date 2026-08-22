@@ -45,6 +45,8 @@ export interface SharedData {
     notifications: { unread: number };
     flash: Flash;
     impersonation: Impersonation;
+    /** Signed in, enforcement is on, and this account has not enrolled yet. */
+    twoFactorRequired: boolean;
     [key: string]: unknown;
 }
 
