@@ -23,7 +23,9 @@ class ChatFlowEngine
 
     private const CONSENT = '_consent';
 
-    public function __construct(private readonly ChatCaptureService $capture) {}
+    public function __construct(private readonly ChatCaptureService $capture,
+        private readonly ChatHandoffService $handoff,
+    ) {}
 
     /**
      * Start a conversation: walk from the flow's start node to the first
@@ -55,6 +57,19 @@ class ChatFlowEngine
         $flow = $this->flowFor($widget);
         $answers = $conversation->answers ?? [];
         $currentId = $answers[self::CURSOR] ?? null;
+
+        // Live state is checked before the cursor: once a human has taken over
+        // there is no scripted position to be at, and falling through to the
+        // cursor check would restart the flow under the agent's feet.
+        if ($conversation->is_live) {
+            $body = trim((string) ($payload['value'] ?? ''));
+            if ($body !== '') {
+                $this->record($conversation, null, 'visitor', $body);
+                $conversation->forceFill(['last_message_at' => now()])->save();
+            }
+
+            return ['messages' => [], 'node' => $this->liveNode(), 'done' => false, 'live' => true];
+        }
 
         if ($currentId === null) {
             return $this->start($widget, $conversation);
@@ -155,6 +170,30 @@ class ChatFlowEngine
             // never sees them.
             if (in_array($node['type'], ['score', 'tag', 'assign', 'condition'], true)) {
                 $nodeId = $this->applyAction($conversation, $node);
+
+                continue;
+            }
+
+            // Ask for a human. If one takes it, the conversation goes live and
+            // the bot steps back; if not, the visitor is told what happens next
+            // and the flow carries on collecting their details.
+            if ($node['type'] === 'handoff') {
+                $result = $this->handoff->request($widget, $conversation);
+                $this->say($conversation, $result['message'], $nodeId);
+
+                if ($result['live']) {
+                    $conversation->refresh();
+
+                    return [
+                        'messages' => $this->drain(),
+                        'node' => $this->liveNode(),
+                        'done' => false,
+                        'live' => true,
+                        'agent' => $result['agent'],
+                    ];
+                }
+
+                $nodeId = $node['next'] ?? null;
 
                 continue;
             }
@@ -382,8 +421,8 @@ class ChatFlowEngine
 
     private function say(ChatConversation $conversation, string $text, ?string $nodeId = null): void
     {
-        $this->record($conversation, $nodeId, 'bot', $text);
-        $this->pending[] = ['role' => 'bot', 'body' => $text];
+        $message = $this->record($conversation, $nodeId, 'bot', $text);
+        $this->pending[] = ['id' => $message->id, 'role' => 'bot', 'body' => $text];
     }
 
     /** @return list<array<string, mixed>> */
@@ -396,15 +435,17 @@ class ChatFlowEngine
     }
 
     /** @param array<string, mixed> $meta */
-    private function record(ChatConversation $conversation, ?string $nodeId, string $role, string $body, array $meta = []): void
+    private function record(ChatConversation $conversation, ?string $nodeId, string $role, string $body, array $meta = []): ChatMessage
     {
-        ChatMessage::create([
+        $message = ChatMessage::create([
             'chat_conversation_id' => $conversation->id,
             'role' => $role,
             'body' => $body,
             'meta' => array_filter(['node' => $nodeId, ...$meta]),
         ]);
         $conversation->forceFill(['last_message_at' => now()])->save();
+
+        return $message;
     }
 
     /** @return array{start: string, nodes: array<string, array<string, mixed>>} */
@@ -433,5 +474,23 @@ class ChatFlowEngine
             'type' => $type,
             'node_id' => $nodeId,
         ]);
+    }
+
+    /**
+     * The "you are talking to a person now" node: a free-text box with no
+     * scripted question behind it.
+     *
+     * @return array<string, mixed>
+     */
+    private function liveNode(): array
+    {
+        return [
+            'id' => '_live',
+            'type' => 'input',
+            'text' => 'You are chatting with our team.',
+            'input' => 'text',
+            'optional' => false,
+            'live' => true,
+        ];
     }
 }

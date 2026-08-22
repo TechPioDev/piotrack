@@ -15,6 +15,7 @@ import {
     Copy,
     Flag,
     GitBranch,
+    Headphones,
     MessageSquare,
     Play,
     Plus,
@@ -63,6 +64,7 @@ const STEP_TYPES: { type: string; label: string; hint: string; icon: typeof Mess
     { type: 'score', label: 'Add score', hint: 'Adjust the lead score', icon: Target, color: 'text-emerald-600' },
     { type: 'tag', label: 'Tag', hint: 'Label the conversation', icon: Tag, color: 'text-pink-600' },
     { type: 'assign', label: 'Assign', hint: 'Route to a salesperson', icon: UserCheck, color: 'text-indigo-600' },
+    { type: 'handoff', label: 'Talk to a human', hint: 'Connect to an available agent', icon: Headphones, color: 'text-rose-600' },
     { type: 'end', label: 'End', hint: 'Finish the conversation', icon: Flag, color: 'text-slate-600' },
 ];
 
@@ -115,6 +117,7 @@ function summarise(node: Node): string {
     if (node.type === 'tag') return node.tag ? `Tag "${node.tag}"` : 'No tag set';
     if (node.type === 'assign') return node.assignee_id ? 'Route to a salesperson' : 'No one selected';
     if (node.type === 'condition') return node.field ? `If ${node.field} …` : 'No answer chosen';
+    if (node.type === 'handoff') return 'Offer a live agent, then continue';
     return node.text?.trim() || 'No text yet';
 }
 
@@ -177,9 +180,11 @@ export default function FlowBuilder({
                         ? { type, tag: '', next: null }
                         : type === 'assign'
                           ? { type, assignee_id: null, next: null }
-                          : type === 'end'
-                            ? { type, outcome: 'lead', text: 'Thanks — we will be in touch shortly.' }
-                            : { type: 'message', text: 'Hello!', next: null };
+                          : type === 'handoff'
+                            ? { type, next: null }
+                            : type === 'end'
+                              ? { type, outcome: 'lead', text: 'Thanks — we will be in touch shortly.' }
+                              : { type: 'message', text: 'Hello!', next: null };
 
         const nodes = { ...flow.nodes, [id]: created };
         apply({ start: flow.start ?? id, nodes });
@@ -517,7 +522,15 @@ export default function FlowBuilder({
                                         </div>
                                     )}
 
-                                    {['message', 'input', 'score', 'tag', 'assign'].includes(node.type) && (
+                                    {node.type === 'handoff' && (
+                                        <p className="text-muted-foreground text-sm">
+                                            If an agent is online and you are inside business hours, the visitor is connected to them and the
+                                            conversation goes live. Otherwise they are told when to expect a reply and the steps below carry on
+                                            collecting their details.
+                                        </p>
+                                    )}
+
+                                    {['message', 'input', 'score', 'tag', 'assign', 'handoff'].includes(node.type) && (
                                         <div className="sm:max-w-sm">
                                             <StepPicker label="Then go to" value={node.next} onChange={(v) => patchNode(selected, { next: v })} />
                                         </div>

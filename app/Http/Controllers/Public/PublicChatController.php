@@ -135,6 +135,40 @@ class PublicChatController extends Controller
     }
 
     /**
+     * Poll for anything the agent has said since the visitor last looked.
+     *
+     * There is no websocket server in this stack (and the product runs on an
+     * isolated network), so a live chat is delivered by short polling. Only
+     * visitor-facing roles are ever returned — internal notes stay internal.
+     */
+    public function poll(Request $request, string $publicKey, string $token): JsonResponse
+    {
+        $widget = $this->resolve($request, $publicKey);
+
+        $conversation = ChatConversation::query()
+            ->where('chat_widget_id', $widget->id)
+            ->where('token', $token)
+            ->first();
+
+        abort_if($conversation === null, 404);
+
+        $since = (int) $request->query('since', '0');
+
+        $messages = $conversation->messages()
+            ->whereIn('role', ['agent', 'bot', 'system'])
+            ->when($since > 0, fn ($q) => $q->where('id', '>', $since))
+            ->orderBy('id')
+            ->limit(50)
+            ->get(['id', 'role', 'body']);
+
+        return response()->json([
+            'messages' => $messages->map(fn ($m) => ['id' => $m->id, 'role' => $m->role, 'body' => $m->body])->all(),
+            'live' => (bool) $conversation->is_live,
+            'closed' => in_array($conversation->status, ['closed', 'spam'], true),
+        ]);
+    }
+
+    /**
      * Resolve the widget cross-tenant by its public key, enforce activity,
      * entitlement and the origin allow-list, then establish tenant context.
      */

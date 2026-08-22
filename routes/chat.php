@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Chat\ChatFlowController;
 use App\Http\Controllers\Chat\ChatInboxController;
+use App\Http\Controllers\Chat\ChatPresenceController;
 use App\Http\Controllers\Chat\ChatWidgetController;
 use App\Http\Controllers\Public\PublicChatController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,11 @@ Route::prefix('wc/{publicKey}')->name('public.chat.')->group(function () {
         ->middleware('throttle:20,1')->name('start');
     Route::post('conversations/{token}/messages', [PublicChatController::class, 'message'])
         ->middleware('throttle:60,1')->name('message');
+    // Live chat is delivered by polling: there is no websocket server in this
+    // stack, and the product runs on isolated networks. Allowance is generous
+    // because an open chat polls every few seconds.
+    Route::get('conversations/{token}/poll', [PublicChatController::class, 'poll'])
+        ->middleware('throttle:240,1')->name('poll');
 });
 
 /*
@@ -41,6 +47,14 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.inbox.handle')->name('conversations.note');
         Route::patch('conversations/{conversation}', [ChatInboxController::class, 'update'])
             ->middleware('can:chat.inbox.handle')->name('conversations.update');
+        Route::get('conversations/{conversation}/poll', [ChatInboxController::class, 'poll'])
+            ->middleware('can:chat.view')->name('conversations.poll');
+
+        // An agent's own availability. Anyone who can work the inbox may set it.
+        Route::post('presence', [ChatPresenceController::class, 'update'])
+            ->middleware('can:chat.inbox.handle')->name('presence.update');
+        Route::post('presence/heartbeat', [ChatPresenceController::class, 'heartbeat'])
+            ->middleware('can:chat.inbox.handle')->name('presence.heartbeat');
 
         Route::get('widgets', [ChatWidgetController::class, 'index'])
             ->middleware('can:chat.view')->name('widgets.index');

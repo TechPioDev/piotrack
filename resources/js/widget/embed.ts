@@ -17,14 +17,15 @@ type Option = { id: string; label: string };
 type ChatNode = {
     id: string;
     type: 'choice' | 'input' | 'consent';
+    live?: boolean;
     text: string;
     options?: Option[];
     input?: string;
     optional?: boolean;
     privacy_url?: string | null;
 };
-type Message = { role: string; body: string };
-type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string };
+type Message = { id?: number; role: string; body: string };
+type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
 type Config = {
     name: string;
     theme: { title: string; accent: string; position: 'bottom-left' | 'bottom-right'; company: string };
@@ -180,6 +181,9 @@ class ChatWidget {
     private token: string | null = null;
     private open = false;
     private busy = false;
+    private live = false;
+    private lastSeenId = 0;
+    private pollTimer: number | null = null;
 
     constructor(private config: Config) {}
 
@@ -258,6 +262,7 @@ class ChatWidget {
 
     private close() {
         this.open = false;
+        this.stopPolling();
         this.panel?.remove();
         this.panel = null;
         (this.el.querySelector('.launcher') as HTMLElement)?.focus();
@@ -300,7 +305,64 @@ class ChatWidget {
 
         if (this.token === null) {
             await this.begin();
+        } else {
+            // Reopening an existing chat must not show an empty window: replay
+            // what was already said, then resume polling if it is still live.
+            await this.restore();
         }
+    }
+
+    /** Re-render the transcript of a conversation the visitor already started. */
+    private async restore() {
+        this.typing(true);
+        try {
+            const data = await api<{ messages?: { id: number; role: string; body: string }[]; live?: boolean; closed?: boolean }>(
+                `conversations/${this.token}/poll?since=0`,
+            );
+            this.typing(false);
+            (data.messages ?? []).forEach((m) => {
+                this.lastSeenId = Math.max(this.lastSeenId, m.id);
+                this.bubble('bot', m.body);
+            });
+            if (data.live && !data.closed) {
+                this.live = true;
+                this.startPolling();
+                this.renderLiveComposer();
+            } else if (data.closed) {
+                this.brand();
+            } else {
+                this.renderLiveComposer();
+            }
+        } catch {
+            this.fail();
+        }
+    }
+
+    /** A plain free-text composer, used when a human is handling the chat. */
+    private renderLiveComposer() {
+        this.foot.innerHTML = '';
+        const row = document.createElement('div');
+        row.className = 'row';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.setAttribute('aria-label', 'Type a message');
+        input.placeholder = 'Type your message…';
+        const send = document.createElement('button');
+        send.className = 'send';
+        send.textContent = 'Send';
+        const submit = () => {
+            const value = input.value.trim();
+            if (!value) return;
+            input.value = '';
+            void this.send({ value }, value);
+        };
+        send.addEventListener('click', submit);
+        input.addEventListener('keydown', (e) => {
+            if ((e as KeyboardEvent).key === 'Enter') submit();
+        });
+        row.append(input, send);
+        this.foot.appendChild(row);
+        this.brand();
     }
 
     private async begin() {
@@ -351,9 +413,45 @@ class ChatWidget {
         }
     }
 
+    /**
+     * Live chat arrives by polling: this stack has no websocket server, and the
+     * product runs on isolated networks where one could not be reached anyway.
+     * Polling stops as soon as the conversation closes or the widget is shut.
+     */
+    private startPolling() {
+        if (this.pollTimer !== null || !this.token) return;
+        this.pollTimer = window.setInterval(() => void this.poll(), 4000);
+    }
+
+    private stopPolling() {
+        if (this.pollTimer !== null) {
+            window.clearInterval(this.pollTimer);
+            this.pollTimer = null;
+        }
+    }
+
+    private async poll() {
+        if (!this.token || !this.open) return;
+        try {
+            const data = await api<{ messages?: { id: number; role: string; body: string }[]; live?: boolean; closed?: boolean }>(
+                `conversations/${this.token}/poll?since=${this.lastSeenId}`,
+            );
+            (data.messages ?? []).forEach((m) => {
+                this.lastSeenId = Math.max(this.lastSeenId, m.id);
+                this.bubble('bot', m.body);
+            });
+            if (data.closed) this.stopPolling();
+        } catch {
+            /* a blip must not break the visitor's chat */
+        }
+    }
+
     private render(reply: Reply) {
         this.typing(false);
-        (reply.messages ?? []).forEach((m) => this.bubble('bot', m.body));
+        (reply.messages ?? []).forEach((m) => {
+            if (typeof m.id === 'number') this.lastSeenId = Math.max(this.lastSeenId, m.id);
+            this.bubble('bot', m.body);
+        });
         this.foot.innerHTML = '';
 
         if (reply.booking_url) {
@@ -366,8 +464,16 @@ class ChatWidget {
             this.foot.appendChild(link);
         }
 
+        if (reply.live) {
+            this.live = true;
+            this.startPolling();
+            const sub = this.panel?.querySelector('.head-sub');
+            if (sub) sub.textContent = reply.agent ? `${reply.agent} is here to help` : 'Connected to our team';
+        }
+
         const node = reply.node;
         if (!node) {
+            this.stopPolling();
             this.brand();
             return;
         }

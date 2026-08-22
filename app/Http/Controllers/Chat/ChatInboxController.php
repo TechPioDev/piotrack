@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Chat;
 use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
+use App\Notifications\ChatMentionNotification;
+use App\Services\Chat\ChatPresenceService;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,7 +24,11 @@ use Inertia\Response;
  */
 class ChatInboxController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly CurrentOrganization $currentOrganization,
+        private readonly ChatPresenceService $presence,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -54,6 +63,10 @@ class ChatInboxController extends Controller
         return Inertia::render('chat/inbox/index', [
             'conversations' => $conversations,
             'filter' => $filter,
+            'presence' => [
+                'me' => $this->presence->statusFor($request->user()),
+                'roster' => $this->presence->roster($this->currentOrganization->get()),
+            ],
         ]);
     }
 
@@ -76,6 +89,7 @@ class ChatInboxController extends Controller
                 ] : null,
                 'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority']),
                 'priority' => ($conversation->answers['_priority'] ?? null) === 'high',
+                'is_live' => (bool) $conversation->is_live,
                 'attribution' => $conversation->attribution,
                 'created_at' => $conversation->created_at->toIso8601String(),
             ],
@@ -87,6 +101,10 @@ class ChatInboxController extends Controller
                 'at' => $m->created_at->toIso8601String(),
             ]),
             'statuses' => ChatConversation::STATUSES,
+            'presence' => [
+                'me' => $this->presence->statusFor(request()->user()),
+                'roster' => $this->presence->roster($this->currentOrganization->get()),
+            ],
         ]);
     }
 
@@ -100,10 +118,14 @@ class ChatInboxController extends Controller
             'author_id' => $request->user()->id,
             'body' => $data['body'],
         ]);
+
+        // An agent replying is itself a handoff: the visitor is now talking to a
+        // person, so the bot must stop driving the conversation.
         $conversation->forceFill([
             'last_message_at' => now(),
             'assignee_id' => $conversation->assignee_id ?? $request->user()->id,
             'status' => $conversation->status === 'new' ? 'open' : $conversation->status,
+            'is_live' => true,
         ])->save();
 
         return back();
@@ -113,14 +135,81 @@ class ChatInboxController extends Controller
     {
         $data = $request->validate(['body' => 'required|string|max:2000']);
 
+        $mentioned = $this->mentionedUsers($data['body']);
+
         ChatMessage::create([
             'chat_conversation_id' => $conversation->id,
             'role' => 'note',
             'author_id' => $request->user()->id,
             'body' => $data['body'],
+            'meta' => $mentioned === [] ? null : ['mentions' => array_column($mentioned, 'id')],
         ]);
 
+        // Tell the people named in the note — a mention nobody sees is pointless.
+        foreach ($mentioned as $user) {
+            if ($user['id'] === $request->user()->id) {
+                continue;
+            }
+            Notification::route('mail', $user['email'])->notify(
+                new ChatMentionNotification($request->user()->name, $conversation->id, $data['body']),
+            );
+        }
+
         return back();
+    }
+
+    /**
+     * Resolve "@Name" mentions in a note against active members of the tenant.
+     * Longest names are matched first so "@Sarah Mitchell" wins over "@Sarah".
+     *
+     * @return list<array{id: int, name: string, email: string}>
+     */
+    private function mentionedUsers(string $body): array
+    {
+        if (! str_contains($body, '@')) {
+            return [];
+        }
+
+        $members = $this->currentOrganization->get()?->members()
+            ->wherePivot('status', 'active')
+            ->get(['users.id', 'users.name', 'users.email']) ?? collect();
+
+        $matched = [];
+        foreach ($members->sortByDesc(fn ($u) => mb_strlen((string) $u->name)) as $user) {
+            if (stripos($body, '@'.$user->name) !== false) {
+                $matched[] = ['id' => $user->id, 'name' => $user->name, 'email' => $user->email];
+            }
+        }
+
+        return $matched;
+    }
+
+    /**
+     * Poll for messages added since the agent last looked, so an open
+     * conversation updates without a full page reload.
+     */
+    public function poll(Request $request, ChatConversation $conversation): JsonResponse
+    {
+        $since = (int) $request->query('since', '0');
+
+        $messages = $conversation->messages()
+            ->with('author:id,name')
+            ->when($since > 0, fn ($q) => $q->where('id', '>', $since))
+            ->orderBy('id')
+            ->limit(100)
+            ->get();
+
+        return response()->json([
+            'messages' => $messages->map(fn (ChatMessage $m) => [
+                'id' => $m->id,
+                'role' => $m->role,
+                'body' => $m->body,
+                'author' => $m->author?->name,
+                'at' => $m->created_at?->toIso8601String(),
+            ])->all(),
+            'status' => $conversation->status,
+            'is_live' => (bool) $conversation->is_live,
+        ]);
     }
 
     public function update(Request $request, ChatConversation $conversation): RedirectResponse

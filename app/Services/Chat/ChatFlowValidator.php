@@ -13,7 +13,7 @@ namespace App\Services\Chat;
 class ChatFlowValidator
 {
     /** Node types the engine can execute. */
-    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'end'];
+    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'handoff', 'end'];
 
     /** Types that terminate a path rather than pointing onward. */
     private const TERMINAL = ['end'];
@@ -57,7 +57,7 @@ class ChatFlowValidator
             }
 
             // Every non-terminal step needs somewhere to go.
-            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign'], true)) {
+            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign', 'handoff'], true)) {
                 $errors = array_merge($errors, $this->checkTarget($nodes, (string) $id, $node['next'] ?? null, 'next step'));
             }
 

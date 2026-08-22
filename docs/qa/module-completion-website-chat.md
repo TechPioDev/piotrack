@@ -2,10 +2,10 @@
 
 **Date:** 2026-08-22
 **Module:** Website Chat / Conversations
-**Phases delivered:** 1 (core vertical slice) and 2 (flow builder)
-**Verdict:** Phases 1 and 2 **PASSED**. The module as a whole is **NOT COMPLETE** (Phases 3–4 outstanding).
+**Phases delivered:** 1 (core vertical slice), 2 (flow builder) and 3 (live human chat)
+**Verdict:** Phases 1–3 **PASSED**. The module as a whole is **NOT COMPLETE** (Phase 4 outstanding).
 
-> Phase 2 results are in the appendix at the end of this report.
+> Phase 2 and 3 results are in the appendices at the end of this report.
 
 ---
 
@@ -237,3 +237,93 @@ Progressive profiling, @mentions, live human chat + handoff + agent availability
 business hours (Phase 3), page/behaviour targeting, funnel + per-question drop-off +
 A/B analytics reports, agent notification channels, and the widget appearance editor
 (theme is still configured through the API, not a UI) — **Phase 4**.
+
+---
+
+# Appendix — Phase 3: live human chat, handoff and availability
+
+**Date:** 2026-08-22 · **Verdict:** Phase 3 **PASSED**.
+
+## What Phase 3 delivers
+
+A visitor who wants a person now gets one — or is told plainly what happens instead.
+
+- **Agent availability** (§25) — Online / Away / Busy / Offline, chosen by the agent from
+  the inbox header, with a live count of who else is on. Presence is verified by a
+  60-second heartbeat: a browser closed without signing out would otherwise look "online"
+  forever, so a stale agent is automatically treated as away and never handed a visitor.
+- **Chat modes** (§23) — `bot`, `bot_then_human`, `live`, configured per widget.
+- **Handoff** (§24) — a new **Talk to a human** step. If an agent is online *and* the
+  tenant is inside business hours, the conversation is assigned, marked live, and the
+  transcript records "*Name* joined the conversation."; the widget header changes to
+  "*Name* is here to help". If not, the visitor is told when to expect a reply and the
+  conversation carries on collecting their details rather than stopping.
+- **Load-aware routing** — the already-assigned agent if they are around, otherwise the
+  available agent handling the fewest live chats.
+- **Business hours** (§33) — per-widget schedule with timezone and a configurable closed
+  message. Nothing configured means always open.
+- **Two-way live messaging** — once live the bot stands down entirely; the visitor gets a
+  free-text composer and the agent replies from the inbox. Delivered by **polling** (4s
+  visitor / 5s agent): this stack has no websocket server, and the product runs on
+  isolated networks where one could not be reached anyway.
+- **@mentions** (§30) — naming a colleague in an internal note emails them a link to the
+  conversation. Internal notes are never sent to the visitor.
+- **Reopening a chat** (§54) — closing and reopening the widget restores the transcript
+  and resumes the live session.
+
+## Automated testing
+
+| Suite | Result |
+|---|---|
+| Pest (backend) | **663 passed**, 2568 assertions — 13 new live-chat tests, zero regressions |
+| Vitest (frontend) | **30 passed** |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
+| Widget bundle | 15.4 kB / **5.2 kB gzip** |
+
+New tests (`tests/Feature/Chat/ChatLiveHandoffTest.php`): stale presence downgraded to
+away; agent sets own status (and invalid status rejected); business-hours open/closed/
+no-window; handoff connects and records the system line; graceful fallback with nobody
+online; bot-only widget never offers a human; closed-hours message; live two-way messaging
+with the bot standing down; **internal notes never reach the visitor**; @mention notifies;
+a stray email address is not a mention; presence restricted to `chat.inbox.handle`;
+cross-tenant polling blocked.
+
+## Manual testing — live, in-browser (two-sided)
+
+Driven as two real participants: an agent in the app, a visitor on a separate
+non-Piotrack page.
+
+| Check | Result |
+|---|---|
+| Agent sets Online; roster shows "1 agent online" | **PASS** |
+| Visitor opens widget → connected, "Dana Whitfield is joining you now." | **PASS** |
+| Widget header switches to "Dana Whitfield is here to help" | **PASS** |
+| Free-text composer replaces scripted buttons | **PASS** |
+| Visitor message reaches the inbox | **PASS** |
+| Inbox row shows Assigned + owner + "just now" | **PASS** |
+| Transcript shows "… joined the conversation." | **PASS** |
+| Agent reply reaches the visitor by polling | **PASS** |
+| Live badge in the conversation header | **PASS** |
+| Close + reopen restores the transcript and composer | **PASS** |
+| No duplicated messages across poll cycles | **PASS** |
+| Graceful fallback when the agent went stale | **PASS** — correct "reply within one business day" message |
+
+## Defects found by this pass and fixed
+
+1. **Live chat restarted the flow.** Going live never set a cursor, so the next visitor
+   message fell through to the "no cursor" branch and re-ran the conversation from the
+   beginning under the agent's feet. Live state is now checked before the cursor.
+2. **Duplicated messages.** The widget had no message ids, so its first poll replayed
+   lines already on screen. The engine now returns the stored id with every message and
+   the widget tracks the highest it has rendered.
+3. **Reopening showed an empty chat.** Closing and reopening the widget destroyed the
+   transcript and never restored it — §54's "reopened conversation" state was broken. It
+   now replays the conversation and resumes polling if still live.
+4. **Live badge lagged five seconds.** The conversation header waited for the first poll
+   instead of using the state the server already sent; `is_live` is now in the page props.
+
+## Still outstanding — Phase 4 only
+
+Progressive profiling, page/behaviour targeting, funnel + per-question drop-off + A/B
+analytics reports, notification channels (Slack/Teams/desktop), and the widget appearance
+editor. All recorded **Planned** in the register.

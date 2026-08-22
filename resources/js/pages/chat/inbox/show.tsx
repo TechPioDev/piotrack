@@ -7,8 +7,8 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Flame, Lock } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { Flame, Lock, Radio } from 'lucide-react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 type Message = { id: number; role: string; body: string | null; author: string | null; at: string };
 type Conversation = {
@@ -20,6 +20,7 @@ type Conversation = {
     contact: { id: number; name: string; email: string; lead_score: number } | null;
     answers: Record<string, string>;
     priority: boolean;
+    is_live: boolean;
     attribution: Record<string, string> | null;
     created_at: string;
 };
@@ -55,16 +56,53 @@ function label(key: string): string {
 
 export default function ChatConversationShow({
     conversation,
-    messages,
+    messages: initialMessages,
     statuses,
+    presence,
 }: {
     conversation: Conversation;
     messages: Message[];
     statuses: string[];
+    presence: { me: string; roster: { id: number; name: string; status: string }[] };
 }) {
     const { can } = usePermissions();
     const reply = useForm({ body: '' });
     const note = useForm({ body: '' });
+    const [messages, setMessages] = useState<Message[]>(initialMessages);
+    const [isLive, setIsLive] = useState(conversation.is_live);
+    const logRef = useRef<HTMLDivElement>(null);
+
+    // Inertia re-renders on reply/note; keep local state in step with the server.
+    useEffect(() => setMessages(initialMessages), [initialMessages]);
+
+    // A live conversation is a person waiting for an answer, so poll for the
+    // visitor's replies rather than making the agent reload the page.
+    useEffect(() => {
+        const id = window.setInterval(async () => {
+            const since = messages.length > 0 ? messages[messages.length - 1].id : 0;
+            try {
+                const response = await fetch(route('chat.conversations.poll', conversation.id) + `?since=${since}`, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                if (!response.ok) return;
+                const data = (await response.json()) as { messages: Message[]; is_live: boolean };
+                setIsLive(data.is_live);
+                if (data.messages.length > 0) {
+                    setMessages((current) => [...current, ...data.messages]);
+                }
+            } catch {
+                /* transient failures are not worth surfacing to the agent */
+            }
+        }, 5000);
+        return () => window.clearInterval(id);
+    }, [conversation.id, messages]);
+
+    // Keep the newest message in view as the conversation grows.
+    useEffect(() => {
+        const log = logRef.current;
+        if (log) log.scrollTop = log.scrollHeight;
+    }, [messages]);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Website Chat', href: '/chat' },
@@ -101,6 +139,11 @@ export default function ChatConversationShow({
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 font-medium">
                                     {name}
+                                    {isLive && (
+                                        <Badge className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                            <Radio className="size-3" aria-hidden /> Live
+                                        </Badge>
+                                    )}
                                     {conversation.priority && (
                                         <Badge className="gap-1 bg-red-500/10 text-red-600 dark:text-red-400">
                                             <Flame className="size-3" aria-hidden /> Priority
@@ -113,7 +156,7 @@ export default function ChatConversationShow({
                             </div>
                         </div>
 
-                        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                        <div ref={logRef} className="flex-1 space-y-3 overflow-y-auto p-4">
                             {messages.map((m) => {
                                 if (m.role === 'note') {
                                     return (
@@ -123,6 +166,14 @@ export default function ChatConversationShow({
                                             </div>
                                             <p className="text-foreground mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
                                         </div>
+                                    );
+                                }
+
+                                if (m.role === 'system') {
+                                    return (
+                                        <p key={m.id} className="text-muted-foreground text-center text-xs">
+                                            {m.body}
+                                        </p>
                                     );
                                 }
 
@@ -160,7 +211,7 @@ export default function ChatConversationShow({
                                     <Input
                                         value={note.data.body}
                                         onChange={(e) => note.setData('body', e.target.value)}
-                                        placeholder="Add an internal note (visitors never see this)…"
+                                        placeholder={`Internal note — @mention a colleague (${presence.roster.length} in this workspace)…`}
                                     />
                                     <Button type="submit" variant="outline" disabled={note.processing || !note.data.body.trim()}>
                                         Note
