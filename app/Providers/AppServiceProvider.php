@@ -104,10 +104,13 @@ class AppServiceProvider extends ServiceProvider
         // would TypeError on every request rather than fall back.
         TrustProxies::at(config('security.trusted_proxies') ?? []);
 
-        // In production always generate HTTPS URLs (assets, redirects, signed
-        // links). Combined with trusted proxies this keeps signed URLs valid
-        // behind a TLS-terminating load balancer.
-        if ($this->app->isProduction()) {
+        // Generate URLs with the scheme APP_URL declares, for assets, redirects
+        // and signed links alike. Keyed on the URL rather than the environment:
+        // a production deployment that has not got a certificate yet still
+        // serves plain HTTP, and forcing https there points every asset at a
+        // port nothing is listening on. Behind a TLS-terminating proxy APP_URL
+        // is https, so signed links stay valid there too.
+        if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
 
