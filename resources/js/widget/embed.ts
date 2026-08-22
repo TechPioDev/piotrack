@@ -26,13 +26,110 @@ type ChatNode = {
 };
 type Message = { id?: number; role: string; body: string };
 type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
+type Targeting = {
+    include: string[];
+    exclude: string[];
+    devices: string[];
+    visitor: string;
+    delay_seconds: number;
+    scroll_percent: number;
+    exit_intent: boolean;
+};
 type Config = {
     name: string;
     theme: { title: string; accent: string; position: 'bottom-left' | 'bottom-right'; company: string };
     teaser: string | null;
+    teaser_delay?: number;
     consent_required: boolean;
     privacy_url: string | null;
+    fallback_contact?: string | null;
+    targeting?: Targeting;
 };
+
+const SEEN_KEY = 'piotrack_chat_seen';
+
+/**
+ * Page + behaviour display rules (§34, §35). These decide only WHEN the launcher
+ * appears — never what the visitor may do — so evaluating them in the browser is
+ * appropriate. A rule left empty always passes, so an unconfigured widget shows
+ * everywhere, which is what a tenant expects.
+ */
+function pageMatches(patterns: string[]): boolean {
+    const path = location.pathname;
+    return patterns.some((raw) => {
+        const pattern = raw.trim();
+        if (!pattern) return false;
+        if (pattern.includes('*')) {
+            // Escape everything except the wildcard, then let * mean "anything".
+            const escaped = pattern
+                .split('*')
+                .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                .join('.*');
+            return new RegExp('^' + escaped + '$').test(path);
+        }
+        return path === pattern || path.startsWith(pattern.endsWith('/') ? pattern : pattern + '/');
+    });
+}
+
+function targetingAllows(t: Targeting | undefined): boolean {
+    if (!t) return true;
+
+    if (t.include.length > 0 && !pageMatches(t.include)) return false;
+    if (t.exclude.length > 0 && pageMatches(t.exclude)) return false;
+
+    if (t.devices.length > 0) {
+        const isMobile = window.matchMedia('(max-width: 767px)').matches;
+        if (!t.devices.includes(isMobile ? 'mobile' : 'desktop')) return false;
+    }
+
+    if (t.visitor === 'first' || t.visitor === 'returning') {
+        let seen = false;
+        try {
+            seen = localStorage.getItem(SEEN_KEY) === '1';
+            localStorage.setItem(SEEN_KEY, '1');
+        } catch {
+            /* storage blocked: treat as a first visit */
+        }
+        if (t.visitor === 'first' && seen) return false;
+        if (t.visitor === 'returning' && !seen) return false;
+    }
+
+    return true;
+}
+
+/** Wait for the configured trigger (delay, scroll depth, or exit intent). */
+function waitForTrigger(t: Targeting | undefined): Promise<void> {
+    if (!t) return Promise.resolve();
+    const needsScroll = t.scroll_percent > 0;
+    const needsExit = t.exit_intent;
+    const delay = Math.max(0, t.delay_seconds) * 1000;
+
+    if (!needsScroll && !needsExit) {
+        return delay === 0 ? Promise.resolve() : new Promise((r) => setTimeout(r, delay));
+    }
+
+    return new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            window.removeEventListener('scroll', onScroll);
+            document.removeEventListener('mouseout', onExit);
+            resolve();
+        };
+        const onScroll = () => {
+            const max = document.documentElement.scrollHeight - window.innerHeight;
+            const pct = max > 0 ? (window.scrollY / max) * 100 : 100;
+            if (pct >= t.scroll_percent) finish();
+        };
+        const onExit = (e: MouseEvent) => {
+            if (e.relatedTarget === null && e.clientY <= 0) finish();
+        };
+        if (needsScroll) window.addEventListener('scroll', onScroll, { passive: true });
+        if (needsExit) document.addEventListener('mouseout', onExit);
+        if (delay > 0) setTimeout(finish, delay);
+    });
+}
 
 const script = document.currentScript as HTMLScriptElement | null;
 const widgetKey = script?.dataset.widget ?? '';
@@ -184,6 +281,7 @@ class ChatWidget {
     private live = false;
     private lastSeenId = 0;
     private pollTimer: number | null = null;
+    private openTracked = false;
 
     constructor(private config: Config) {}
 
@@ -223,33 +321,36 @@ class ChatWidget {
             /* storage blocked: show it anyway */
         }
 
-        setTimeout(() => {
-            if (this.open) return;
-            const teaser = document.createElement('div');
-            teaser.className = 'teaser';
-            teaser.setAttribute('role', 'status');
-            const text = document.createElement('span');
-            text.textContent = this.config.teaser as string;
-            const close = document.createElement('button');
-            close.className = 'teaser-close';
-            close.setAttribute('aria-label', 'Dismiss message');
-            close.textContent = '×';
-            close.addEventListener('click', (e) => {
-                e.stopPropagation();
-                teaser.remove();
-            });
-            teaser.append(text, close);
-            teaser.addEventListener('click', () => {
-                teaser.remove();
-                this.toggle();
-            });
-            this.el.appendChild(teaser);
-            try {
-                sessionStorage.setItem(STATE_KEY, 'seen');
-            } catch {
-                /* ignore */
-            }
-        }, 4000);
+        setTimeout(
+            () => {
+                if (this.open) return;
+                const teaser = document.createElement('div');
+                teaser.className = 'teaser';
+                teaser.setAttribute('role', 'status');
+                const text = document.createElement('span');
+                text.textContent = this.config.teaser as string;
+                const close = document.createElement('button');
+                close.className = 'teaser-close';
+                close.setAttribute('aria-label', 'Dismiss message');
+                close.textContent = '×';
+                close.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    teaser.remove();
+                });
+                teaser.append(text, close);
+                teaser.addEventListener('click', () => {
+                    teaser.remove();
+                    this.toggle();
+                });
+                this.el.appendChild(teaser);
+                try {
+                    sessionStorage.setItem(STATE_KEY, 'seen');
+                } catch {
+                    /* ignore */
+                }
+            },
+            Math.max(0, this.config.teaser_delay ?? 4) * 1000,
+        );
     }
 
     private toggle() {
@@ -301,7 +402,13 @@ class ChatWidget {
             if ((e as KeyboardEvent).key === 'Escape') this.close();
         });
 
-        this.track('open');
+        // Count one open per page load: a visitor toggling the panel is still a
+        // single opened chat, and counting each toggle would push the funnel's
+        // open rate above 100% and make the whole report untrustworthy.
+        if (!this.openTracked) {
+            this.openTracked = true;
+            this.track('open');
+        }
 
         if (this.token === null) {
             await this.begin();
@@ -577,7 +684,13 @@ class ChatWidget {
     /** Never break the host site: show a calm fallback instead of an error. */
     private fail() {
         this.typing(false);
-        this.bubble('bot', 'Sorry — our chat is temporarily unavailable. Please use the contact details on this page and we will get back to you.');
+        const contact = this.config.fallback_contact;
+        this.bubble(
+            'bot',
+            contact
+                ? `Sorry — our chat is temporarily unavailable. Please contact us at ${contact} and we will get back to you.`
+                : 'Sorry — our chat is temporarily unavailable. Please use the contact details on this page and we will get back to you.',
+        );
         this.foot.innerHTML = '';
         this.brand();
     }
@@ -597,6 +710,8 @@ async function boot() {
     // silently — the customer's website keeps working exactly as before.
     try {
         const config = await api<Config>('config');
+        if (!targetingAllows(config.targeting)) return;
+        await waitForTrigger(config.targeting);
         new ChatWidget(config).mount();
     } catch {
         /* stay invisible */

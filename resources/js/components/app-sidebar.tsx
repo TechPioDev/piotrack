@@ -110,6 +110,7 @@ export function AppSidebar() {
     const chatNavItems: NavItem[] = [
         can('chat.view') && { title: 'Conversations', url: '/chat', icon: MessagesSquare },
         can('chat.view') && { title: 'Widgets', url: '/chat/widgets', icon: Code },
+        can('chat.view') && { title: 'Analytics', url: '/chat/analytics', icon: LineChart },
     ].filter(Boolean) as NavItem[];
 
     const websiteNavItems: NavItem[] = [

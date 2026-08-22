@@ -426,7 +426,6 @@ DELIVERED = {
     # Website Chat, Phase 1 (core vertical slice), 2026-08-22.
     "Embeddable website chat widget": ("Tested", "Done", "Done", "Done"),
     "Multiple widgets per tenant": ("Tested", "Done", "Done", "Done"),
-    "Widget appearance and branding": ("Partially Implemented", "Done", "Pending", "Done"),
     "Floating launcher and welcome teaser": ("Tested", "Done", "Done", "Done"),
     "One-line installation snippet": ("Tested", "Done", "Done", "Done"),
     "Authorized domain restriction": ("Tested", "Done", "Done", "Done"),
@@ -442,6 +441,16 @@ DELIVERED = {
     "Team @mentions": ("Tested", "Done", "Done", "Done"),
     "Agent replies": ("Tested", "Done", "Done", "Done"),
     "Internal notes": ("Tested", "Done", "Done", "Done"),
+    # Phase 4 — analytics, targeting, appearance, 2026-08-22.
+    "Widget appearance and branding": ("Tested", "Done", "Done", "Done"),
+    "Progressive profiling for known visitors": ("Tested", "Done", "Done", "Done"),
+    "Page targeting rules": ("Tested", "Done", "Done", "Done"),
+    "Visitor behavior targeting": ("Tested", "Done", "Done", "Done"),
+    "Chat engagement analytics": ("Tested", "Done", "Done", "Done"),
+    "Conversion funnel report": ("Tested", "Done", "Done", "Done"),
+    "Per-question drop-off report": ("Tested", "Done", "Done", "Done"),
+    "Chat A/B testing": ("Partially Implemented", "Done", "Done", "Done"),
+    "Chat notifications to agents": ("Tested", "Done", "Done", "Done"),
     "Flow template library": ("Tested", "Done", "Done", "Done"),
     "MSP and cybersecurity qualification templates": ("Tested", "Done", "Done", "Done"),
     "Existing-customer support routing": ("Tested", "Done", "Done", "Done"),
@@ -459,9 +468,6 @@ DELIVERED = {
     "Agent conversation inbox": ("Tested", "Done", "Done", "Done"),
     "Conversation transcript view": ("Tested", "Done", "Done", "Done"),
     "Conversation status workflow": ("Tested", "Done", "Done", "Done"),
-    "Agent replies": ("Implemented", "Done", "Done", "Pending"),
-    "Internal notes": ("Implemented", "Done", "Done", "Pending"),
-    "Chat engagement analytics": ("Partially Implemented", "Done", "Pending", "Done"),
 }
 
 

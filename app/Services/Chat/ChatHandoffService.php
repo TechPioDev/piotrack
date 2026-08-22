@@ -5,6 +5,9 @@ namespace App\Services\Chat;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\ChatWidget;
+use App\Notifications\ChatVisitorWaitingNotification;
+use App\Support\CurrentOrganization;
+use App\Support\NotificationDispatcher;
 
 /**
  * Handing a conversation from the bot to a human (§24).
@@ -19,6 +22,8 @@ class ChatHandoffService
     public function __construct(
         private readonly ChatPresenceService $presence,
         private readonly ChatBusinessHours $hours,
+        private readonly NotificationDispatcher $notifications,
+        private readonly CurrentOrganization $currentOrganization,
     ) {}
 
     /** bot | bot_then_human | live — how this widget is meant to be staffed. */
@@ -65,6 +70,8 @@ class ChatHandoffService
             $conversation->status = 'waiting';
             $conversation->save();
 
+            $this->notifyWaiting($conversation, 'They arrived outside your business hours.');
+
             return ['live' => false, 'agent' => null, 'message' => $this->hours->closedMessage($widget)];
         }
 
@@ -72,6 +79,8 @@ class ChatHandoffService
         if ($agent === null) {
             $conversation->status = 'waiting';
             $conversation->save();
+
+            $this->notifyWaiting($conversation, 'Every agent was offline or busy at the time.');
 
             return [
                 'live' => false,
@@ -105,5 +114,19 @@ class ChatHandoffService
     {
         $conversation->is_live = false;
         $conversation->save();
+    }
+
+    /** Tell the team a visitor asked for a person and did not get one (§32). */
+    private function notifyWaiting(ChatConversation $conversation, string $reason): void
+    {
+        $organization = $this->currentOrganization->get();
+        if ($organization === null || $conversation->is_preview) {
+            return;
+        }
+
+        $this->notifications->toOrganizationOwners(
+            $organization,
+            new ChatVisitorWaitingNotification($conversation->id, $reason),
+        );
     }
 }

@@ -27,6 +27,42 @@ class ChatCaptureService
     ) {}
 
     /**
+     * What is already known about a returning visitor (§17).
+     *
+     * Matched on the anonymous visitor id the widget stores locally, then read
+     * off the contact it produced last time. Nothing is invented: only fields the
+     * visitor themselves gave us before are returned.
+     *
+     * @return array<string, string>
+     */
+    public function knownAnswersFor(?string $visitorId): array
+    {
+        if ($visitorId === null || $visitorId === '' || $visitorId === 'preview') {
+            return [];
+        }
+
+        $previous = ChatConversation::query()
+            ->where('visitor_id', $visitorId)
+            ->whereNotNull('contact_id')
+            ->latest('id')
+            ->with('contact')
+            ->first();
+
+        $contact = $previous?->contact;
+        if ($contact === null) {
+            return [];
+        }
+
+        return array_filter([
+            'first_name' => (string) $contact->first_name,
+            'last_name' => (string) $contact->last_name,
+            'email' => (string) $contact->email,
+            'phone' => (string) $contact->phone,
+            'company_name' => (string) ($contact->company()->value('name') ?? ''),
+        ], fn (string $v) => trim($v) !== '');
+    }
+
+    /**
      * @return array<string, mixed> extra payload for the widget (e.g. booking_url)
      */
     public function complete(ChatWidget $widget, ChatConversation $conversation, string $outcome): array

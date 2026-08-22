@@ -16,6 +16,7 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\ChatWidget;
 use App\Notifications\ChatMentionNotification;
+use App\Notifications\ChatVisitorWaitingNotification;
 use App\Services\Chat\ChatBusinessHours;
 use App\Services\Chat\ChatPresenceService;
 use App\Support\CurrentOrganization;
@@ -140,6 +141,16 @@ it('falls back gracefully when nobody is online', function () {
     $conversation = ChatConversation::withoutGlobalScope('tenant')->firstWhere('token', $start->json('token'));
     expect($conversation->is_live)->toBeFalse()
         ->and($conversation->status)->toBe('waiting');
+});
+
+it('tells the team when a visitor asked for a person and got nobody', function () {
+    Notification::fake();
+
+    // Nobody online: the visitor is promised a reply, so that promise is escalated
+    // to the team rather than quietly dropped.
+    $this->postJson("/wc/{$this->widget->public_key}/conversations");
+
+    Notification::assertSentTo($this->owner, ChatVisitorWaitingNotification::class);
 });
 
 it('does not offer a human on a bot-only widget', function () {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatEvent;
 use App\Models\ChatWidget;
+use App\Services\Chat\ChatCaptureService;
 use App\Services\Chat\ChatFlowEngine;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class PublicChatController extends Controller
         private readonly CurrentOrganization $currentOrganization,
         private readonly Entitlements $entitlements,
         private readonly ChatFlowEngine $engine,
+        private readonly ChatCaptureService $capture,
     ) {}
 
     public function config(Request $request, string $publicKey): JsonResponse
@@ -34,6 +36,7 @@ class PublicChatController extends Controller
         $theme = $widget->theme ?? [];
         $consent = $widget->consent ?? [];
         $settings = $widget->settings ?? [];
+        $targeting = $widget->targeting ?? [];
 
         return response()->json([
             'name' => $widget->name,
@@ -46,8 +49,21 @@ class PublicChatController extends Controller
                 'company' => $theme['company'] ?? $widget->name,
             ],
             'teaser' => $settings['teaser'] ?? null,
+            'teaser_delay' => (int) ($settings['teaser_delay'] ?? 4),
             'consent_required' => (bool) ($consent['required'] ?? false),
             'privacy_url' => $consent['privacy_url'] ?? null,
+            'fallback_contact' => $settings['fallback_contact'] ?? null,
+            // Display rules (§34, §35). These decide WHEN to show, never what the
+            // visitor may do, so evaluating them in the browser is appropriate.
+            'targeting' => [
+                'include' => array_values(array_filter((array) ($targeting['include'] ?? []))),
+                'exclude' => array_values(array_filter((array) ($targeting['exclude'] ?? []))),
+                'devices' => array_values(array_filter((array) ($targeting['devices'] ?? []))),
+                'visitor' => $targeting['visitor'] ?? 'all',
+                'delay_seconds' => (int) ($targeting['delay_seconds'] ?? 0),
+                'scroll_percent' => (int) ($targeting['scroll_percent'] ?? 0),
+                'exit_intent' => (bool) ($targeting['exit_intent'] ?? false),
+            ],
         ]);
     }
 
@@ -94,10 +110,14 @@ class PublicChatController extends Controller
             }
         }
 
+        // A returning visitor is not asked again for what they already told us.
+        $known = $this->capture->knownAnswersFor($data['visitor'] ?? null);
+
         $conversation = ChatConversation::create([
             'chat_widget_id' => $widget->id,
             'status' => 'new',
             'visitor_id' => $data['visitor'] ?? null,
+            'answers' => $known === [] ? null : $known,
             'attribution' => array_filter([
                 'source' => 'website_chat',
                 'page' => $data['page'] ?? null,

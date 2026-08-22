@@ -65,6 +65,31 @@ class ChatWidgetController extends Controller
         return back()->with('message', 'Widget created.');
     }
 
+    /** The widget's own settings: appearance, targeting, hours, consent, mode. */
+    public function edit(ChatWidget $widget): Response
+    {
+        return Inertia::render('chat/widgets/settings', [
+            'widget' => [
+                'id' => $widget->id,
+                'name' => $widget->name,
+                'description' => $widget->description,
+                'status' => $widget->status,
+                'public_key' => $widget->public_key,
+                'theme' => $widget->theme ?? [],
+                'consent' => $widget->consent ?? [],
+                'settings' => $widget->settings ?? [],
+                'targeting' => $widget->targeting ?? [],
+                'business_hours' => $widget->business_hours ?? [],
+                'allowed_domains' => $widget->allowed_domains ?? [],
+                'embed' => sprintf(
+                    '<script src="%s" data-widget="%s" async></script>',
+                    url('/widget/piotrack-chat.js'),
+                    $widget->public_key,
+                ),
+            ],
+        ]);
+    }
+
     public function update(Request $request, ChatWidget $widget): RedirectResponse
     {
         $data = $request->validate([
@@ -82,10 +107,33 @@ class ChatWidgetController extends Controller
             'consent.privacy_url' => 'nullable|url|max:500',
             'settings' => 'sometimes|array',
             'settings.teaser' => 'nullable|string|max:120',
+            'settings.teaser_delay' => 'nullable|integer|min:0|max:120',
+            'settings.mode' => ['nullable', Rule::in(['bot', 'bot_then_human', 'live'])],
+            'settings.language' => 'nullable|string|max:10',
+            'settings.experiment' => 'nullable|string|max:60',
+            'settings.variant' => 'nullable|string|max:60',
+            'settings.fallback_contact' => 'nullable|string|max:200',
             'allowed_domains' => 'sometimes|array|max:20',
             'allowed_domains.*' => 'string|max:255',
             'routing' => 'sometimes|array',
             'routing.assignee_id' => 'nullable|integer',
+            // Page + behaviour targeting (§34, §35).
+            'targeting' => 'sometimes|array',
+            'targeting.include' => 'sometimes|array|max:50',
+            'targeting.include.*' => 'string|max:255',
+            'targeting.exclude' => 'sometimes|array|max:50',
+            'targeting.exclude.*' => 'string|max:255',
+            'targeting.devices' => 'sometimes|array',
+            'targeting.devices.*' => Rule::in(['desktop', 'mobile']),
+            'targeting.visitor' => ['nullable', Rule::in(['all', 'first', 'returning'])],
+            'targeting.delay_seconds' => 'nullable|integer|min:0|max:300',
+            'targeting.scroll_percent' => 'nullable|integer|min:0|max:100',
+            'targeting.exit_intent' => 'sometimes|boolean',
+            // Business hours (§33).
+            'business_hours' => 'sometimes|array',
+            'business_hours.timezone' => 'nullable|string|max:64',
+            'business_hours.closed_message' => 'nullable|string|max:300',
+            'business_hours.days' => 'sometimes|array',
         ]);
 
         $widget->update($data);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Chat\ChatAnalyticsController;
 use App\Http\Controllers\Chat\ChatFlowController;
 use App\Http\Controllers\Chat\ChatInboxController;
 use App\Http\Controllers\Chat\ChatPresenceController;
@@ -58,6 +59,10 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
 
         Route::get('widgets', [ChatWidgetController::class, 'index'])
             ->middleware('can:chat.view')->name('widgets.index');
+        Route::get('analytics', ChatAnalyticsController::class)
+            ->middleware('can:chat.view')->name('analytics');
+        Route::get('widgets/{widget}/settings', [ChatWidgetController::class, 'edit'])
+            ->middleware('can:chat.widget.manage')->name('widgets.edit');
 
         // Flow builder. Everything here shapes what visitors see, so it is
         // management-only — including the preview, which writes a conversation row.

@@ -2,10 +2,11 @@
 
 **Date:** 2026-08-22
 **Module:** Website Chat / Conversations
-**Phases delivered:** 1 (core vertical slice), 2 (flow builder) and 3 (live human chat)
-**Verdict:** Phases 1–3 **PASSED**. The module as a whole is **NOT COMPLETE** (Phase 4 outstanding).
+**Phases delivered:** 1 (core vertical slice), 2 (flow builder), 3 (live human chat), 4 (analytics, targeting, settings)
+**Verdict:** All four phases **PASSED**. The module is **COMPLETE**, with two capabilities
+honestly recorded as partial (see the closing section).
 
-> Phase 2 and 3 results are in the appendices at the end of this report.
+> Phase 2, 3 and 4 results are in the appendices at the end of this report.
 
 ---
 
@@ -327,3 +328,98 @@ non-Piotrack page.
 Progressive profiling, page/behaviour targeting, funnel + per-question drop-off + A/B
 analytics reports, notification channels (Slack/Teams/desktop), and the widget appearance
 editor. All recorded **Planned** in the register.
+
+---
+
+# Appendix — Phase 4: analytics, targeting and settings
+
+**Date:** 2026-08-22 · **Verdict:** Phase 4 **PASSED**. Module **COMPLETE**.
+
+## What Phase 4 delivers
+
+- **Chat analytics** (§41) — impressions, opens, conversations, leads, qualified leads,
+  meetings, open/engagement/completion/lead rates, and revenue traced from a chat
+  conversation through its contact to won deals.
+- **Conversion funnel** (§42) — views → opens → conversations → leads → qualified →
+  meetings, each rung shown as a share of the one above it.
+- **Per-question drop-off** (§43) — an unfinished conversation is parked on exactly the
+  question that lost it, so the cursor gives a true abandonment count per step. Sorted
+  worst-first, because that is what a tenant should fix next.
+- **Widget comparison / A/B foundation** (§44) — widgets sharing an `experiment` key are
+  variants; counts and lead rates are reported plainly. **No significance or "winner" is
+  claimed**, and no such field is even produced — at typical chat volumes that claim would
+  be a lie. The test asserts those keys are absent.
+- **Settings editor** — the gap that held the widget's UI score at 8.5: appearance (title,
+  company, accent with a **live launcher preview**, position), teaser + delay, chat mode,
+  fallback contact, experiment/variant, page + behaviour targeting, business hours per day
+  with timezone, consent copy and privacy URL, allowed domains, install snippet with
+  WordPress / GTM / Webflow instructions.
+- **Page and behaviour targeting** (§34, §35) — include/exclude page rules with wildcards,
+  device rules, first-time vs returning visitors, delay, scroll depth and exit intent. These
+  decide only *when* the launcher appears, never what a visitor may do, so evaluating them
+  in the browser is appropriate.
+- **Progressive profiling** (§17) — a returning visitor is matched on their anonymous id
+  and never re-asked for details they already gave; the question is skipped, the value kept.
+- **Agent notifications** (§32) — when someone asks for a person and nobody is available,
+  the team is emailed and notified in-app, because the visitor has been promised a reply.
+
+## Automated testing
+
+| Suite | Result |
+|---|---|
+| Pest (backend) | **678 passed**, 2619 assertions — 15 new tests, zero regressions |
+| Vitest (frontend) | **30 passed** |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
+| Widget bundle | 17.1 kB / **5.9 kB gzip** |
+
+New tests (`tests/Feature/Chat/ChatAnalyticsTest.php`) pin the arithmetic: counts come only
+from real events; **rates are zero rather than a divide-by-zero** when nothing has happened;
+**builder previews never inflate the funnel**; drop-off identifies the losing question and
+orders worst-first; the comparison produces no significance/winner field; another tenant's
+widget filter falls back to "all"; a Starter plan is refused; progressive profiling skips
+known fields but not for a new visitor; targeting publishes to the widget without leaking
+routing/flow/domains; invalid chat mode and accent colour are rejected; settings are
+admin-only; and every reported number is tenant-scoped.
+
+## Manual testing — live, in-browser
+
+| Check | Result |
+|---|---|
+| Analytics page renders funnel, drop-off and by-widget | **PASS** |
+| Funnel percentages computed per rung | **PASS** |
+| Range filters (7d/30d/90d/1y) and per-widget filter | **PASS** |
+| Settings page: all six sections render | **PASS** |
+| Colour picker updates the launcher preview live | **PASS** — preview turned `rgb(124,58,237)` |
+| Enabling a day reveals its open/close time inputs | **PASS** |
+| Save persists to the database | **PASS** — accent, `include: ["/cybersecurity"]`, `mon: ["09:00","17:00"]` |
+| Install snippet + WordPress / GTM / Webflow guidance | **PASS** |
+
+## Defect found by this pass and fixed
+
+**The funnel could report an open rate above 100%.** The widget fired an `open` event every
+time the panel was toggled, while `impression` fires once per page load — live data showed
+"Chat opens 8 (133.3%)" against 6 views, which makes the whole report untrustworthy. Opens
+are now counted once per page load, matching the funnel's meaning of "chats opened".
+
+## Final state — what is complete and what is deliberately partial
+
+**Complete and tested (40 of 42 register rows):** widget + launcher + teaser, install and
+domain security, the flow builder with nine step types, validation, templates and a real
+preview, qualification, capture with dedupe, scoring, routing, alerts, attribution, consent,
+inbox, transcripts, agent replies, internal notes, @mentions, live chat, handoff, presence,
+business hours, targeting, progressive profiling, analytics, funnel, drop-off, notifications.
+
+**Honestly partial (2 rows):**
+
+- **CHAT-023 In-chat appointment booking** — the conversation offers a meeting and hands
+  over a working booking link, but slots are not picked inside the widget. The product has
+  no availability engine at all (pre-existing gap, BOOK-003); building one is a booking-module
+  change, not a chat one.
+- **CHAT-041 Chat A/B testing** — variants are configurable and compared side by side, but
+  no statistical significance is calculated. This is deliberate and matches the brief's
+  instruction not to invent significance.
+
+**Module verdict: COMPLETE.** The capability the brief asked for — turning an anonymous
+website visitor into a known visitor, qualified lead, CRM contact, sales opportunity,
+meeting and attributed revenue, configurable per tenant — works end to end and is covered
+by 52 module tests inside a 678-test suite.

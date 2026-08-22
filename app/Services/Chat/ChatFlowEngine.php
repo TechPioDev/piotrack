@@ -215,6 +215,18 @@ class ChatFlowEngine
                 ];
             }
 
+            // Progressive profiling (§17): never re-ask something already known
+            // about this visitor. The value is kept; only the question is skipped.
+            if ($node['type'] === 'input') {
+                $field = (string) ($node['field'] ?? '');
+                $known = $field !== '' ? ($answers[$field] ?? null) : null;
+                if (is_string($known) && trim($known) !== '') {
+                    $nodeId = $node['next'] ?? null;
+
+                    continue;
+                }
+            }
+
             // Interactive node: persist the cursor and hand a sanitized spec to the widget.
             $this->say($conversation, (string) $node['text'], $nodeId);
             $answers = $conversation->answers ?? [];
