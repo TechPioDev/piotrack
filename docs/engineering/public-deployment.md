@@ -148,17 +148,74 @@ risks breaking mail deliverability to solve a hosting problem.
 Port 80 is needed for certbot's HTTP-01 challenge and every renewal. These are 443/80,
 not 8080 — the existing `:8080` vhost keeps working on the LAN unchanged.
 
-### 4. Apache vhost and certificate
+### 4. Apache vhost
+
+> **Port 80 on this server is not free.** It serves a live IT Support Portal
+> (osTicket) from a single catch-all vhost that answers every `Host` header. Piotrack
+> is on `:8080`. Forwarding the router's port 80 straight through would publish the
+> helpdesk on `piotrack.com`, not Piotrack — and the helpdesk is production.
+
+The fix is a name-based vhost, which is additive: Apache matches `ServerName` first
+and falls back to the default vhost for every other hostname, so the helpdesk keeps
+answering exactly as it does now.
+
+Check which vhost is currently the default before adding anything:
 
 ```bash
-sudo apt install certbot python3-certbot-apache
-sudo certbot --apache -d piotrack.com -d www.piotrack.com
+sudo apache2ctl -S
 ```
 
-Point the new vhost's `DocumentRoot` at `/var/www/piotrack/public`, matching the 8080
-vhost. Certbot installs a renewal timer; confirm it with `sudo certbot renew --dry-run`.
+Apache treats the **first** `*:80` vhost it loads as the default. If the helpdesk's
+config sorts after the new file alphabetically, adding Piotrack would silently make
+_it_ the catch-all and take the helpdesk offline. Name the new file so it sorts after
+the existing one, and confirm against that output.
 
-### 5. Application configuration
+`/etc/apache2/sites-available/piotrack.conf`:
+
+```apache
+<VirtualHost *:80>
+    ServerName piotrack.com
+    ServerAlias www.piotrack.com
+    DocumentRoot /var/www/piotrack/public
+
+    <Directory /var/www/piotrack/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/piotrack-error.log
+    CustomLog ${APACHE_LOG_DIR}/piotrack-access.log combined
+</VirtualHost>
+```
+
+```bash
+sudo a2ensite piotrack && sudo apache2ctl configtest && sudo systemctl reload apache2
+```
+
+`configtest` before `reload` is not optional here — a syntax error on a reload takes
+the helpdesk down with it. Back up `/etc/apache2` first.
+
+### 5. Certificate — blocked until the server has outbound access
+
+> **This server cannot reach the internet.** `https://acme-v02.api.letsencrypt.org`
+> times out from it (`curl` exit 28, status `000`) while another machine on the same
+> LAN reaches it fine, so outbound is firewalled for this host specifically.
+
+Certbot needs outbound HTTPS to the ACME API to request, validate and renew — that is
+true of HTTP-01 and DNS-01 alike. `apt install certbot` needs outbound too. So there
+are two ways forward:
+
+- **Allow outbound 443 from this host** to `acme-v02.api.letsencrypt.org`. One
+  firewall rule, and renewal then runs unattended every 60 days. This is the option
+  worth taking.
+- **Issue the certificate on a machine that has internet**, using a DNS-01 challenge
+  against the GoDaddy API, then copy `fullchain.pem` and `privkey.pem` across. Works,
+  but every renewal is manual and a missed one takes the site down.
+
+Once a certificate exists, add the `*:443` vhost with the same `ServerName` and
+`DocumentRoot`, plus `SSLCertificateFile` / `SSLCertificateKeyFile`.
+
+### 6. Application configuration
 
 In `.env`, alongside the `APP_ENV` and `APP_DEBUG` changes from above:
 
@@ -179,7 +236,7 @@ cache and then fails to re-read `.env`, and Laravel silently falls back to frame
 defaults — including `DB_CONNECTION=sqlite`, which is why a bare `php artisan
 optimize:clear` reports a missing `database.sqlite` on a Postgres install.
 
-### 6. Leave the trusted proxies empty
+### 7. Leave the trusted proxies empty
 
 Nothing to do for a direct port-forward — this is the default — but it is worth
 knowing why. `X-Forwarded-For` and `X-Forwarded-Proto` are client input until a proxy
@@ -196,7 +253,7 @@ TRUSTED_PROXIES=10.0.0.0/8,192.168.0.0/16
 
 See `config/security.php`.
 
-### 7. Firewall and intrusion blocking
+### 8. Firewall and intrusion blocking
 
 ```bash
 sudo ufw allow 443/tcp && sudo ufw allow 80/tcp && sudo ufw enable
