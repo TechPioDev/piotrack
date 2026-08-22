@@ -28,7 +28,7 @@ type Summary = {
     lead_rate: number;
     revenue: number;
 };
-type FunnelRow = { stage: string; count: number; rate: number | null };
+type FunnelRow = { stage: string; count: number; of: string | null; rate: number | null };
 type DropOffRow = { node: string; label: string; reached: number; abandoned: number; rate: number };
 type WidgetRow = {
     id: number;
@@ -150,7 +150,7 @@ export default function ChatAnalytics({
                         <div className="border-border bg-card rounded-lg border">
                             <div className="border-border border-b px-4 py-3">
                                 <h2 className="text-foreground text-sm font-semibold">Conversion funnel</h2>
-                                <p className="text-muted-foreground text-xs">Each step as a share of the one above it.</p>
+                                <p className="text-muted-foreground text-xs">Each step as a share of the one it is measured against.</p>
                             </div>
                             <ul className="divide-border divide-y">
                                 {funnel.map((row) => {
@@ -169,7 +169,7 @@ export default function ChatAnalytics({
                                                 {row.count.toLocaleString('en-US')}
                                             </span>
                                             <span className="text-muted-foreground w-16 shrink-0 text-right text-xs tabular-nums">
-                                                {row.rate === null ? '—' : `${row.rate}%`}
+                                                {row.rate === null ? '—' : `${row.rate}% of ${row.of}`}
                                             </span>
                                         </li>
                                     );

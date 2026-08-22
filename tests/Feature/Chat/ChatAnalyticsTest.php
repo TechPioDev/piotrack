@@ -16,6 +16,7 @@ use App\Models\ChatConversation;
 use App\Models\ChatEvent;
 use App\Models\ChatWidget;
 use App\Models\Contact;
+use App\Models\Lead;
 use App\Services\Chat\ChatAnalyticsService;
 use App\Support\CurrentOrganization;
 
@@ -318,4 +319,73 @@ it('scopes every reported number to the current tenant', function () {
     // The rival's conversation and impression are invisible here.
     expect($summary['conversations'])->toBe(1)
         ->and($summary['impressions'])->toBe(0);
+});
+
+/**
+ * A funnel rung that converts at more than 100% reads as broken arithmetic and
+ * discredits every other number on the page. It happened because the rungs were
+ * not nested: "qualified" counted any conversation scoring 60+ whether or not a
+ * lead was captured, and "meetings" counted raw events rather than the
+ * conversations behind them — so booking without scoring hot, which is ordinary,
+ * pushed the last rung above the one before it.
+ */
+it('never reports a funnel rung converting at more than 100%', function () {
+    app(CurrentOrganization::class)->set($this->org);
+
+    $conversation = ChatConversation::create([
+        'chat_widget_id' => $this->widget->id,
+        'status' => 'qualified',
+        'lead_score' => 20, // booked a meeting WITHOUT scoring hot
+        'contact_id' => Contact::create(['first_name' => 'Sam', 'email' => 'sam@booker.test'])->id,
+    ]);
+    $conversation->lead_id = Lead::create([
+        'first_name' => 'Sam', 'email' => 'sam@booker.test', 'status' => 'new',
+    ])->id;
+    $conversation->save();
+
+    foreach (['lead', 'meeting'] as $type) {
+        ChatEvent::create([
+            'chat_widget_id' => $this->widget->id,
+            'chat_conversation_id' => $conversation->id,
+            'type' => $type,
+        ]);
+    }
+
+    $funnel = app(ChatAnalyticsService::class)->funnel(now()->subDay());
+
+    $over = array_filter($funnel, fn ($row) => $row['rate'] !== null && $row['rate'] > 100);
+    expect($over)->toBe([]);
+
+    // And every rung states what it is a share of, so the number can be read.
+    foreach ($funnel as $row) {
+        expect($row)->toHaveKey('of');
+        if ($row['rate'] !== null) {
+            expect($row['of'])->not->toBeNull();
+        }
+    }
+});
+
+it('counts a meeting once even if the event fires twice', function () {
+    app(CurrentOrganization::class)->set($this->org);
+
+    $conversation = ChatConversation::create([
+        'chat_widget_id' => $this->widget->id,
+        'status' => 'qualified',
+        'lead_score' => 80,
+        'contact_id' => Contact::create(['first_name' => 'Dana', 'email' => 'dana@twice.test'])->id,
+    ]);
+    $conversation->lead_id = Lead::create([
+        'first_name' => 'Dana', 'email' => 'dana@twice.test', 'status' => 'new',
+    ])->id;
+    $conversation->save();
+
+    foreach (['meeting', 'meeting'] as $type) {
+        ChatEvent::create([
+            'chat_widget_id' => $this->widget->id,
+            'chat_conversation_id' => $conversation->id,
+            'type' => $type,
+        ]);
+    }
+
+    expect(app(ChatAnalyticsService::class)->summary(now()->subDay())['meetings'])->toBe(1);
 });

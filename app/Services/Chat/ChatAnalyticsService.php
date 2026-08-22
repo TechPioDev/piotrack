@@ -33,8 +33,20 @@ class ChatAnalyticsService
         $completed = (clone $conversations)->whereIn('status', ['qualified', 'converted', 'closed'])
             ->whereNotNull('contact_id')->count();
         $leads = (clone $conversations)->whereNotNull('lead_id')->count();
-        $qualified = (clone $conversations)->where('lead_score', '>=', 60)->count();
-        $meetings = $events['meeting'] ?? 0;
+
+        // Qualification and meeting booking both happen inside lead capture, so
+        // both are subsets of the leads above them. Counting them any other way —
+        // scores without a captured lead, or raw meeting events rather than the
+        // conversations behind them — lets a later funnel rung exceed the one
+        // above it and report a conversion over 100%.
+        $qualified = (clone $conversations)
+            ->whereNotNull('lead_id')
+            ->where('lead_score', '>=', 60)
+            ->count();
+        $meetings = (clone $conversations)
+            ->whereNotNull('lead_id')
+            ->whereHas('events', fn ($q) => $q->where('type', 'meeting'))
+            ->count();
 
         $impressions = $events['impression'] ?? 0;
         $opens = $events['open'] ?? 0;
@@ -64,22 +76,29 @@ class ChatAnalyticsService
     {
         $summary = $this->summary($since, $widgetId);
 
+        // Each rung names the rung it is a share OF. The first four are a genuine
+        // chain, but qualification and meeting booking are siblings — both happen
+        // during lead capture, so both are shares of Leads. Measuring meetings
+        // against qualified leads would report over 100% the moment somebody books
+        // without scoring hot, which is ordinary and not an error.
         $rungs = [
-            ['stage' => 'Widget views', 'count' => (int) $summary['impressions']],
-            ['stage' => 'Chat opens', 'count' => (int) $summary['opens']],
-            ['stage' => 'Conversations', 'count' => (int) $summary['conversations']],
-            ['stage' => 'Leads', 'count' => (int) $summary['leads']],
-            ['stage' => 'Qualified leads', 'count' => (int) $summary['qualified']],
-            ['stage' => 'Meetings', 'count' => (int) $summary['meetings']],
+            ['stage' => 'Widget views', 'count' => (int) $summary['impressions'], 'of' => null],
+            ['stage' => 'Chat opens', 'count' => (int) $summary['opens'], 'of' => 'Widget views'],
+            ['stage' => 'Conversations', 'count' => (int) $summary['conversations'], 'of' => 'Chat opens'],
+            ['stage' => 'Leads', 'count' => (int) $summary['leads'], 'of' => 'Conversations'],
+            ['stage' => 'Qualified leads', 'count' => (int) $summary['qualified'], 'of' => 'Leads'],
+            ['stage' => 'Meetings', 'count' => (int) $summary['meetings'], 'of' => 'Leads'],
         ];
 
+        $counts = array_column($rungs, 'count', 'stage');
+
         $out = [];
-        foreach ($rungs as $i => $rung) {
-            $previous = $i === 0 ? null : $rungs[$i - 1]['count'];
+        foreach ($rungs as $rung) {
             $out[] = [
                 'stage' => $rung['stage'],
                 'count' => $rung['count'],
-                'rate' => $previous === null ? null : $this->rate($rung['count'], $previous),
+                'of' => $rung['of'],
+                'rate' => $rung['of'] === null ? null : $this->rate($rung['count'], $counts[$rung['of']]),
             ];
         }
 
