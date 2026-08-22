@@ -29,6 +29,7 @@ class DefaultChatFlow
                 'q_service' => [
                     'type' => 'choice',
                     'text' => 'What can we help you with?',
+                    'field' => 'service',
                     'options' => [
                         ['id' => 'managed_it', 'label' => 'Managed IT Services', 'score' => 10, 'next' => 'q_size'],
                         ['id' => 'cybersecurity', 'label' => 'Cybersecurity', 'score' => 15, 'next' => 'q_cyber_need'],
@@ -43,6 +44,7 @@ class DefaultChatFlow
                 // ---- Cybersecurity branch (§12) ----
                 'q_cyber_need' => [
                     'type' => 'choice',
+                    'field' => 'security_need',
                     'text' => 'What are you primarily looking for?',
                     'options' => [
                         ['id' => 'assessment', 'label' => 'Security assessment', 'score' => 10, 'next' => 'q_size'],

@@ -66,6 +66,15 @@ class ChatFlowValidator
                 if ($options === []) {
                     $errors[] = ['node' => (string) $id, 'message' => 'This question has no answers for the visitor to choose from.'];
                 }
+                // A question with nowhere to store its answer still routes the
+                // visitor, but the answer is lost: it never reaches the CRM, the
+                // inbox or a later condition. Worth flagging, not blocking.
+                if (trim((string) ($node['field'] ?? '')) === '') {
+                    $warnings[] = [
+                        'node' => (string) $id,
+                        'message' => 'This question does not save the answer anywhere, so it will not show on the lead.',
+                    ];
+                }
                 $seen = [];
                 foreach ($options as $option) {
                     if (! is_array($option) || ! isset($option['id'], $option['label']) || trim((string) $option['label']) === '') {

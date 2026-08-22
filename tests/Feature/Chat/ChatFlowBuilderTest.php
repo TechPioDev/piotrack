@@ -17,6 +17,7 @@ use App\Models\Contact;
 use App\Models\Lead;
 use App\Services\Chat\ChatFlowTemplates;
 use App\Services\Chat\ChatFlowValidator;
+use App\Services\Chat\DefaultChatFlow;
 use App\Support\CurrentOrganization;
 
 beforeEach(function () {
@@ -88,6 +89,35 @@ it('warns about steps a visitor can never reach', function () {
     expect($result['valid'])->toBeTrue()
         ->and($result['warnings'])->toHaveCount(1)
         ->and($result['warnings'][0]['node'])->toBe('orphan');
+});
+
+it('warns when a question saves its answer nowhere', function () {
+    $result = app(ChatFlowValidator::class)->validate([
+        'start' => 'q',
+        'nodes' => [
+            'q' => [
+                'type' => 'choice', 'text' => 'What do you need?',
+                'options' => [['id' => 'a', 'label' => 'Managed IT', 'next' => 'done']],
+            ],
+            'done' => ['type' => 'end', 'text' => 'Thanks'],
+        ],
+    ]);
+
+    // It still routes the visitor, so this blocks nothing - but the answer is
+    // lost to the CRM, the inbox and any later condition, so it is called out.
+    expect($result['valid'])->toBeTrue()
+        ->and(collect($result['warnings'])->pluck('message')->implode(' '))
+        ->toContain('does not save the answer anywhere');
+});
+
+it('ships a default conversation that stores every answer it asks for', function () {
+    $flow = DefaultChatFlow::definition();
+
+    foreach ($flow['nodes'] as $id => $node) {
+        if (($node['type'] ?? null) === 'choice') {
+            expect(trim((string) ($node['field'] ?? '')))->not->toBe('', "choice step {$id} must store its answer");
+        }
+    }
 });
 
 // ----------------------------------------------------------------- templates
