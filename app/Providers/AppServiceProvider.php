@@ -104,15 +104,21 @@ class AppServiceProvider extends ServiceProvider
         // would TypeError on every request rather than fall back.
         TrustProxies::at(config('security.trusted_proxies') ?? []);
 
-        // Generate URLs with the scheme APP_URL declares, for assets, redirects
-        // and signed links alike. Keyed on the URL rather than the environment:
-        // a production deployment that has not got a certificate yet still
-        // serves plain HTTP, and forcing https there points every asset at a
-        // port nothing is listening on. Behind a TLS-terminating proxy APP_URL
-        // is https, so signed links stay valid there too.
-        if (str_starts_with((string) config('app.url'), 'https://')) {
-            URL::forceScheme('https');
-        }
+        // The URL scheme is deliberately NOT forced.
+        //
+        // Laravel already builds URLs from the scheme and host of the request in
+        // hand, which is the only answer that is right for every way the app is
+        // reached: https://piotrack.com generates https links, and the same
+        // deployment on http://192.168.1.230:8080 generates http ones. Forcing
+        // https globally — whether from the environment name or from APP_URL —
+        // rewrites redirects on the plain-HTTP address to https on a port that
+        // speaks HTTP, and the browser gets its connection closed with no error
+        // page to explain it.
+        //
+        // Nothing is lost. Outside a request (queued mail, artisan) there is no
+        // request to read, so URLs fall back to APP_URL, which carries its own
+        // scheme. Behind a TLS-terminating proxy the scheme arrives in
+        // X-Forwarded-Proto and is honoured once that proxy is trusted above.
 
         // Stable polymorphic aliases for CRM activity subjects (non-strict map;
         // unmapped models such as User fall back to their class name).
