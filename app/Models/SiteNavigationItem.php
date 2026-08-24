@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -31,6 +32,17 @@ class SiteNavigationItem extends Model
     protected function casts(): array
     {
         return ['sort_order' => 'integer'];
+    }
+
+    /**
+     * The page this item points at, when it is an internal link rather than a
+     * typed-in URL. Unscoped: a public render resolves the page's own tenant.
+     *
+     * @return BelongsTo<SitePage, $this>
+     */
+    public function page(): BelongsTo
+    {
+        return $this->belongsTo(SitePage::class, 'site_page_id')->withoutGlobalScope('tenant');
     }
 
     /**

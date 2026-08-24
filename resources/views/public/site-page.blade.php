@@ -32,6 +32,11 @@
     $body = $echoedHero ? $sections->reject(fn ($s) => $s->is($echoedHero)) : $sections;
     $standfirst = $page->subheadline ?: $echoedHero?->body;
     $formUrl = $page->form_id && optional($page->form)->slug ? url('/f/'.$page->form->slug) : null;
+
+    // Every page needs a description: search engines write their own from the
+    // body when one is missing, and it is rarely the sentence you would choose.
+    $metaDescription = $page->meta_description
+        ?: \Illuminate\Support\Str::limit(trim((string) ($standfirst ?: $page->title)), 155);
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -39,20 +44,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $page->meta_title ?: $page->title }}</title>
-    @if ($page->meta_description)
-        <meta name="description" content="{{ $page->meta_description }}">
-    @endif
+    <meta name="description" content="{{ $metaDescription }}">
     <link rel="canonical" href="{{ url('/s/'.$page->slug) }}">
+    <meta name="robots" content="index,follow,max-image-preview:large">
 
     {{-- Shared links and previews are part of looking professional. --}}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ $organization->name }}">
     <meta property="og:title" content="{{ $page->meta_title ?: $page->title }}">
     <meta property="og:url" content="{{ url('/s/'.$page->slug) }}">
-    @if ($page->meta_description)
-        <meta property="og:description" content="{{ $page->meta_description }}">
-    @endif
+    <meta property="og:description" content="{{ $metaDescription }}">
     <meta name="twitter:card" content="summary_large_image">
+
+    {{-- Structured data. Carries the CSP nonce: the app allows no un-nonced
+         inline script, and ld+json is still a script element to the browser. --}}
+    @foreach ($schema as $block)
+        <script type="application/ld+json" @if (! empty($cspNonce)) nonce="{{ $cspNonce }}" @endif>{!! json_encode($block, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endforeach
 
     <style>
         :root {
@@ -193,9 +201,43 @@
         .cta-band h2 { color: var(--on-accent); margin-bottom: .5rem; }
         .cta-band p { margin: 0 auto; max-width: 48ch; opacity: .92; }
 
+        /* ---------- navigation ---------- */
+        .nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
+        .nav a { color: var(--muted); text-decoration: none; font-size: .95rem; font-weight: 520; }
+        .nav a:hover, .nav a[aria-current="page"] { color: var(--ink); }
+        .nav a[aria-current="page"] { font-weight: 640; }
+        .call { color: var(--accent); font-weight: 640; text-decoration: none; white-space: nowrap; }
+
+        /* ---------- breadcrumbs ---------- */
+        .crumbs { font-size: .87rem; color: var(--muted); padding-block: 1rem 0; }
+        .crumbs a { color: var(--muted); }
+        .crumbs span { margin-inline: .45rem; opacity: .55; }
+
+        /* ---------- contact / NAP ---------- */
+        .nap { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+        @media (min-width: 46rem) { .nap { grid-template-columns: 1.2fr 1fr; align-items: start; } }
+        .nap address { font-style: normal; line-height: 1.7; }
+        .nap .label { font-size: .78rem; letter-spacing: .09em; text-transform: uppercase;
+                      color: var(--muted); font-weight: 650; display: block; margin-bottom: .4rem; }
+
+        /* ---------- related links ---------- */
+        .related a {
+            display: block; text-decoration: none; color: inherit;
+            border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 1.15rem 1.25rem; background: var(--soft);
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .related a:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .related .context { display: block; font-size: .78rem; letter-spacing: .07em;
+                            text-transform: uppercase; color: var(--accent); font-weight: 650; margin-bottom: .35rem; }
+        .related .title { font-weight: 620; letter-spacing: -.01em; }
+        .related .go { color: var(--muted); font-size: .9rem; }
+
         /* ---------- footer ---------- */
         .site-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
-        .site-footer .wrap { padding-block: 2.25rem; }
+        .site-footer .wrap { padding-block: 2.25rem; display: grid; gap: 1rem; }
+        .site-footer a { color: var(--muted); }
+        .footer-links { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; }
 
         @media (prefers-reduced-motion: reduce) {
             * { transition: none !important; }
@@ -207,10 +249,28 @@
     <div class="wrap">
         <span class="mark" aria-hidden="true">{{ mb_strtoupper(mb_substr($organization->name, 0, 1)) }}</span>
         <span class="org">{{ $organization->name }}</span>
+        @if ($headerNav !== [] || $location?->phone)
+            <nav class="nav" aria-label="Site">
+                @foreach ($headerNav as $item)
+                    <a href="{{ $item['href'] }}" @if ($item['current']) aria-current="page" @endif>{{ $item['label'] }}</a>
+                @endforeach
+                @if ($location?->phone)
+                    <a class="call" href="tel:{{ preg_replace('/[^0-9+]/', '', $location->phone) }}">{{ $location->phone }}</a>
+                @endif
+            </nav>
+        @endif
     </div>
 </header>
 
 <main>
+    <nav class="crumbs" aria-label="Breadcrumb">
+        <div class="wrap">
+            <a href="{{ url('/') }}">{{ $organization->name }}</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">{{ $page->title }}</span>
+        </div>
+    </nav>
+
     <div class="hero">
         <div class="wrap">
             @if ($page->type && $page->type !== 'landing')
@@ -290,10 +350,80 @@
             </section>
         @endif
     @endforeach
+
+    @if ($related !== [])
+        <section class="related">
+            <div class="wrap">
+                <h2>Explore more</h2>
+                <p class="section-lead">Other services and locations we cover.</p>
+                <ul class="grid three">
+                    @foreach ($related as $item)
+                        <li>
+                            <a href="{{ $item['href'] }}">
+                                @if ($item['context'])<span class="context">{{ $item['context'] }}</span>@endif
+                                <span class="title">{{ $item['title'] }}</span>
+                                <span class="go">&rarr;</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </section>
+    @endif
+
+    @if ($location)
+        <section>
+            <div class="wrap nap">
+                <div>
+                    <h2>Talk to us</h2>
+                    <p class="section-lead">
+                        Local {{ $location->city ? $location->city.' ' : '' }}support, from people you can actually reach.
+                    </p>
+                    @if ($formUrl)
+                        <a class="btn" href="{{ $formUrl }}">Get in touch</a>
+                    @endif
+                </div>
+                <div>
+                    <span class="label">{{ $location->name }}</span>
+                    {{-- Name, address and phone in markup search engines can read:
+                         this is what local results are matched and ranked on. --}}
+                    @php
+                        // Assembled here rather than with adjacent @if/@endif pairs:
+                        // Blade will not compile an @if that directly follows @endif
+                        // with no whitespace, and the orphaned @endif breaks the view.
+                        $locality = implode(', ', array_filter([$location->city, $location->region]));
+                        $postal = implode(' · ', array_filter([$location->postal_code, $location->country]));
+                    @endphp
+                    <address>
+                        @if ($location->street){{ $location->street }}<br>@endif
+                        @if ($locality){{ $locality }}<br>@endif
+                        @if ($postal){{ $postal }}@endif
+                        @if ($location->phone)
+                            <br><a class="call" href="tel:{{ preg_replace('/[^0-9+]/', '', $location->phone) }}">{{ $location->phone }}</a>
+                        @endif
+                        @if ($location->website)
+                            {{-- An outbound link to the tenant's own site: rel=me states
+                                 that both belong to the same organisation. --}}
+                            <br><a href="{{ $location->website }}" rel="me noopener" target="_blank">{{ preg_replace('#^https?://#', '', $location->website) }}</a>
+                        @endif
+                    </address>
+                </div>
+            </div>
+        </section>
+    @endif
 </main>
 
 <footer class="site-footer">
-    <div class="wrap">&copy; {{ date('Y') }} {{ $organization->name }}</div>
+    <div class="wrap">
+        @if ($footerNav !== [])
+            <nav class="footer-links" aria-label="Footer">
+                @foreach ($footerNav as $item)
+                    <a href="{{ $item['href'] }}">{{ $item['label'] }}</a>
+                @endforeach
+            </nav>
+        @endif
+        <div>&copy; {{ date('Y') }} {{ $organization->name }}</div>
+    </div>
 </footer>
 </body>
 </html>

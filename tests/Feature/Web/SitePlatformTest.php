@@ -4,6 +4,7 @@ use App\Authorization\Role;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Organization;
+use App\Models\SeoLocation;
 use App\Models\ServiceLine;
 use App\Models\SitePage;
 use App\Models\User;
@@ -365,4 +366,70 @@ it('keeps a hero section that says something of its own', function () {
     $this->get('/s/'.$page->slug)->assertOk()
         ->assertSee('IT that just works', escape: false)
         ->assertSee('Trusted by 40 Toronto clinics', escape: false);
+});
+
+/**
+ * These are marketing pages, so what search engines and visitors need is part of
+ * the deliverable: a description on every page, a canonical URL, structured data
+ * describing the business, and internal links so pages are not orphans.
+ */
+it('publishes a page search engines can actually read', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+
+    $location = SeoLocation::create([
+        'name' => 'Toronto HQ', 'street' => '120 Adelaide St W', 'city' => 'Toronto',
+        'region' => 'Ontario', 'postal_code' => 'M5H 1T1', 'country' => 'Canada',
+        'phone' => '+14165550100',
+    ]);
+
+    $builder = app(SiteBuilderService::class);
+    $page = $builder->createPage([
+        'title' => 'Managed IT Toronto', 'type' => 'location',
+        'headline' => 'IT that just works', 'seo_location_id' => $location->id,
+    ]);
+    $builder->addSection($page, ['type' => 'cta', 'heading' => 'Book a call']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$page->slug)->assertOk()->getContent();
+
+    // Discoverability
+    expect($html)->toContain('rel="canonical"')
+        ->and($html)->toContain('name="description"')
+        ->and($html)->toContain('property="og:title"');
+
+    // Structured data, parseable rather than merely present
+    preg_match_all('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $m);
+    expect($m[1])->not->toBeEmpty();
+    $types = [];
+    foreach ($m[1] as $block) {
+        $decoded = json_decode($block, true);
+        expect($decoded)->toBeArray();
+        $types[] = $decoded['@type'] ?? null;
+    }
+    expect($types)->toContain('LocalBusiness')->toContain('BreadcrumbList');
+
+    // The branch's phone, as something a visitor can tap and a crawler can read
+    expect($html)->toContain('tel:+14165550100')
+        ->and($html)->toContain('120 Adelaide St W');
+});
+
+it('links a page to its siblings so published pages are not orphans', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+    $builder = app(SiteBuilderService::class);
+
+    foreach (['Managed IT Services', 'Cybersecurity', 'Cloud Migration'] as $title) {
+        $p = $builder->createPage(['title' => $title, 'type' => 'service']);
+        $builder->addSection($p, ['type' => 'cta', 'heading' => 'Book a call']);
+        $builder->publish($p);
+    }
+    $first = SitePage::where('title', 'Managed IT Services')->firstOrFail();
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$first->slug)->assertOk()->getContent();
+
+    // Its siblings are reachable from it, which is how the rest of the site is found.
+    expect($html)->toContain('Cybersecurity')->toContain('Cloud Migration');
 });
