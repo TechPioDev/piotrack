@@ -13,6 +13,8 @@
  * Install:  <script src=".../widget/piotrack-chat.js" data-widget="wc_xxx" async></script>
  */
 
+import { fetchWithRetry } from './retry';
+
 type Option = { id: string; label: string };
 type ChatNode = {
     id: string;
@@ -152,12 +154,19 @@ function visitorId(): string {
     }
 }
 
+/**
+ * One call to the widget API. A momentary failure is retried once — see
+ * retry.ts for why, and for what deliberately is not retried.
+ */
 async function api<T>(path: string, body?: unknown): Promise<T> {
-    const response = await fetch(`${origin}/wc/${widgetKey}/${path}`, {
-        method: body === undefined ? 'GET' : 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const response = await fetchWithRetry(() =>
+        fetch(`${origin}/wc/${widgetKey}/${path}`, {
+            method: body === undefined ? 'GET' : 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: body === undefined ? undefined : JSON.stringify(body),
+        }),
+    );
+
     if (!response.ok) {
         throw Object.assign(new Error('request failed'), { status: response.status, payload: await response.json().catch(() => ({})) });
     }
