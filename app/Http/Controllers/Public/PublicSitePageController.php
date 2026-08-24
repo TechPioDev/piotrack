@@ -77,7 +77,7 @@ class PublicSitePageController extends Controller
             'headerNav' => $this->navLinks($navigation->get('header'), $page),
             'footerNav' => $this->navLinks($navigation->get('footer'), $page),
             'related' => $this->relatedPages($page),
-            'schema' => $this->structuredData($page, $location, $schema),
+            'schema' => $this->structuredData($page, $location, $sections, $schema),
         ]);
     }
 
@@ -156,15 +156,50 @@ class PublicSitePageController extends Controller
     }
 
     /**
+     * Question/answer pairs from any FAQ sections on the page.
+     *
+     * Authors write these as one line each — "Do you offer 24/7 cover? Yes, …" —
+     * so a plain string is split at the first question mark. An explicit
+     * question/answer pair is honoured as given.
+     *
+     * @param  Collection<int, PageSection>  $sections
+     * @return list<array{question: string, answer: string}>
+     */
+    private function faqPairs(Collection $sections): array
+    {
+        $pairs = [];
+        foreach ($sections->where('type', 'faq') as $section) {
+            foreach ((array) ($section->settings['items'] ?? []) as $item) {
+                if (is_array($item)) {
+                    $question = trim((string) ($item['question'] ?? $item['label'] ?? ''));
+                    $answer = trim((string) ($item['answer'] ?? $item['body'] ?? ''));
+                } else {
+                    $text = trim((string) $item);
+                    $at = mb_strpos($text, '?');
+                    $question = $at === false ? $text : mb_substr($text, 0, $at + 1);
+                    $answer = $at === false ? '' : trim(mb_substr($text, $at + 1));
+                }
+
+                if ($question !== '' && $answer !== '') {
+                    $pairs[] = ['question' => $question, 'answer' => $answer];
+                }
+            }
+        }
+
+        return $pairs;
+    }
+
+    /**
      * JSON-LD describing the page.
      *
      * A service page is a Service offered by the business; anything tied to a
      * branch is that LocalBusiness. Breadcrumbs are emitted separately so search
      * results can show the path rather than a bare URL.
      *
+     * @param  Collection<int, PageSection>  $sections
      * @return list<array<string, mixed>>
      */
-    private function structuredData(SitePage $page, ?SeoLocation $location, SchemaGenerator $schema): array
+    private function structuredData(SitePage $page, ?SeoLocation $location, Collection $sections, SchemaGenerator $schema): array
     {
         $org = $page->organization;
         $out = [];
@@ -193,6 +228,14 @@ class PublicSitePageController extends Controller
                 'provider' => $org->name,
                 'description' => $page->meta_description,
             ]);
+        }
+
+        // Questions and answers a search engine can show directly in results,
+        // which is the whole reason to write an FAQ section rather than a prose
+        // block saying the same thing.
+        $faq = $this->faqPairs($sections);
+        if ($faq !== []) {
+            $out[] = $schema->generate('FAQPage', ['faqs' => $faq]);
         }
 
         $out[] = [

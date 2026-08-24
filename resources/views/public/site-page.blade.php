@@ -31,7 +31,11 @@
 
     $body = $echoedHero ? $sections->reject(fn ($s) => $s->is($echoedHero)) : $sections;
     $standfirst = $page->subheadline ?: $echoedHero?->body;
-    $formUrl = $page->form_id && optional($page->form)->slug ? url('/f/'.$page->form->slug) : null;
+    $form = $page->form_id ? $page->form : null;
+    $formUrl = $form && $form->slug ? url('/f/'.$form->slug) : null;
+    // With the form on the page, the calls to action scroll to it rather than
+    // sending the visitor to a separate page and losing the pitch behind them.
+    $ctaHref = $form ? '#contact' : $formUrl;
 
     // Every page needs a description: search engines write their own from the
     // body when one is missing, and it is rarely the sentence you would choose.
@@ -233,6 +237,40 @@
         .related .title { font-weight: 620; letter-spacing: -.01em; }
         .related .go { color: var(--muted); font-size: .9rem; }
 
+        /* ---------- faq ---------- */
+        .faq { display: grid; gap: .6rem; }
+        .faq details {
+            border: 1px solid var(--line); border-radius: var(--radius);
+            background: var(--soft); padding: 0 1.25rem;
+        }
+        .faq summary {
+            cursor: pointer; padding: 1.1rem 0; font-weight: 620; letter-spacing: -.008em;
+            list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        }
+        .faq summary::-webkit-details-marker { display: none; }
+        .faq summary::after { content: "+"; color: var(--accent); font-size: 1.35rem; font-weight: 600; line-height: 1; }
+        .faq details[open] summary::after { content: "2"; }
+        .faq summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+        .faq .answer { margin: 0; padding: 0 0 1.2rem; color: var(--muted); max-width: 62ch; }
+
+        /* ---------- contact form ---------- */
+        .field { display: grid; gap: .35rem; margin-bottom: 1rem; }
+        .field label { font-size: .9rem; font-weight: 620; }
+        .field input, .field textarea {
+            font: inherit; color: var(--ink); background: var(--bg);
+            border: 1px solid var(--line); border-radius: 10px; padding: .7rem .85rem; width: 100%;
+        }
+        .field textarea { min-height: 7rem; resize: vertical; }
+        .field input:focus-visible, .field textarea:focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 1px;
+            border-color: var(--accent);
+        }
+        .field .req { color: #b42318; }
+        .field .error { color: #b42318; font-size: .85rem; }
+        .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+        .form-note { color: var(--muted); font-size: .85rem; margin: .75rem 0 0; }
+        .contact-form .btn { margin-top: .5rem; }
+
         /* ---------- footer ---------- */
         .site-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
         .site-footer .wrap { padding-block: 2.25rem; display: grid; gap: 1rem; }
@@ -281,7 +319,7 @@
                 <p class="standfirst">{{ $standfirst }}</p>
             @endif
             @if ($formUrl)
-                <a class="btn" href="{{ $formUrl }}">Get in touch</a>
+                <a class="btn" href="{{ $ctaHref }}">Get in touch</a>
             @endif
         </div>
     </div>
@@ -296,8 +334,40 @@
                         @if ($section->heading)<h2>{{ $section->heading }}</h2>@endif
                         @if ($section->body)<p>{{ $section->body }}</p>@endif
                         @if ($formUrl)
-                            <a class="btn inverse" href="{{ $formUrl }}">Get in touch</a>
+                            <a class="btn inverse" href="{{ $ctaHref }}">Get in touch</a>
                         @endif
+                    </div>
+                </div>
+            </section>
+
+        @elseif ($section->type === 'faq' && $items !== [])
+            <section>
+                <div class="wrap">
+                    @if ($section->heading)<h2>{{ $section->heading }}</h2>@endif
+                    @if ($section->body)<p class="section-lead">{{ $section->body }}</p>@endif
+                    {{-- <details> gives a real disclosure widget with no JavaScript:
+                         keyboard operable, findable by in-page search, and open by
+                         default to a crawler. --}}
+                    <div class="faq">
+                        @foreach ($items as $item)
+                            @php
+                                if (is_array($item)) {
+                                    $question = trim((string) ($item['question'] ?? $item['label'] ?? ''));
+                                    $answer = trim((string) ($item['answer'] ?? $item['body'] ?? ''));
+                                } else {
+                                    $text = trim((string) $item);
+                                    $at = mb_strpos($text, '?');
+                                    $question = $at === false ? $text : mb_substr($text, 0, $at + 1);
+                                    $answer = $at === false ? '' : trim(mb_substr($text, $at + 1));
+                                }
+                            @endphp
+                            @if ($question !== '')
+                                <details>
+                                    <summary>{{ $question }}</summary>
+                                    @if ($answer !== '')<p class="answer">{{ $answer }}</p>@endif
+                                </details>
+                            @endif
+                        @endforeach
                     </div>
                 </div>
             </section>
@@ -371,42 +441,87 @@
         </section>
     @endif
 
-    @if ($location)
-        <section>
+    @if ($location || $form)
+        <section id="contact">
             <div class="wrap nap">
                 <div>
                     <h2>Talk to us</h2>
                     <p class="section-lead">
-                        Local {{ $location->city ? $location->city.' ' : '' }}support, from people you can actually reach.
+                        @if ($location?->city)
+                            Local {{ $location->city }} support, from people you can actually reach.
+                        @else
+                            Tell us what you need and we will come back to you.
+                        @endif
                     </p>
-                    @if ($formUrl)
-                        <a class="btn" href="{{ $formUrl }}">Get in touch</a>
+
+                    @if ($location)
+                        <span class="label">{{ $location->name }}</span>
+                        {{-- Name, address and phone in markup search engines can read:
+                             this is what local results are matched and ranked on. --}}
+                        @php
+                            // Assembled here rather than with adjacent conditional
+                            // directives: Blade does not compile one that follows a
+                            // closing directive with no whitespace between them, and
+                            // the orphan left behind breaks the whole view. Note the
+                            // directive names are deliberately not written out even in
+                            // this comment — Blade parses them here too.
+                            $locality = implode(', ', array_filter([$location->city, $location->region]));
+                            $postal = implode(' · ', array_filter([$location->postal_code, $location->country]));
+                        @endphp
+                        <address>
+                            @if ($location->street){{ $location->street }}<br>@endif
+                            @if ($locality){{ $locality }}<br>@endif
+                            @if ($postal){{ $postal }}@endif
+                            @if ($location->phone)
+                                <br><a class="call" href="tel:{{ preg_replace('/[^0-9+]/', '', $location->phone) }}">{{ $location->phone }}</a>
+                            @endif
+                            @if ($location->website)
+                                {{-- An outbound link to the tenant's own site: rel=me
+                                     states that both belong to the same organisation. --}}
+                                <br><a href="{{ $location->website }}" rel="me noopener" target="_blank">{{ preg_replace('#^https?://#', '', $location->website) }}</a>
+                            @endif
+                        </address>
                     @endif
                 </div>
+
                 <div>
-                    <span class="label">{{ $location->name }}</span>
-                    {{-- Name, address and phone in markup search engines can read:
-                         this is what local results are matched and ranked on. --}}
-                    @php
-                        // Assembled here rather than with adjacent @if/@endif pairs:
-                        // Blade will not compile an @if that directly follows @endif
-                        // with no whitespace, and the orphaned @endif breaks the view.
-                        $locality = implode(', ', array_filter([$location->city, $location->region]));
-                        $postal = implode(' · ', array_filter([$location->postal_code, $location->country]));
-                    @endphp
-                    <address>
-                        @if ($location->street){{ $location->street }}<br>@endif
-                        @if ($locality){{ $locality }}<br>@endif
-                        @if ($postal){{ $postal }}@endif
-                        @if ($location->phone)
-                            <br><a class="call" href="tel:{{ preg_replace('/[^0-9+]/', '', $location->phone) }}">{{ $location->phone }}</a>
-                        @endif
-                        @if ($location->website)
-                            {{-- An outbound link to the tenant's own site: rel=me states
-                                 that both belong to the same organisation. --}}
-                            <br><a href="{{ $location->website }}" rel="me noopener" target="_blank">{{ preg_replace('#^https?://#', '', $location->website) }}</a>
-                        @endif
-                    </address>
+                    @if ($form)
+                        {{-- The form posts straight to the public capture endpoint, so
+                             a prospect never leaves the page that convinced them. That
+                             route is CSRF-exempt by design and guarded by the same
+                             honeypot and throttle as the standalone form page; a
+                             validation failure returns here with the errors. --}}
+                        <form class="contact-form" method="POST" action="{{ url('/f/'.$form->slug) }}">
+                            <div class="hp" aria-hidden="true">
+                                <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+                            </div>
+
+                            @foreach ($form->fields as $field)
+                                @php
+                                    $name = $field['name'] ?? '';
+                                    $type = $field['type'] ?? 'text';
+                                    $required = (bool) ($field['required'] ?? false);
+                                @endphp
+                                <div class="field">
+                                    <label for="c-{{ $name }}">
+                                        {{ $field['label'] ?? $name }}@if ($required)<span class="req" aria-hidden="true"> *</span>@endif
+                                    </label>
+                                    @if ($type === 'textarea')
+                                        <textarea id="c-{{ $name }}" name="{{ $name }}" @if ($required) required @endif>{{ old($name) }}</textarea>
+                                    @else
+                                        <input id="c-{{ $name }}" type="{{ $type }}" name="{{ $name }}"
+                                               value="{{ old($name) }}"
+                                               @if ($type === 'email') autocomplete="email" @endif
+                                               @if ($required) required @endif>
+                                    @endif
+                                    @error($name)<span class="error">{{ $message }}</span>@enderror
+                                </div>
+                            @endforeach
+
+                            <button class="btn" type="submit">{{ $form->settings['button_label'] ?? 'Send enquiry' }}</button>
+                            <p class="form-note">We reply to every enquiry. No newsletter, no sales list.</p>
+                        </form>
+                    @endif
                 </div>
             </div>
         </section>

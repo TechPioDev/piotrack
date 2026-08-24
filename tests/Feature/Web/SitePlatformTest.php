@@ -3,6 +3,7 @@
 use App\Authorization\Role;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\Form;
 use App\Models\Organization;
 use App\Models\SeoLocation;
 use App\Models\ServiceLine;
@@ -432,4 +433,79 @@ it('links a page to its siblings so published pages are not orphans', function (
 
     // Its siblings are reachable from it, which is how the rest of the site is found.
     expect($html)->toContain('Cybersecurity')->toContain('Cloud Migration');
+});
+
+/**
+ * An FAQ section earns its place twice: it answers the objection on the page,
+ * and it is eligible for rich results. The second only happens if the questions
+ * reach the markup as FAQPage data, so both halves are asserted.
+ */
+it('renders an faq as disclosure widgets and as FAQPage data', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+    $builder = app(SiteBuilderService::class);
+
+    $page = $builder->createPage(['title' => 'Managed IT', 'type' => 'service']);
+    $builder->addSection($page, ['type' => 'faq', 'heading' => 'Questions we get asked', 'settings' => ['items' => [
+        'Do you offer 24/7 support? Yes, staffed around the clock.',
+        ['question' => 'Can you work with our hardware?', 'answer' => 'Yes, we plan replacements around your budget.'],
+    ]]]);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$page->slug)->assertOk()->getContent();
+
+    // Native disclosure, so it works with scripting off and is keyboard operable.
+    expect(substr_count($html, '<details>'))->toBe(2)
+        ->and($html)->toContain('Do you offer 24/7 support?')
+        ->and($html)->toContain('Can you work with our hardware?');
+
+    preg_match_all('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $m);
+    $faq = null;
+    foreach ($m[1] as $block) {
+        $decoded = json_decode($block, true);
+        if (($decoded['@type'] ?? null) === 'FAQPage') {
+            $faq = $decoded;
+        }
+    }
+
+    expect($faq)->not->toBeNull();
+    expect($faq['mainEntity'])->toHaveCount(2);
+    // The one-line form is split at the question mark, not stored whole.
+    expect($faq['mainEntity'][0]['name'])->toBe('Do you offer 24/7 support?')
+        ->and($faq['mainEntity'][0]['acceptedAnswer']['text'])->toBe('Yes, staffed around the clock.');
+});
+
+it('puts the contact form on the page so a prospect never leaves it', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+
+    $form = Form::create([
+        'name' => 'Contact us',
+        'slug' => 'contact-'.uniqid(),
+        'status' => 'published',
+        'fields' => [
+            ['name' => 'first_name', 'label' => 'Your name', 'type' => 'text', 'required' => true],
+            ['name' => 'email', 'label' => 'Work email', 'type' => 'email', 'required' => true],
+        ],
+        'settings' => ['button_label' => 'Request a callback'],
+    ]);
+
+    $builder = app(SiteBuilderService::class);
+    $page = $builder->createPage(['title' => 'Managed IT', 'type' => 'service', 'form_id' => $form->id]);
+    $builder->addSection($page, ['type' => 'cta', 'heading' => 'Book a call']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$page->slug)->assertOk()->getContent();
+
+    // Posts straight to the capture endpoint, with the honeypot the bots fill.
+    expect($html)->toContain('action="'.url('/f/'.$form->slug).'"')
+        ->and($html)->toContain('name="first_name"')
+        ->and($html)->toContain('name="email"')
+        ->and($html)->toContain('name="website"')
+        ->and($html)->toContain('Request a callback');
+
+    // With the form present the calls to action scroll to it rather than navigating away.
+    expect($html)->toContain('href="#contact"');
 });
