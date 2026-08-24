@@ -135,7 +135,51 @@ class DefaultChatFlow
                     'input' => 'company',
                     'field' => 'company_name',
                     'text' => 'What company are you with?',
-                    'next' => 'q_meeting',
+                    'next' => 'q_timeframe',
+                ],
+
+                // ---- Deeper qualification, deliberately AFTER contact capture ----
+                //
+                // Drop-off is measured per question, and it is brutal before the
+                // email: the phone step alone loses about four visitors in ten.
+                // Everything below is asked once the lead already exists, so an
+                // abandonment here costs detail rather than the lead itself, and
+                // a sales conversation still starts. Score is weighted by how
+                // much each answer changes whether this is worth a call today.
+                'q_timeframe' => [
+                    'type' => 'choice',
+                    'field' => 'timeframe',
+                    'text' => 'When are you looking to make a change?',
+                    'options' => [
+                        ['id' => 'now', 'label' => 'Right away', 'score' => 25, 'next' => 'q_locations', 'priority' => 'high'],
+                        ['id' => '1_3_months', 'label' => 'In the next 1–3 months', 'score' => 15, 'next' => 'q_locations'],
+                        ['id' => '3_6_months', 'label' => '3–6 months', 'score' => 5, 'next' => 'q_locations'],
+                        ['id' => 'researching', 'label' => 'Just researching for now', 'score' => 0, 'next' => 'q_locations'],
+                    ],
+                ],
+                'q_locations' => [
+                    'type' => 'choice',
+                    'field' => 'locations',
+                    'text' => 'How many sites would we be supporting?',
+                    'options' => [
+                        ['id' => '1', 'label' => 'One', 'score' => 0, 'next' => 'q_compliance'],
+                        ['id' => '2-5', 'label' => 'Two to five', 'score' => 10, 'next' => 'q_compliance'],
+                        ['id' => '6+', 'label' => 'Six or more', 'score' => 20, 'next' => 'q_compliance'],
+                        ['id' => 'remote', 'label' => 'Mostly remote staff', 'score' => 10, 'next' => 'q_compliance'],
+                    ],
+                ],
+                'q_compliance' => [
+                    'type' => 'choice',
+                    'field' => 'compliance',
+                    'text' => 'Do you have any compliance requirements?',
+                    'options' => [
+                        ['id' => 'hipaa', 'label' => 'HIPAA', 'score' => 20, 'next' => 'q_meeting'],
+                        ['id' => 'cmmc', 'label' => 'CMMC / DFARS', 'score' => 25, 'next' => 'q_meeting'],
+                        ['id' => 'pci', 'label' => 'PCI DSS', 'score' => 15, 'next' => 'q_meeting'],
+                        ['id' => 'soc2', 'label' => 'SOC 2', 'score' => 20, 'next' => 'q_meeting'],
+                        ['id' => 'none', 'label' => 'None that I know of', 'score' => 0, 'next' => 'q_meeting'],
+                        ['id' => 'unsure', 'label' => 'Not sure', 'score' => 5, 'next' => 'q_meeting'],
+                    ],
                 ],
 
                 // ---- Meeting offer (§22, Phase 1: link to the booking page) ----

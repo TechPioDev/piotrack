@@ -20,6 +20,7 @@ use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\SalesAlert;
 use App\Models\ScoringRule;
+use App\Services\Chat\DefaultChatFlow;
 use App\Support\CurrentOrganization;
 
 beforeEach(function () {
@@ -109,6 +110,9 @@ it('runs the full §51 qualification journey into CRM, scoring, routing and aler
         ['value' => 'michael@precisionmfg.test'],
         ['value' => '215-555-0142'],
         ['value' => 'Precision Manufacturing Group'],
+        ['option' => '1_3_months'],      // timeframe        +15  (the brief's 90 days)
+        ['option' => '1'],               // sites            +0
+        ['option' => 'cmmc'],            // compliance       +25  (what they came for)
         ['option' => 'yes'],             // wants meeting    +30
     ], [
         'page' => 'https://acmeit.test/cybersecurity',
@@ -119,8 +123,8 @@ it('runs the full §51 qualification journey into CRM, scoring, routing and aler
 
     $conversation = ChatConversation::withoutGlobalScope('tenant')->firstWhere('token', $result['token']);
 
-    // Scoring is server-side: 15+15+20+15+10+30 = 105 → hot.
-    expect($conversation->lead_score)->toBe(105);
+    // Scoring is server-side: 15+15+20+15+10 +15+0+25 +30 = 145 → hot.
+    expect($conversation->lead_score)->toBe(145);
 
     // CRM records created, linked, and attributed.
     $contact = Contact::withoutGlobalScope('tenant')->firstWhere('email', 'michael@precisionmfg.test');
@@ -165,7 +169,9 @@ it('deduplicates a returning visitor onto the existing contact', function () {
         ['option' => 'accept'], ['option' => 'managed_it'], ['option' => '11-50'],
         ['option' => 'no'], ['option' => 'slow_support'],
         ['value' => 'Dana'], ['value' => 'Whitfield'], ['value' => 'dana@repeat.test'],
-        ['value' => '215-555-0101'], ['value' => 'Repeat Co'], ['option' => 'no'],
+        ['value' => '215-555-0101'], ['value' => 'Repeat Co'],
+        ['option' => 'researching'], ['option' => '1'], ['option' => 'none'],
+        ['option' => 'no'],
     ];
 
     runChat($this->widget->public_key, $answers);
@@ -243,11 +249,80 @@ it('applies the tenant scoring rules on top of the chat score', function () {
         ['option' => 'accept'], ['option' => 'm365'], ['option' => '1-10'],
         ['option' => 'no'], ['option' => 'other'],
         ['value' => 'Sam'], ['value' => 'Low'], ['value' => 'sam@small.test'],
-        ['value' => '215-555-0199'], ['value' => 'Small Co'], ['option' => 'no'],
+        ['value' => '215-555-0199'], ['value' => 'Small Co'],
+        // All zero-score answers, so the tenant rule's 40 is the whole total.
+        ['option' => 'researching'], ['option' => '1'], ['option' => 'none'],
+        ['option' => 'no'],
     ]);
 
     $contact = Contact::withoutGlobalScope('tenant')->firstWhere('email', 'sam@small.test');
 
     // The chat contributed 5+0+5+0 = 10; the tenant's own rule adds 40 and wins.
     expect($contact->lead_score)->toBe(40);
+});
+
+/**
+ * Qualification depth is worth having, but not at the cost of the lead.
+ *
+ * Drop-off is measured per question and it is severe before the email — the
+ * phone step alone loses roughly four visitors in ten. So the deeper questions
+ * sit after contact capture: abandoning there costs detail, not the lead, and a
+ * salesperson still has someone to call. This pins that ordering, because moving
+ * one of them earlier would look harmless and quietly cost conversions.
+ */
+it('asks the deeper qualification only after it has the contact', function () {
+    $flow = DefaultChatFlow::definition();
+    $nodes = $flow['nodes'];
+
+    foreach (['q_timeframe', 'q_locations', 'q_compliance'] as $id) {
+        expect($nodes)->toHaveKey($id);
+    }
+
+    // Walk from the start and record the order questions are reached, always
+    // taking the first option, so "after" is proven by the graph and not by
+    // where the array happens to be written.
+    $seen = [];
+    $cursor = $flow['start'];
+    $guard = 0;
+    while ($cursor !== null && $guard++ < 40) {
+        $node = $nodes[$cursor] ?? null;
+        if ($node === null) {
+            break;
+        }
+        $seen[] = $cursor;
+        $cursor = $node['options'][0]['next'] ?? $node['next'] ?? null;
+    }
+
+    $emailAt = array_search('in_email', $seen, true);
+    expect($emailAt)->not->toBeFalse();
+
+    foreach (['q_timeframe', 'q_locations', 'q_compliance'] as $id) {
+        $at = array_search($id, $seen, true);
+        expect($at)->not->toBeFalse()
+            ->and($at)->toBeGreaterThan($emailAt);
+    }
+});
+
+it('scores the answers that decide whether to call today', function () {
+    $nodes = DefaultChatFlow::definition()['nodes'];
+
+    $score = function (string $node, string $option) use ($nodes): int {
+        foreach ($nodes[$node]['options'] as $candidate) {
+            if ($candidate['id'] === $option) {
+                return (int) ($candidate['score'] ?? 0);
+            }
+        }
+
+        return -1;
+    };
+
+    // Someone buying now outranks someone reading around, and a regulated
+    // buyer outranks one with nothing to comply with.
+    expect($score('q_timeframe', 'now'))->toBeGreaterThan($score('q_timeframe', 'researching'))
+        ->and($score('q_compliance', 'cmmc'))->toBeGreaterThan($score('q_compliance', 'none'))
+        ->and($score('q_locations', '6+'))->toBeGreaterThan($score('q_locations', '1'));
+
+    // "Right away" is the one that should reach a human today.
+    $now = collect($nodes['q_timeframe']['options'])->firstWhere('id', 'now');
+    expect($now['priority'] ?? null)->toBe('high');
 });
