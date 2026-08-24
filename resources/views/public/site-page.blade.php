@@ -3,13 +3,17 @@
 
     This is a prospect's first impression of the tenant, so it is designed rather
     than merely rendered: a real type scale, a considered palette, and a distinct
-    treatment per section type. Still server-rendered with zero JavaScript — it
-    must load instantly, index cleanly and work with scripting off.
+    treatment per section type. Server-rendered throughout — it must load
+    instantly, index cleanly and work with scripting off.
 
     Self-contained by necessity as well as choice: the app sends a strict CSP
     (font-src 'self' data:), so no external font or stylesheet would load. The
     type is a well-set system stack, and the character comes from scale, weight
     and spacing instead.
+
+    The one script is the tenant's chat widget, loaded async from this origin.
+    Nothing on the page depends on it: the content, the links, the FAQ and the
+    contact form all work with scripting off.
 
     Tenants with a brand palette get their own accent; everyone else gets a
     considered default rather than a browser blue.
@@ -527,6 +531,15 @@
         </section>
     @endif
 </main>
+
+@if ($chatWidget)
+    {{-- The tenant's chat widget, loaded from this same origin so the app's own
+         script-src 'self' allows it without a nonce. Async, so it never blocks
+         first paint; the page's content and every link on it work whether or not
+         this ever loads. Where it appears is decided by the widget's own
+         targeting rules, not here. --}}
+    <script src="{{ url('/widget/piotrack-chat.js') }}" data-widget="{{ $chatWidget->public_key }}" async></script>
+@endif
 
 <footer class="site-footer">
     <div class="wrap">

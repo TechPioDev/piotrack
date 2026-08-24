@@ -1,6 +1,7 @@
 <?php
 
 use App\Authorization\Role;
+use App\Models\ChatWidget;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Form;
@@ -10,6 +11,7 @@ use App\Models\ServiceLine;
 use App\Models\SitePage;
 use App\Models\User;
 use App\Models\Vertical;
+use App\Services\Chat\DefaultChatFlow;
 use App\Services\Web\LocationService;
 use App\Services\Web\SiteBuilderService;
 use App\Services\Web\SiteHealthService;
@@ -508,4 +510,55 @@ it('puts the contact form on the page so a prospect never leaves it', function (
 
     // With the form present the calls to action scroll to it rather than navigating away.
     expect($html)->toContain('href="#contact"');
+});
+
+/**
+ * The published pages are the tenant's marketing surface, so the chat widget
+ * belongs on them. Where it actually appears stays the widget's decision — it
+ * already evaluates URL, device and visitor targeting in the browser — so this
+ * only asserts that the snippet is present and points at the right widget.
+ */
+it('carries the active chat widget on published pages', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+
+    $widget = ChatWidget::create([
+        'name' => 'Site chat', 'status' => 'active',
+        'flow' => DefaultChatFlow::definition(),
+        'theme' => [], 'consent' => [], 'settings' => [], 'allowed_domains' => [],
+    ]);
+
+    $builder = app(SiteBuilderService::class);
+    $page = $builder->createPage(['title' => 'Managed IT', 'type' => 'service']);
+    $builder->addSection($page, ['type' => 'cta', 'heading' => 'Book a call']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$page->slug)->assertOk()->getContent();
+
+    expect($html)->toContain('data-widget="'.$widget->public_key.'"')
+        ->and($html)->toContain('/widget/piotrack-chat.js')
+        // async, so a slow or unreachable widget never delays the page itself
+        ->and($html)->toContain('async');
+});
+
+it('leaves the page alone when no widget is live', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+
+    // A draft widget is not live, so it must not be served to visitors.
+    ChatWidget::create([
+        'name' => 'Not ready', 'status' => 'draft',
+        'flow' => DefaultChatFlow::definition(),
+        'theme' => [], 'consent' => [], 'settings' => [], 'allowed_domains' => [],
+    ]);
+
+    $builder = app(SiteBuilderService::class);
+    $page = $builder->createPage(['title' => 'Managed IT', 'type' => 'service']);
+    $builder->addSection($page, ['type' => 'cta', 'heading' => 'Book a call']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    expect($this->get('/s/'.$page->slug)->assertOk()->getContent())
+        ->not->toContain('piotrack-chat.js');
 });

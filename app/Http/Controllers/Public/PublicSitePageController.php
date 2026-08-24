@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\BrandProfile;
+use App\Models\ChatWidget;
 use App\Models\PageSection;
 use App\Models\SeoLocation;
 use App\Models\SiteNavigationItem;
@@ -61,6 +62,16 @@ class PublicSitePageController extends Controller
         $location = $page->location ?: SeoLocation::withoutGlobalScope('tenant')
             ->where('organization_id', $orgId)->orderBy('id')->first();
 
+        // The chat widget rides along on every published page. Which pages it
+        // actually appears on is the widget's own business: it already evaluates
+        // URL include/exclude rules, device and visitor targeting in the browser,
+        // so a second setting here would only be able to disagree with it.
+        $chatWidget = ChatWidget::withoutGlobalScope('tenant')
+            ->where('organization_id', $orgId)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first();
+
         $navigation = SiteNavigationItem::withoutGlobalScope('tenant')
             ->where('organization_id', $orgId)
             ->with('page:id,slug,title,status')
@@ -77,6 +88,7 @@ class PublicSitePageController extends Controller
             'headerNav' => $this->navLinks($navigation->get('header'), $page),
             'footerNav' => $this->navLinks($navigation->get('footer'), $page),
             'related' => $this->relatedPages($page),
+            'chatWidget' => $chatWidget,
             'schema' => $this->structuredData($page, $location, $sections, $schema),
         ]);
     }
