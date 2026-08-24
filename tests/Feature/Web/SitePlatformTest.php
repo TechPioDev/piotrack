@@ -328,3 +328,41 @@ it('never lets one tenant page shadow another on the public URL space', function
         $this->get('/s/'.$page->slug)->assertOk()->assertSee($expected, escape: false);
     }
 });
+
+/**
+ * A published page led with its headline as an H1 and then repeated the same
+ * sentence as an H2 immediately beneath, because the page headline and the hero
+ * section's heading both rendered. It read as a mistake to every visitor.
+ */
+it('does not print the headline twice when a hero section repeats it', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+    $builder = app(SiteBuilderService::class);
+
+    $page = $builder->createPage(['title' => 'Managed IT Services', 'type' => 'service', 'headline' => 'IT that just works']);
+    // A hero echoing the headline is what the builder's templates produce.
+    $builder->addSection($page, ['type' => 'hero', 'heading' => 'IT that just works']);
+    $builder->addSection($page, ['type' => 'cta', 'heading' => 'Book a call']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    $html = $this->get('/s/'.$page->slug)->assertOk()->getContent();
+
+    expect(substr_count($html, 'IT that just works'))->toBe(1);
+});
+
+it('keeps a hero section that says something of its own', function () {
+    [$org] = webOrganization();
+    app(CurrentOrganization::class)->set($org);
+    $builder = app(SiteBuilderService::class);
+
+    $page = $builder->createPage(['title' => 'Managed IT Services', 'type' => 'service', 'headline' => 'IT that just works']);
+    $builder->addSection($page, ['type' => 'hero', 'heading' => 'Trusted by 40 Toronto clinics']);
+    $builder->publish($page);
+    app(CurrentOrganization::class)->forget();
+
+    // Distinct content is not a duplicate, so dropping it would lose the page's words.
+    $this->get('/s/'.$page->slug)->assertOk()
+        ->assertSee('IT that just works', escape: false)
+        ->assertSee('Trusted by 40 Toronto clinics', escape: false);
+});

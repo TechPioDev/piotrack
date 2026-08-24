@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\BrandProfile;
 use App\Models\PageSection;
 use App\Models\SitePage;
 use App\Support\CurrentOrganization;
@@ -38,10 +39,18 @@ class PublicSitePageController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        // Loaded explicitly rather than through a relation: the brand profile is
+        // tenant-scoped, and a public request should not depend on the global
+        // scope having been primed to resolve the page's own branding.
+        $brand = BrandProfile::withoutGlobalScope('tenant')
+            ->where('organization_id', $page->organization_id)
+            ->first();
+
         return view('public.site-page', [
             'page' => $page,
             'sections' => $sections,
             'organization' => $page->organization,
+            'brand' => $brand,
         ]);
     }
 }
