@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
+import { copyText } from '@/lib/clipboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Check, Copy, ExternalLink, Eye, EyeOff, TriangleAlert } from 'lucide-react';
@@ -119,6 +120,7 @@ function idOrNull(value: string): number | null {
  */
 function PublicUrl({ page }: { page: SitePage }) {
     const [copied, setCopied] = useState(false);
+    const [copyFailed, setCopyFailed] = useState(false);
     const path = `/s/${page.slug}`;
 
     if (page.status !== 'published') {
@@ -129,11 +131,18 @@ function PublicUrl({ page }: { page: SitePage }) {
         );
     }
 
-    const copy = () => {
-        void navigator.clipboard?.writeText(new URL(path, window.location.origin).toString()).then(() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-        });
+    // copyText falls back to execCommand: navigator.clipboard only exists in a
+    // secure context, so on a plain-HTTP install the optional chain here used to
+    // evaluate to undefined and the button did nothing at all — no copy, and no
+    // hint that anything had gone wrong.
+    const copy = async () => {
+        const ok = await copyText(new URL(path, window.location.origin).toString());
+        setCopied(ok);
+        setCopyFailed(!ok);
+        window.setTimeout(() => {
+            setCopied(false);
+            setCopyFailed(false);
+        }, 3000);
     };
 
     return (
@@ -147,6 +156,7 @@ function PublicUrl({ page }: { page: SitePage }) {
                 {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
                 {copied ? 'Copied' : 'Copy link'}
             </Button>
+            {copyFailed && <span className="text-muted-foreground text-xs">Your browser blocked copying — select the link above instead.</span>}
         </div>
     );
 }
