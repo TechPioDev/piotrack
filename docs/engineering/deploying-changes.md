@@ -77,12 +77,19 @@ minute later.
 maintenance page rather than random blank screens:
 
 ```bash
-cd /var/www/piotrack \
-  && sudo -u www-data php artisan down --retry=15 \
-  && sudo -u www-data php artisan config:cache \
-  && sudo -u www-data php artisan view:clear \
-  && sudo -u www-data php artisan up
+cd /var/www/piotrack && sudo -v \
+  && sudo -u www-data php artisan down --retry=15; \
+  sudo -u www-data php artisan config:cache; \
+  sudo -u www-data php artisan view:clear; \
+  sudo -u www-data php artisan up
 ```
+
+Note the punctuation, which is load-bearing. `sudo -v` authenticates up front so the
+password prompt cannot time out partway through and leave the app half-deployed.
+The steps after `down` are separated by `;` rather than `&&` **on purpose**: chained
+with `&&`, a failure in the middle skips `artisan up` and the site stays in
+maintenance mode until somebody notices. Always coming back up matters more than
+skipping the remaining steps.
 
 `artisan down` is not needed for a build-only change — static assets are replaced
 file by file and served directly by Apache.
