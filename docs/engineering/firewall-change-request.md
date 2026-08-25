@@ -69,19 +69,43 @@ both by default, and HTTP is specifically not wanted here (see the last section)
 If a NAT policy or access rule for port 80 already exists from an earlier attempt,
 please remove it.
 
-## Change 3 — optional, but retires a recurring manual task
+## Change 3 — outbound 443 to two named services
 
-Allow **outbound** TCP 443 from `192.168.1.230` to `acme-v02.api.letsencrypt.org`.
+Allow **outbound** TCP 443 from `192.168.1.230` to these hosts, and nothing wider:
 
-That host currently has no outbound internet access — ICMP and HTTP both fail from it
-while other hosts on the same subnet succeed. Because of that, its TLS certificate
-has to be issued on a different machine and copied across by hand every 90 days, and
-the site goes down with a browser security warning if anyone forgets. One outbound
-rule makes renewal automatic and unattended.
+| Destination                    | Why                                    |
+| ------------------------------ | -------------------------------------- |
+| `acme-v02.api.letsencrypt.org` | Automatic TLS certificate renewal      |
+| `api.anthropic.com`            | The application's AI answering service |
 
-If the isolation is deliberate, this can be declined — the manual procedure is
-documented in [certificate-renewal.md](certificate-renewal.md). It is a standing
-operational risk rather than a blocker.
+The host currently has no outbound internet access — ICMP and HTTP both fail from it
+while other hosts on the same subnet succeed. Two consequences:
+
+- The TLS certificate has to be issued on a different machine and copied across by
+  hand every 90 days, and the site goes down with a browser security warning if
+  anyone forgets. The Let's Encrypt rule makes renewal automatic and unattended.
+- The application's chat assistant answers visitor questions through an AI provider's
+  API. Without the outbound rule it runs on a built-in placeholder, so this rule is
+  what makes that feature real. `api.anthropic.com` is the currently chosen provider;
+  if the operator later switches provider in the application, the destination becomes
+  `api.openai.com` or `generativelanguage.googleapis.com` instead — same rule shape,
+  different host.
+
+This stays scoped to named destinations on purpose: it is not a request for general
+internet access, and everything else about the host's isolation stands. If the
+isolation policy cannot admit even these, the certificate fallback is the manual
+procedure in [certificate-renewal.md](certificate-renewal.md), and the AI feature
+stays on its placeholder — operational costs rather than blockers, but recurring ones.
+
+To verify from the server itself once applied:
+
+```bash
+curl -sS -m 15 -o /dev/null -w "letsencrypt: %{http_code}\n" https://acme-v02.api.letsencrypt.org/directory
+curl -sS -m 15 -o /dev/null -w "anthropic:   %{http_code}\n"  https://api.anthropic.com/v1/messages
+```
+
+Any HTTP status at all (200, 401, 405 — anything but a timeout) means the path is
+open; the application supplies its own credentials.
 
 ## How to verify
 
