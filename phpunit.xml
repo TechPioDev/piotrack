@@ -18,6 +18,9 @@
         </include>
     </source>
     <php>
+        <!-- The suite outgrew PHP's 128M default around 720 tests; without this
+             a full run dies mid-suite with a memory fatal instead of a result. -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
