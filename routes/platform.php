@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Platform\AiSettingsController;
 use App\Http\Controllers\Platform\ImpersonationController;
 use App\Http\Controllers\Platform\PlatformController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,12 @@ Route::middleware(['auth', 'verified'])->prefix('platform')->name('platform.')->
         Route::post('flags', [PlatformController::class, 'saveFlag'])->name('flags.save');
         Route::get('announcements', [PlatformController::class, 'announcements'])->name('announcements');
         Route::post('announcements', [PlatformController::class, 'storeAnnouncement'])->name('announcements.store');
+
+        // AI provider + credentials. Platform-scoped: tenants buy credits, the
+        // operator owns the provider account those credits draw on.
+        Route::get('ai', [AiSettingsController::class, 'edit'])->name('ai');
+        Route::post('ai', [AiSettingsController::class, 'update'])->name('ai.save');
+        Route::post('ai/test', [AiSettingsController::class, 'test'])->name('ai.test');
     });
 
     Route::post('impersonate/{user}', [ImpersonationController::class, 'start'])

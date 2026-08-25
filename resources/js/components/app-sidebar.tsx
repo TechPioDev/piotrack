@@ -164,6 +164,7 @@ export function AppSidebar() {
         can('admin.platform') && { title: 'Overview', url: '/platform', icon: Server },
         can('admin.platform') && { title: 'Feature Flags', url: '/platform/flags', icon: Flag },
         can('admin.platform') && { title: 'Announcements', url: '/platform/announcements', icon: Megaphone },
+        can('admin.platform') && { title: 'AI Provider', url: '/platform/ai', icon: Sparkles },
     ].filter(Boolean) as NavItem[];
 
     const sections: NavGroup[] = [

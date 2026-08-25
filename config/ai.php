@@ -37,11 +37,18 @@ return [
     | attribute estimated spend per tenant/user/feature. Unknown models fall back
     | to `default`.
     */
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+    ],
+
     'pricing' => [
         'default' => ['prompt' => 100, 'completion' => 300],
         'fixture-1' => ['prompt' => 0, 'completion' => 0],
         'gpt-4o-mini' => ['prompt' => 15, 'completion' => 60],
         'claude-sonnet-5' => ['prompt' => 300, 'completion' => 1500],
+        'claude-haiku-4-5-20251001' => ['prompt' => 100, 'completion' => 500],
+        'gemini-2.5-flash' => ['prompt' => 30, 'completion' => 250],
     ],
 
     /*
