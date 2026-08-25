@@ -10,6 +10,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import {
     AlertTriangle,
+    CalendarClock,
     CheckCircle2,
     CircleDot,
     Copy,
@@ -20,6 +21,7 @@ import {
     Play,
     Plus,
     Send,
+    Sparkles,
     Tag,
     Target,
     Trash2,
@@ -45,6 +47,8 @@ type Node = {
     outcome?: string;
     operator?: string;
     value?: string;
+    /** booking/ai steps: where to go when the step cannot run. */
+    fallback?: string | null;
 };
 type Flow = { start: string | null; nodes: Record<string, Node> };
 type Issue = { node: string | null; message: string };
@@ -65,6 +69,8 @@ const STEP_TYPES: { type: string; label: string; hint: string; icon: typeof Mess
     { type: 'tag', label: 'Tag', hint: 'Label the conversation', icon: Tag, color: 'text-pink-600' },
     { type: 'assign', label: 'Assign', hint: 'Route to a salesperson', icon: UserCheck, color: 'text-indigo-600' },
     { type: 'handoff', label: 'Talk to a human', hint: 'Connect to an available agent', icon: Headphones, color: 'text-rose-600' },
+    { type: 'booking', label: 'Book a meeting', hint: 'Offer real time slots in the chat', icon: CalendarClock, color: 'text-teal-600' },
+    { type: 'ai', label: 'AI answers', hint: 'Let AI answer typed questions', icon: Sparkles, color: 'text-fuchsia-600' },
     { type: 'end', label: 'End', hint: 'Finish the conversation', icon: Flag, color: 'text-slate-600' },
 ];
 
@@ -118,6 +124,7 @@ function summarise(node: Node): string {
     if (node.type === 'assign') return node.assignee_id ? 'Route to a salesperson' : 'No one selected';
     if (node.type === 'condition') return node.field ? `If ${node.field} …` : 'No answer chosen';
     if (node.type === 'handoff') return 'Offer a live agent, then continue';
+    if (node.type === 'booking') return 'Offer free time slots, then continue';
     return node.text?.trim() || 'No text yet';
 }
 
@@ -197,9 +204,13 @@ export default function FlowBuilder({
                           ? { type, assignee_id: null, next: null }
                           : type === 'handoff'
                             ? { type, next: null }
-                            : type === 'end'
-                              ? { type, outcome: 'lead', text: 'Thanks — we will be in touch shortly.' }
-                              : { type: 'message', text: 'Hello!', next: null };
+                            : type === 'booking'
+                              ? { type, text: 'Pick a time that suits you:', next: null, fallback: null }
+                              : type === 'ai'
+                                ? { type, text: 'What would you like to know?', next: null, fallback: null }
+                                : type === 'end'
+                                  ? { type, outcome: 'lead', text: 'Thanks — we will be in touch shortly.' }
+                                  : { type: 'message', text: 'Hello!', next: null };
 
         const nodes = { ...flow.nodes, [id]: created };
         apply({ start: flow.start ?? id, nodes });
@@ -361,7 +372,7 @@ export default function FlowBuilder({
                                 </div>
 
                                 <div className="space-y-4 p-4">
-                                    {['message', 'choice', 'input', 'end'].includes(node.type) && (
+                                    {['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type) && (
                                         <div className="grid gap-1">
                                             <Label htmlFor="text">{node.type === 'end' ? 'Closing message' : 'What the widget says'}</Label>
                                             <Input
@@ -537,6 +548,40 @@ export default function FlowBuilder({
                                         </div>
                                     )}
 
+                                    {node.type === 'booking' && (
+                                        <>
+                                            <p className="text-muted-foreground text-sm">
+                                                Shows the next free times from your active booking page as buttons, and books the one the visitor
+                                                picks. Place it after the email step, so the confirmation has somewhere to go. When nothing is free
+                                                (or they pick none), the conversation follows the fallback below instead.
+                                            </p>
+                                            <div className="sm:max-w-sm">
+                                                <StepPicker
+                                                    label="If no time works"
+                                                    value={node.fallback}
+                                                    onChange={(v) => patchNode(selected, { fallback: v })}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {node.type === 'ai' && (
+                                        <>
+                                            <p className="text-muted-foreground text-sm">
+                                                The visitor types a question and the AI answers it from your company details — services offered, never
+                                                invented pricing or commitments. Uses your plan&apos;s AI credits. If the AI cannot answer, the
+                                                conversation follows the fallback below so a person picks it up.
+                                            </p>
+                                            <div className="sm:max-w-sm">
+                                                <StepPicker
+                                                    label="If AI is unavailable"
+                                                    value={node.fallback}
+                                                    onChange={(v) => patchNode(selected, { fallback: v })}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
                                     {node.type === 'handoff' && (
                                         <p className="text-muted-foreground text-sm">
                                             If an agent is online and you are inside business hours, the visitor is connected to them and the
@@ -545,7 +590,7 @@ export default function FlowBuilder({
                                         </p>
                                     )}
 
-                                    {['message', 'input', 'score', 'tag', 'assign', 'handoff'].includes(node.type) && (
+                                    {['message', 'input', 'score', 'tag', 'assign', 'handoff', 'booking', 'ai'].includes(node.type) && (
                                         <div className="sm:max-w-sm">
                                             <StepPicker label="Then go to" value={node.next} onChange={(v) => patchNode(selected, { next: v })} />
                                         </div>

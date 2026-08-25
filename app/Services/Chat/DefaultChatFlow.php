@@ -37,6 +37,7 @@ class DefaultChatFlow
                         ['id' => 'm365', 'label' => 'Microsoft 365', 'score' => 5, 'next' => 'q_size'],
                         ['id' => 'cmmc', 'label' => 'CMMC / Compliance', 'score' => 15, 'next' => 'q_size'],
                         ['id' => 'existing', 'label' => 'Existing Customer Support', 'score' => 0, 'next' => 'q_support'],
+                        ['id' => 'question', 'label' => 'I just have a question', 'score' => 5, 'next' => 'ai_ask'],
                         ['id' => 'other', 'label' => 'Something Else', 'score' => 0, 'next' => 'q_size'],
                     ],
                 ],
@@ -188,10 +189,41 @@ class DefaultChatFlow
                     'text' => 'Would you like to schedule a 30-minute consultation?',
                     'field' => 'wants_meeting',
                     'options' => [
-                        ['id' => 'yes', 'label' => 'Yes — schedule it', 'score' => 30, 'next' => 'end_meeting'],
+                        ['id' => 'yes', 'label' => 'Yes — schedule it', 'score' => 30, 'next' => 'bk_slots'],
                         ['id' => 'no', 'label' => 'Not right now', 'score' => 0, 'next' => 'end_thanks'],
                     ],
                 ],
+                // ---- AI answers (§26): grounded Q&A, then back to the funnel ----
+                'ai_ask' => [
+                    'type' => 'ai',
+                    'text' => 'Sure - what would you like to know?',
+                    'next' => 'ai_more',
+                    'fallback' => 'q_size',
+                ],
+                'ai_more' => [
+                    'type' => 'choice',
+                    'field' => 'ai_outcome',
+                    'text' => 'Anything else?',
+                    'options' => [
+                        ['id' => 'another', 'label' => 'Ask another question', 'score' => 0, 'next' => 'ai_ask'],
+                        ['id' => 'talk', 'label' => "I'd like to talk to someone", 'score' => 15, 'next' => 'q_size'],
+                        ['id' => 'done', 'label' => "That's all, thanks", 'score' => 0, 'next' => 'end_thanks'],
+                    ],
+                ],
+
+                // ---- In-chat booking (CHAT-023): real slots, link as fallback ----
+                'bk_slots' => [
+                    'type' => 'booking',
+                    'text' => 'Pick a time that suits you:',
+                    'next' => 'end_booked',
+                    'fallback' => 'end_meeting',
+                ],
+                'end_booked' => [
+                    'type' => 'end',
+                    'outcome' => 'booked',
+                    'text' => 'All set - we look forward to speaking with you.',
+                ],
+
                 'end_meeting' => [
                     'type' => 'end',
                     'outcome' => 'meeting',

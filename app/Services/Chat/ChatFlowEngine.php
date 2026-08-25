@@ -2,10 +2,14 @@
 
 namespace App\Services\Chat;
 
+use App\Models\BookingPage;
 use App\Models\ChatConversation;
 use App\Models\ChatEvent;
 use App\Models\ChatMessage;
 use App\Models\ChatWidget;
+use App\Models\ServiceLine;
+use App\Services\Ai\AiGateway;
+use App\Services\Sales\BookingService;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -25,6 +29,9 @@ class ChatFlowEngine
 
     public function __construct(private readonly ChatCaptureService $capture,
         private readonly ChatHandoffService $handoff,
+        private readonly ChatBookingSlots $slots,
+        private readonly BookingService $booking,
+        private readonly AiGateway $ai,
     ) {}
 
     /**
@@ -106,6 +113,8 @@ class ChatFlowEngine
         $next = match ($node['type']) {
             'choice' => $this->applyChoice($conversation, $currentId, $node, $payload),
             'input' => $this->applyInput($conversation, $currentId, $node, $payload),
+            'booking' => $this->applyBooking($widget, $conversation, $currentId, $node, $payload),
+            'ai' => $this->applyAi($widget, $conversation, $currentId, $node, $payload),
             default => $node['next'] ?? null,
         };
 
@@ -212,6 +221,43 @@ class ChatFlowEngine
                     'node' => null,
                     'done' => true,
                     ...$result,
+                ];
+            }
+
+            // In-chat booking (CHAT-023). The widget sees an ordinary choice
+            // node — slots are just buttons — so no client change is needed and
+            // an old cached widget still works. Guards fall through silently:
+            // already booked, no booking page, or nothing free all continue to
+            // the fallback path, which hands over the booking-page link instead.
+            if ($node['type'] === 'booking') {
+                if (($answers['_booking'] ?? null) !== null) {
+                    $nodeId = $node['next'] ?? null;
+
+                    continue;
+                }
+
+                $page = BookingPage::query()->where('is_active', true)->first();
+                $free = $page !== null ? $this->slots->available($page) : [];
+                if ($free === []) {
+                    $nodeId = $node['fallback'] ?? $node['next'] ?? null;
+
+                    continue;
+                }
+
+                $text = (string) ($node['text'] ?? 'Pick a time that suits you:');
+                $this->say($conversation, $text, $nodeId);
+                $answers[self::CURSOR] = $nodeId;
+                $conversation->answers = $answers;
+                $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
+                $conversation->save();
+
+                $options = array_map(fn (array $slot) => ['id' => $slot['id'], 'label' => $slot['label']], $free);
+                $options[] = ['id' => 'none', 'label' => 'None of these work'];
+
+                return [
+                    'messages' => $this->drain(),
+                    'node' => ['id' => $nodeId, 'type' => 'choice', 'text' => $text, 'options' => $options],
+                    'done' => false,
                 ];
             }
 
@@ -397,6 +443,141 @@ class ChatFlowEngine
     }
 
     /**
+     * A picked booking slot: validate against live availability, book it through
+     * the same service the public booking page uses, confirm in the transcript.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $payload
+     */
+    private function applyBooking(ChatWidget $widget, ChatConversation $conversation, string $nodeId, array $node, array $payload): ?string
+    {
+        $choice = (string) ($payload['option'] ?? '');
+        $answers = $conversation->answers ?? [];
+
+        if ($choice === 'none') {
+            $this->record($conversation, $nodeId, 'visitor', 'None of these work');
+
+            return $node['fallback'] ?? $node['next'] ?? null;
+        }
+
+        $page = BookingPage::query()->where('is_active', true)->first();
+        if ($page === null) {
+            return $node['fallback'] ?? $node['next'] ?? null;
+        }
+
+        // The list the visitor saw may be stale; the server re-derives what is
+        // free and refuses anything else - including invented slot ids.
+        $at = $this->slots->resolve($page, $choice);
+        if ($at === null) {
+            $this->say($conversation, 'Sorry - that time was just taken. Here are the times still free:', $nodeId);
+
+            return $nodeId; // re-present with fresh slots
+        }
+
+        $email = trim((string) ($answers['email'] ?? ''));
+        if ($email === '') {
+            // A booking needs somewhere to send the confirmation. Misplaced
+            // node (before capture): fall through to the link path.
+            return $node['fallback'] ?? $node['next'] ?? null;
+        }
+
+        $label = $at->format('D j M H:i');
+        $this->record($conversation, $nodeId, 'visitor', $label);
+
+        // A builder preview must never create a real booking.
+        if ($conversation->is_preview) {
+            $answers['_booking'] = $at->toIso8601String();
+            $conversation->answers = $answers;
+            $conversation->save();
+            $this->say($conversation, "(Preview) You'd be booked for {$label}.", $nodeId);
+
+            return $node['next'] ?? null;
+        }
+
+        $name = trim(($answers['first_name'] ?? '').' '.($answers['last_name'] ?? '')) ?: 'Website visitor';
+        $this->booking->book($page, [
+            'name' => $name,
+            'email' => $email,
+            'scheduled_at' => $at,
+            'source' => 'website_chat',
+            'notes' => 'Booked from the chat widget.',
+        ]);
+
+        $answers = $conversation->answers ?? [];
+        $answers['_booking'] = $at->toIso8601String();
+        $conversation->answers = $answers;
+        $conversation->save();
+
+        $this->event($widget, 'meeting', $conversation, $nodeId);
+        $this->say($conversation, "You're booked for {$label}. A confirmation is on its way to {$email}.", $nodeId);
+
+        return $node['next'] ?? null;
+    }
+
+    /**
+     * A free-text question, answered by the AI through the same gateway every
+     * other AI feature uses - credit limits, cost recording and audit included.
+     *
+     * The visitor must never see an error: any failure, from exhausted credits
+     * to a provider outage, degrades to the capture path so a human follows up.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $payload
+     */
+    private function applyAi(ChatWidget $widget, ChatConversation $conversation, string $nodeId, array $node, array $payload): ?string
+    {
+        $question = trim((string) ($payload['value'] ?? ''));
+        if ($question === '') {
+            throw ValidationException::withMessages(['value' => 'Please type a question.']);
+        }
+        if (mb_strlen($question) > 500) {
+            throw ValidationException::withMessages(['value' => 'That question is a little long - could you shorten it?']);
+        }
+
+        $this->record($conversation, $nodeId, 'visitor', $question);
+
+        // A builder preview answers deterministically and spends nothing.
+        if ($conversation->is_preview) {
+            $this->say($conversation, '(Preview) The AI assistant answers here once the conversation is live.', $nodeId);
+
+            return $node['next'] ?? null;
+        }
+
+        $answers = $conversation->answers ?? [];
+        $turns = (int) ($answers['_ai_turns'] ?? 0);
+        if ($turns >= 5) {
+            $this->say($conversation, 'Let me get a person to pick this up properly - a few quick details first.', $nodeId);
+
+            return $node['fallback'] ?? $node['next'] ?? null;
+        }
+
+        try {
+            $organization = $widget->organization()->first();
+            $services = ServiceLine::query()->orderBy('name')->limit(15)->pluck('name')->implode(', ');
+
+            $completion = $this->ai->run('chat.answer', 'chat.answer', [
+                'question' => $question,
+                'company' => (string) ($organization->name ?? 'this company'),
+                'services' => $services !== '' ? $services : 'IT services',
+            ]);
+
+            $answers['_ai_turns'] = $turns + 1;
+            $conversation->answers = $answers;
+            $conversation->save();
+
+            $this->say($conversation, trim($completion->text), $nodeId);
+
+            return $node['next'] ?? null;
+        } catch (\Throwable) {
+            // Exhausted credits, no provider, an outage: all the same to the
+            // visitor. Hand over to capture so a person answers instead.
+            $this->say($conversation, "I can't answer that one right now - let me take your details and a person will come straight back to you.", $nodeId);
+
+            return $node['fallback'] ?? $node['next'] ?? null;
+        }
+    }
+
+    /**
      * Sanitized node spec for the client: never leaks scores, priorities or branching.
      *
      * @param  array<string, mixed>  $node
@@ -423,6 +604,15 @@ class ChatFlowEngine
         if ($node['type'] === 'input') {
             $public['input'] = $node['input'] ?? 'text';
             $public['optional'] = (bool) ($node['optional'] ?? false);
+        }
+
+        // The widget predates these types, so each is presented as a shape it
+        // already renders: an ai node is a text box. (Booking builds its spec
+        // inline in advance(), because the options are live slots.)
+        if ($node['type'] === 'ai') {
+            $public['type'] = 'input';
+            $public['input'] = 'text';
+            $public['optional'] = false;
         }
 
         return $public;

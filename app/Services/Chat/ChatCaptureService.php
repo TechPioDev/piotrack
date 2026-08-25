@@ -188,6 +188,9 @@ class ChatCaptureService
         }
 
         // ---- Meeting offer: hand the widget the tenant's public booking link ----
+        // Outcome 'booked' means a slot was already taken IN the chat: the
+        // meeting event was emitted at booking time, and handing the visitor a
+        // "choose a time" link after they chose one would only confuse them.
         $extra = [];
         if ($outcome === 'meeting') {
             $bookingPage = BookingPage::query()->where('is_active', true)->first();

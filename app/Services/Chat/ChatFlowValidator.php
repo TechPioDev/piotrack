@@ -13,7 +13,7 @@ namespace App\Services\Chat;
 class ChatFlowValidator
 {
     /** Node types the engine can execute. */
-    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'handoff', 'end'];
+    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'handoff', 'end', 'booking', 'ai'];
 
     /** Types that terminate a path rather than pointing onward. */
     private const TERMINAL = ['end'];
@@ -57,8 +57,14 @@ class ChatFlowValidator
             }
 
             // Every non-terminal step needs somewhere to go.
-            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign', 'handoff'], true)) {
+            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign', 'handoff', 'booking', 'ai'], true)) {
                 $errors = array_merge($errors, $this->checkTarget($nodes, (string) $id, $node['next'] ?? null, 'next step'));
+            }
+
+            // Booking and AI steps may name a fallback for when they cannot run
+            // (nothing free, AI unavailable). Optional, but if named it must exist.
+            if (in_array($type, ['booking', 'ai'], true) && ($node['fallback'] ?? null) !== null) {
+                $errors = array_merge($errors, $this->checkTarget($nodes, (string) $id, $node['fallback'], 'fallback path'));
             }
 
             if ($type === 'choice') {
@@ -105,7 +111,7 @@ class ChatFlowValidator
                 $errors[] = ['node' => (string) $id, 'message' => 'This question does not say where to store the answer.'];
             }
 
-            if (in_array($type, ['message', 'choice', 'input'], true) && trim((string) ($node['text'] ?? '')) === '') {
+            if (in_array($type, ['message', 'choice', 'input', 'ai'], true) && trim((string) ($node['text'] ?? '')) === '') {
                 $errors[] = ['node' => (string) $id, 'message' => 'This step has no message text.'];
             }
         }
@@ -172,7 +178,7 @@ class ChatFlowValidator
                 continue;
             }
 
-            foreach (['next', 'otherwise'] as $key) {
+            foreach (['next', 'otherwise', 'fallback'] as $key) {
                 if (! empty($node[$key])) {
                     $queue[] = (string) $node[$key];
                 }
