@@ -120,11 +120,12 @@ deleted`, `analytics.growth_score.computed` via AuditLogger.
 ## Automated tests
 
 AnalyticsService funnel/ad/revenue rollups on seeded pipeline; AttributionService first/last/multi-touch
-+ CAC + ROI; CallTrackingService fixture provision + attribution + scoring + conversion; ExperimentService
-rate/lift/winner; BenchmarkService cross-tenant aggregate **suppressed below the cohort floor** + percentile;
-CompetitiveService share-of-voice; GrowthScoreService composite + recommendations + snapshot/trend;
-OmnichannelService rollup + journey; RBAC (view vs manage), `analytics` entitlement gating (Growth blocked /
-Professional allowed), tenant isolation.
+
+- CAC + ROI; CallTrackingService fixture provision + attribution + scoring + conversion; ExperimentService
+  rate/lift/winner; BenchmarkService cross-tenant aggregate **suppressed below the cohort floor** + percentile;
+  CompetitiveService share-of-voice; GrowthScoreService composite + recommendations + snapshot/trend;
+  OmnichannelService rollup + journey; RBAC (view vs manage), `analytics` entitlement gating (Growth blocked /
+  Professional allowed), tenant isolation.
 
 ## Acceptance criteria
 

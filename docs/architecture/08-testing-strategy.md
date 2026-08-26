@@ -4,14 +4,14 @@ Testing is compulsory per module — never deferred to the end (Master Prompt §
 
 ## Layers
 
-| Layer | Scope | Tooling expectation |
-|---|---|---|
-| Unit | Business rules, validation, calculations, permission logic, services | Fast, no I/O |
-| API | Every endpoint: success, validation failure, authn failure, authz failure, tenant isolation, 404, duplicate/idempotency, invalid input | HTTP-level tests with seeded fixtures |
-| Integration | DB behavior, queues/jobs, third-party connectors (recorded fixtures), billing webhooks, auth flows | Test DB + fakes/sandboxes |
-| UI | Components, forms, error states, navigation, permission-gated rendering | Component test runner |
-| E2E | Critical cross-module workflows in a browser | Playwright-class suite |
-| Non-functional | Performance (page load, API latency, large tables, N+1 detection), accessibility, responsive checks | Per module gate |
+| Layer          | Scope                                                                                                                                  | Tooling expectation                   |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Unit           | Business rules, validation, calculations, permission logic, services                                                                   | Fast, no I/O                          |
+| API            | Every endpoint: success, validation failure, authn failure, authz failure, tenant isolation, 404, duplicate/idempotency, invalid input | HTTP-level tests with seeded fixtures |
+| Integration    | DB behavior, queues/jobs, third-party connectors (recorded fixtures), billing webhooks, auth flows                                     | Test DB + fakes/sandboxes             |
+| UI             | Components, forms, error states, navigation, permission-gated rendering                                                                | Component test runner                 |
+| E2E            | Critical cross-module workflows in a browser                                                                                           | Playwright-class suite                |
+| Non-functional | Performance (page load, API latency, large tables, N+1 detection), accessibility, responsive checks                                    | Per module gate                       |
 
 ## Required E2E workflows (Master Prompt §34)
 

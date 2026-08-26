@@ -33,7 +33,7 @@ completion token counts and the model name. Drivers are selected by `config('ai.
   versioning, retries, cost accounting, usage limits, the confirmation workflow, every agent feature and
   the visibility dashboard — runs for real against it, in dev and in tests.
 - **`openai` / `anthropic`** — real drivers over the vendor HTTP APIs. Real code, but with no keys here
-  they are **not run in tests**; register status *Implemented (untested — requires credentials)*, never
+  they are **not run in tests**; register status _Implemented (untested — requires credentials)_, never
   "Tested."
 
 **No feature calls a provider directly.** Every call goes through `AiGateway`, which is the single
@@ -60,7 +60,7 @@ call when the tenant is out of credits, so overspend is impossible rather than m
 AI output that only informs a human (a summary, a draft, a recommendation, a score) is returned
 directly. AI output that would **change data or reach a third party** — sending an email, updating a CRM
 record, booking a meeting — is never executed by the model. It is recorded in `ai_actions` as a
-*proposal* with status `pending`, and a user holding `ai.actions.approve` must confirm it before
+_proposal_ with status `pending`, and a user holding `ai.actions.approve` must confirm it before
 `execute()` will run; rejection is terminal. Execution is idempotent by status, and every propose /
 confirm / reject / execute transition is audited with the acting user.
 

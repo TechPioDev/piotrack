@@ -7,25 +7,25 @@ Scope: TSEO-001…027, KSEO-001…019, LSEO-001…022, AEO-001…019, GEO-001…
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| On-page technical audit (13 checks, scored) | Tested (TSEO-001/005/006/007/008/009/011/012/015/020/027) |
+| Area                                                       | Result                                                                        |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| On-page technical audit (13 checks, scored)                | Tested (TSEO-001/005/006/007/008/009/011/012/015/020/027)                     |
 | Multi-page crawl / indexation / robots+sitemap / redirects | Partial — extend from the same auditor (TSEO-002/003/004/010/013/014/016/018) |
-| Core Web Vitals, Search Console, penalty/backlink audit | Planned — external APIs (TSEO-017/019/021/022/023/024/025/026) |
-| Keyword clustering + page mapping + content gap | Tested (KSEO-013/014/015) |
-| Rank tracking + competitor + page-one/top-three | Tested on fixture driver (KSEO-016/017/018/019) |
-| Keyword research / volume / difficulty | Partial — needs a keyword-data API (KSEO-001/002/009/010) |
-| Locations + citations + NAP consistency | Tested (LSEO-011/012/018/019) |
-| Local keywords / geo targeting / local rank | Partial (LSEO-002/003/004/005/022) |
-| GBP / Maps / Map-Pack / reviews / local links | Planned — GBP API + Stage 13 REP (LSEO-001/009/010/013/015/016/017) |
-| Answer/FAQ readiness scoring + schema JSON-LD | Tested (AEO-002/003/005/008/009/010…016/017) |
-| AI-visibility (mention/citation/share) across engines | Tested on fixture driver (GEO-001…010, AEO-018) |
-| Machine-readability / semantic / structured-data scoring | Tested (LLMO-001/002/003/011/017) |
-| Live SERP + live AI-engine data | Implemented — untested (no credentials) |
+| Core Web Vitals, Search Console, penalty/backlink audit    | Planned — external APIs (TSEO-017/019/021/022/023/024/025/026)                |
+| Keyword clustering + page mapping + content gap            | Tested (KSEO-013/014/015)                                                     |
+| Rank tracking + competitor + page-one/top-three            | Tested on fixture driver (KSEO-016/017/018/019)                               |
+| Keyword research / volume / difficulty                     | Partial — needs a keyword-data API (KSEO-001/002/009/010)                     |
+| Locations + citations + NAP consistency                    | Tested (LSEO-011/012/018/019)                                                 |
+| Local keywords / geo targeting / local rank                | Partial (LSEO-002/003/004/005/022)                                            |
+| GBP / Maps / Map-Pack / reviews / local links              | Planned — GBP API + Stage 13 REP (LSEO-001/009/010/013/015/016/017)           |
+| Answer/FAQ readiness scoring + schema JSON-LD              | Tested (AEO-002/003/005/008/009/010…016/017)                                  |
+| AI-visibility (mention/citation/share) across engines      | Tested on fixture driver (GEO-001…010, AEO-018)                               |
+| Machine-readability / semantic / structured-data scoring   | Tested (LLMO-001/002/003/011/017)                                             |
+| Live SERP + live AI-engine data                            | Implemented — untested (no credentials)                                       |
 
 Per ADR-0005, technical audit + schema + readiness + NAP are computed **in-house and Tested**; the
-rank/AI-visibility *pipelines* are Tested on the **fixture** drivers, while the real `serpapi`/`openai`
-drivers are real code labelled *Implemented (untested — requires credentials)*, never "Tested" (§38).
+rank/AI-visibility _pipelines_ are Tested on the **fixture** drivers, while the real `serpapi`/`openai`
+drivers are real code labelled _Implemented (untested — requires credentials)_, never "Tested" (§38).
 
 ## Architecture delivered
 
@@ -54,16 +54,16 @@ drivers are real code labelled *Implemented (untested — requires credentials)*
 ## Automated test results
 
 - **Pest: 256/256 PASS** (873 assertions) — +27 SEO tests across 5 suites:
-  - Technical audit (5): good page scores >90 / 0 issues; bad page flagged (title/meta/viewport/https/
-    dual-H1); `crawl` persists a scored audit (Http::fake); fetch failure → failed audit; controller run + audit event.
-  - Schema/readiness (5): Organization/FAQPage/LocalBusiness JSON-LD shapes + null omission; controller
-    save; readiness scores good ≫ poor HTML.
-  - Keyword/rank (6): add + dedupe; rank history + current position; competitor row; page-one/top-three
-    flags; cluster + content gap; controller rank check.
-  - Local/NAP (5): consistent (normalized) vs inconsistent (mismatched fields) vs missing; controller
-    creates citation with NAP status; tenant isolation.
-  - AI-visibility + access (6): fixture check records share; controller check; viewer read-vs-manage;
-    `seo` feature gating; `ai_visibility` feature gating (Growth blocked); tenant isolation.
+    - Technical audit (5): good page scores >90 / 0 issues; bad page flagged (title/meta/viewport/https/
+      dual-H1); `crawl` persists a scored audit (Http::fake); fetch failure → failed audit; controller run + audit event.
+    - Schema/readiness (5): Organization/FAQPage/LocalBusiness JSON-LD shapes + null omission; controller
+      save; readiness scores good ≫ poor HTML.
+    - Keyword/rank (6): add + dedupe; rank history + current position; competitor row; page-one/top-three
+      flags; cluster + content gap; controller rank check.
+    - Local/NAP (5): consistent (normalized) vs inconsistent (mismatched fields) vs missing; controller
+      creates citation with NAP status; tenant isolation.
+    - AI-visibility + access (6): fixture check records share; controller check; viewer read-vs-manage;
+      `seo` feature gating; `ai_visibility` feature gating (Growth blocked); tenant isolation.
 - PHPStan L6: 0 errors · Pint PASS · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA (browser, http://localhost:8734)

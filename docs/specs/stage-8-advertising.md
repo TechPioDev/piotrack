@@ -32,7 +32,7 @@ Marketing Manager (full), Marketing User (create/edit), Analyst/Sales/Viewer (vi
   campaign structure + targeting (JSON) + KPI; live delivery + lead-gen form sync → Partial/Planned.
 - **META-001…011** — Meta/Facebook ads: campaigns, retargeting, awareness/BOFU/proof/video/lead-gen,
   location/vertical targeting, multi-platform retargeting. **Built + tested** as structure + targeting
-  + KPI; live delivery → Partial/Planned.
+    - KPI; live delivery → Partial/Planned.
 - **RETG-001…017** — retargeting engine: audiences from website/search/display/social/video/email/SMS
   behavior, cross-channel, behavior/funnel-stage/BOFU/geo/account-level, **conversion exclusions**,
   audience segmentation. **Built + tested** for audience building from CRM lists/behavior/funnel +

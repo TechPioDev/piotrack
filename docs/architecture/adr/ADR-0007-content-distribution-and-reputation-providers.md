@@ -30,13 +30,14 @@ Drivers are selected by config (`CONTENT_SOCIAL_PROVIDER`, `CONTENT_REVIEW_PROVI
 
 1. **`fixture` (default, fully working & tested)** — deterministic results derived from a hash of the
    inputs. The whole pipeline — scheduling, status lifecycle, metric snapshots, review import, rating
-   + sentiment aggregation — runs for real against it. It is the driver used in dev and tests, and a
-   legitimate "manual / bring-your-own-numbers" mode (posts can be marked published by hand; reviews
-   entered manually).
+
+    - sentiment aggregation — runs for real against it. It is the driver used in dev and tests, and a
+      legitimate "manual / bring-your-own-numbers" mode (posts can be marked published by hand; reviews
+      entered manually).
 
 2. **`linkedin`/`meta`/`x`/`youtube` (social) and `google`/`clutch` (reviews)** — real drivers over
    the vendor APIs. Real code, but with no credentials here they are **not run in tests**; register
-   status *Implemented (untested — requires credentials)*, never "Tested." Activated by config + keys,
+   status _Implemented (untested — requires credentials)_, never "Tested." Activated by config + keys,
    connected through the **INTG** connector framework (OAuth connectors surfaced as "coming soon").
 
 Managers resolve the active driver (mirrors the Payment/Messaging/SEO/Ad managers).

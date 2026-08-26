@@ -7,24 +7,24 @@ Scope: LEAD-001…023, AUTO-001…028, EMAIL-001…020, SMS-001…008, FUNL-001�
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Forms + public capture (dedupe, source, lifecycle, list add, trigger) | Tested (LEAD-008/015/016/017/019/021) |
-| Landing pages (public render + attached form) | Tested |
-| Lists / segments (static + dynamic criteria) | Tested (LEAD-017) |
-| Workflow engine (triggers, ordered steps, delays, enrollment) | Tested (AUTO-001/002/004/006/007, 009–017) |
-| Workflow actions (11 action types) | Tested (AUTO-018…026, 028) |
-| Email campaigns (send, HTML, personalization, analytics, tracking, unsub) | Tested via log driver (EMAIL-001/002/004…008/010/011/016…018/020) |
-| SMS campaigns + opt-in/opt-out | Tested via log driver (SMS-001/004/005/007/008) |
-| Funnels (config + stage counts + post-conversion notify/follow-up/pipeline) | Tested (FUNL-012/021/023/024) |
-| Consent / suppression (central gate) | Tested |
-| Usage metering (email limit) | Tested |
-| Real email/SMS delivery (SMTP / Twilio drivers) | Implemented — untested (no credentials) |
-| Page-visit/content-download triggers, retargeting, A/B, buyer-intent | Planned (later stages) |
-| Lead types by channel, booking/consultation/assessment, funnel content types | Partial/Planned — owned by SEO/Ads/Content/Booking/Sales stages |
+| Area                                                                         | Result                                                            |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Forms + public capture (dedupe, source, lifecycle, list add, trigger)        | Tested (LEAD-008/015/016/017/019/021)                             |
+| Landing pages (public render + attached form)                                | Tested                                                            |
+| Lists / segments (static + dynamic criteria)                                 | Tested (LEAD-017)                                                 |
+| Workflow engine (triggers, ordered steps, delays, enrollment)                | Tested (AUTO-001/002/004/006/007, 009–017)                        |
+| Workflow actions (11 action types)                                           | Tested (AUTO-018…026, 028)                                        |
+| Email campaigns (send, HTML, personalization, analytics, tracking, unsub)    | Tested via log driver (EMAIL-001/002/004…008/010/011/016…018/020) |
+| SMS campaigns + opt-in/opt-out                                               | Tested via log driver (SMS-001/004/005/007/008)                   |
+| Funnels (config + stage counts + post-conversion notify/follow-up/pipeline)  | Tested (FUNL-012/021/023/024)                                     |
+| Consent / suppression (central gate)                                         | Tested                                                            |
+| Usage metering (email limit)                                                 | Tested                                                            |
+| Real email/SMS delivery (SMTP / Twilio drivers)                              | Implemented — untested (no credentials)                           |
+| Page-visit/content-download triggers, retargeting, A/B, buyer-intent         | Planned (later stages)                                            |
+| Lead types by channel, booking/consultation/assessment, funnel content types | Partial/Planned — owned by SEO/Ads/Content/Booking/Sales stages   |
 
 Per ADR-0004, the **log** mail/SMS drivers are the tested default; the real SMTP/Twilio drivers are
-real code labelled *Implemented (untested — requires credentials)*, never "Tested" (§38).
+real code labelled _Implemented (untested — requires credentials)_, never "Tested" (§38).
 
 ## Architecture delivered
 
@@ -32,7 +32,7 @@ real code labelled *Implemented (untested — requires credentials)*, never "Tes
   `list_memberships`, `forms`, `form_submissions`, `landing_pages`, `email_templates`, `campaigns`,
   `campaign_recipients`, `outbound_messages`, `workflows`, `workflow_steps`, `workflow_enrollments`,
   `suppressions`, `funnels`, `funnel_stages`; plus `contacts.lifecycle_stage/lead_score/email_opt_in/
-  sms_opt_in` and `leads.lifecycle_stage/lead_score/segment`.
+sms_opt_in` and `leads.lifecycle_stage/lead_score/segment`.
 - **Messaging abstraction (ADR-0004)**: `MailProvider`/`SmsProvider` interfaces + `SentResult`,
   `Log*` drivers (tested; a sentinel address forces the failure path), `Smtp`/`Twilio` drivers
   (real, untested), a `MessagingProviderManager` + `config/marketing.php`, bound in the container.
@@ -58,18 +58,18 @@ real code labelled *Implemented (untested — requires credentials)*, never "Tes
 ## Automated test results
 
 - **Pest: 229/229 PASS** (797 assertions) — +26 marketing tests across 5 suites:
-  - Lead capture (7): public submit → tenant-scoped contact + list + lifecycle + audit; dedupe;
-    honeypot drop; required-field validation; unpublished-form 404; workflow enrollment on submit;
-    tenant resolved by slug.
-  - Campaigns (6): email send → recipients + stats (opted-out skipped); open/click/unsubscribe via
-    public endpoints update rows + stats + create suppression; suppressed addresses skipped;
-    provider partial-failure recorded without stopping; usage-limit block; SMS opt-in filtering.
-  - Workflows (4): trigger enrolls + idempotent while active; paused workflow doesn't enroll; ordered
-    steps with delay + completion; each action type executes.
-  - Access (5): viewer read-only vs manage; drafting vs sending separated; plan-feature gating
-    (marketing); tenant isolation.
-  - Lists/Funnels (4): add/remove + member count; dynamic criteria resolution; tenant isolation;
-    funnel stage counts by lifecycle.
+    - Lead capture (7): public submit → tenant-scoped contact + list + lifecycle + audit; dedupe;
+      honeypot drop; required-field validation; unpublished-form 404; workflow enrollment on submit;
+      tenant resolved by slug.
+    - Campaigns (6): email send → recipients + stats (opted-out skipped); open/click/unsubscribe via
+      public endpoints update rows + stats + create suppression; suppressed addresses skipped;
+      provider partial-failure recorded without stopping; usage-limit block; SMS opt-in filtering.
+    - Workflows (4): trigger enrolls + idempotent while active; paused workflow doesn't enroll; ordered
+      steps with delay + completion; each action type executes.
+    - Access (5): viewer read-only vs manage; drafting vs sending separated; plan-feature gating
+      (marketing); tenant isolation.
+    - Lists/Funnels (4): add/remove + member count; dynamic criteria resolution; tenant isolation;
+      funnel stage counts by lifecycle.
 - PHPStan L6: 0 errors · Pint PASS · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA (browser, http://localhost:8734)

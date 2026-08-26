@@ -9,15 +9,15 @@ is meant to be copy-pasted over SSH.
 
 ## What this host can and cannot do
 
-| | Shared hosting |
-|---|---|
-| Database | **MySQL 8** — validated in CI (`tests-mysql` job) |
-| PHP | 8.2+ selectable in hPanel; 8.3/8.4 preferred |
-| Composer | Usually available; if not, upload `vendor/` |
-| Node / Vite | Usually **absent** — build assets locally and upload `public/build` |
-| Redis | **Absent** — cache, session and queue use the `database` driver |
+|              | Shared hosting                                                       |
+| ------------ | -------------------------------------------------------------------- |
+| Database     | **MySQL 8** — validated in CI (`tests-mysql` job)                    |
+| PHP          | 8.2+ selectable in hPanel; 8.3/8.4 preferred                         |
+| Composer     | Usually available; if not, upload `vendor/`                          |
+| Node / Vite  | Usually **absent** — build assets locally and upload `public/build`  |
+| Redis        | **Absent** — cache, session and queue use the `database` driver      |
 | Queue worker | No long-running processes — cron runs `queue:work --stop-when-empty` |
-| Scheduler | One cron entry for `schedule:run` |
+| Scheduler    | One cron entry for `schedule:run`                                    |
 
 Because there is no Redis and no daemon, this is a **demo/staging** target. A production
 deployment wants a VPS or Laravel Cloud.
@@ -210,14 +210,14 @@ Front-end changes additionally need step 2 re-run locally and the branch re-push
 
 ## If something breaks
 
-| Symptom | Cause |
-|---|---|
-| 500 with a blank page | `storage/logs/laravel.log`; usually permissions — re-run `chmod -R 775 storage bootstrap/cache` |
-| "No application encryption key" | `php artisan key:generate` was skipped |
-| Styles missing / white page | `public/build` absent — step 2 |
-| Changes to `.env` do nothing | Cached config — re-run step 9 |
-| 404 on every route but `/` | Web root is not `public/` — step 8 |
-| Migration fails on an index name | Should not happen; CI's `tests-mysql` job validates MySQL migrations on every push |
+| Symptom                          | Cause                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 500 with a blank page            | `storage/logs/laravel.log`; usually permissions — re-run `chmod -R 775 storage bootstrap/cache` |
+| "No application encryption key"  | `php artisan key:generate` was skipped                                                          |
+| Styles missing / white page      | `public/build` absent — step 2                                                                  |
+| Changes to `.env` do nothing     | Cached config — re-run step 9                                                                   |
+| 404 on every route but `/`       | Web root is not `public/` — step 8                                                              |
+| Migration fails on an index name | Should not happen; CI's `tests-mysql` job validates MySQL migrations on every push              |
 
 ## Known limitations of this deploy
 

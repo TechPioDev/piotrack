@@ -29,8 +29,8 @@ Two drivers, selected by `BILLING_PROVIDER`:
 
 2. **`stripe` (real driver, requires credentials — not exercised here)** — implements the same
    interface with `stripe/stripe-php`. It is real code, but because no keys exist in this
-   environment it is **not run in tests**; its register status is *Implemented (untested — requires
-   credentials)*, never "Tested." Activated by setting `BILLING_PROVIDER=stripe` + keys.
+   environment it is **not run in tests**; its register status is _Implemented (untested — requires
+   credentials)_, never "Tested." Activated by setting `BILLING_PROVIDER=stripe` + keys.
 
 The webhook endpoint, idempotency (`billing_events`), signature verification, and event handlers are
 provider-agnostic; the manual driver's synthetic events prove the pipeline, and the Stripe driver

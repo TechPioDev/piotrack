@@ -25,6 +25,7 @@ type ChatNode = {
     input?: string;
     optional?: boolean;
     privacy_url?: string | null;
+    suggestions?: string[];
 };
 type Message = { id?: number; role: string; body: string };
 type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
@@ -262,6 +263,12 @@ button { font: inherit; cursor: pointer; }
 .send { flex: 0 0 auto; padding: 0 16px; border: 0; border-radius: 11px; background: ${accent}; color: #fff; font-weight: 700; }
 .send:disabled { opacity: .55; cursor: not-allowed; }
 .skip { border: 0; background: transparent; color: #6b8792; font-size: 13px; text-decoration: underline; padding: 2px; align-self: flex-start; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip {
+    border: 1px solid ${accent}55; background: #fff; color: ${accent};
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+}
+.chip:hover { background: ${accent}11; }
 .err { color: #c02a1b; font-size: 13px; }
 .consent { font-size: 12.5px; color: #5b7480; }
 .consent a { color: ${accent}; }
@@ -621,6 +628,22 @@ class ChatWidget {
         }
 
         if (node.type === 'input') {
+            // Suggested questions (CHAT-045): tappable prompts so a visitor
+            // knows what the assistant can answer. Tapping sends the question
+            // exactly as if it had been typed.
+            if (node.suggestions?.length) {
+                const chips = document.createElement('div');
+                chips.className = 'chips';
+                node.suggestions.slice(0, 4).forEach((question) => {
+                    const chip = document.createElement('button');
+                    chip.className = 'chip';
+                    chip.textContent = question;
+                    chip.addEventListener('click', () => this.send({ value: question }, question));
+                    chips.appendChild(chip);
+                });
+                this.foot.appendChild(chips);
+            }
+
             const row = document.createElement('div');
             row.className = 'row';
             const input = document.createElement('input');

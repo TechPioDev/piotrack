@@ -12,13 +12,13 @@ readiness audit. This stage closes that gap so the register can be read honestly
 
 ## Status summary
 
-| Module | Tested | Partial | Planned |
-|---|---:|---:|---:|
-| WEB — MSP Website Platform (55) | 30 | 15 | 10 |
-| SVC — Service-Specific Campaigns (24) | 24 | — | — |
-| VERT — Vertical Marketing (20) | 14 | 6 | — |
-| MLOC — Multi-Location Support (12) | 5 | 6 | 1 |
-| **Total (111)** | **73** | **27** | **11** |
+| Module                                | Tested | Partial | Planned |
+| ------------------------------------- | -----: | ------: | ------: |
+| WEB — MSP Website Platform (55)       |     30 |      15 |      10 |
+| SVC — Service-Specific Campaigns (24) |     24 |       — |       — |
+| VERT — Vertical Marketing (20)        |     14 |       6 |       — |
+| MLOC — Multi-Location Support (12)    |      5 |       6 |       1 |
+| **Total (111)**                       | **73** |  **27** |  **11** |
 
 ## Architecture delivered
 
@@ -27,7 +27,7 @@ readiness audit. This stage closes that gap so the register can be read honestly
   location record rather than introducing a second notion of "location").
 - **`SiteBuilderService`** — typed pages (service / vertical / location / landing / campaign / resource)
   built from ordered section blocks, navigation, and publish/unpublish. Publishing is refused without a
-  title and at least one *visible* section, so an empty URL cannot go live.
+  title and at least one _visible_ section, so an empty URL cannot go live.
 - **`SiteHealthService`** — eight checks per page read from real content (meta title, meta description
   length, headline, visible sections, a CTA, a wired conversion path, third-party proof, published
   state). **A check with no data fails rather than passing by default**, so a blank page scores near
@@ -45,7 +45,7 @@ readiness audit. This stage closes that gap so the register can be read honestly
 
 The 24 services and 12 verticals are a **taxonomy with real targeting**, not 36 shipped campaigns. What
 is built and tested: the records are provisioned per tenant, pages bind to them, and coverage is
-reported across pages/keywords/campaigns/content. What is *not* claimed: the campaign creative and copy
+reported across pages/keywords/campaigns/content. What is _not_ claimed: the campaign creative and copy
 for "SOC" or "Healthcare" — that is human marketing work. Each register note says exactly this.
 
 Where an earlier stage already does the work, the row cross-references it instead of double-claiming:
@@ -56,12 +56,12 @@ Stage 7; local PPC → Stage 8; vertical content/ads/sequences/ABM → Stages 6/
 ## Defects discovered & fixed
 
 - **One tenant's page could shadow another's on the public URL space.** `site_pages.slug` was unique
-  *per tenant*, but `/s/{slug}` is a single global URL space — two organizations naming a page
+  _per tenant_, but `/s/{slug}` is a single global URL space — two organizations naming a page
   "Managed IT" collided and the second became unreachable. Caught by a test written specifically to
   check it. Slugs are now globally unique (the convention booking pages and public forms already used)
   with collisions auto-suffixed, and the test asserts both pages resolve to their own tenant.
 - **Pages could not be re-targeted after creation.** `update` accepted no `service_line_id`,
-  `vertical_id`, `seo_location_id` or `type`, so a coverage gap could only be closed by creating a *new*
+  `vertical_id`, `seo_location_id` or `type`, so a coverage gap could only be closed by creating a _new_
   page — which defeats the purpose of the coverage report. Raised during UI review; now editable, with a
   test that re-targets a page and asserts the coverage count moves.
 - **A navigation item could be created with no destination** (both `site_page_id` and `url` nullable),

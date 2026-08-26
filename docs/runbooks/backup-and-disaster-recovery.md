@@ -7,12 +7,12 @@ They become real when the platform account exists and §Verification below has b
 
 ## What runs where
 
-| Concern | Owner | State |
-|---|---|---|
-| Automated database backups + point-in-time recovery | Managed Postgres (Laravel Cloud) | Configured in the platform console — **not provisioned yet** |
-| File storage backups + retention | Object storage provider versioning/lifecycle | Not provisioned yet |
-| Restore verification | `php artisan backup:verify` (this repo) | **Built and tested** |
-| Application-level retention/erasure | `privacy:prune-expired-data`, `DataPrivacyService` | **Built and tested** |
+| Concern                                             | Owner                                              | State                                                        |
+| --------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| Automated database backups + point-in-time recovery | Managed Postgres (Laravel Cloud)                   | Configured in the platform console — **not provisioned yet** |
+| File storage backups + retention                    | Object storage provider versioning/lifecycle       | Not provisioned yet                                          |
+| Restore verification                                | `php artisan backup:verify` (this repo)            | **Built and tested**                                         |
+| Application-level retention/erasure                 | `privacy:prune-expired-data`, `DataPrivacyService` | **Built and tested**                                         |
 
 The application deliberately does not implement its own database backup loop. A managed Postgres with
 PITR is more reliable than an app-scheduled `pg_dump`, and re-implementing it would produce a second,
@@ -41,11 +41,11 @@ These are proposals. They are not met until the infrastructure exists and a rest
 2. Provision a **new** database instance from the backup/PITR timestamp. Never restore in place over a
    live database — if the restore is wrong you have then lost the original too.
 3. Point a maintenance instance of the app at the restored database:
-   ```bash
-   php artisan backup:verify --connection=restored
-   ```
-   This checks connectivity, that every critical table exists, that migrations are recorded, and that
-   core tables hold data. It exits non-zero if the restore is an empty or partial shell.
+    ```bash
+    php artisan backup:verify --connection=restored
+    ```
+    This checks connectivity, that every critical table exists, that migrations are recorded, and that
+    core tables hold data. It exits non-zero if the restore is an empty or partial shell.
 4. Run `php artisan migrate --pretend` against the restore to confirm no migrations are outstanding
    (a restore from before a deploy will show pending migrations — apply them deliberately).
 5. Spot-check tenant isolation on the restore: pick two organizations and confirm each sees only its own
@@ -62,7 +62,7 @@ A backup that has never been restored is unverified. Schedule a **quarterly rest
    RTO, not the target) and any deviation.
 4. Destroy the throwaway instance.
 
-Until the first drill is recorded, BCK-003 and BCK-004 remain *Partially Implemented* in the register:
+Until the first drill is recorded, BCK-003 and BCK-004 remain _Partially Implemented_ in the register:
 the tooling and procedure exist, the evidence does not.
 
 ## What is explicitly not covered yet

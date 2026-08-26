@@ -8,22 +8,22 @@ GSCORE-001…013, OMNI-001…018 (143 features — the largest stage to date)
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Acquisition funnel (leads/MQL/SQL/meetings/opportunities/pipeline/won/lost) | Tested (ANLY-024…032) |
-| Paid-media KPIs (impressions/clicks/CTR/CPC/spend/conversions/CPA/ROAS) | Tested (ANLY-016…023) |
-| SEO visibility + keyword position summary | Tested (ANLY-009…011/015) |
-| Revenue (MRR/ARR/contract value/LTV from won deals) | Tested (ANLY-033…036) |
-| First/last/linear multi-touch attribution + channel/campaign/sales rollups | Tested (ATTR-001…005/012) |
-| CAC + marketing ROI + revenue attribution | Tested (ATTR-013…017) |
-| Call tracking: dynamic numbers, source attribution, scoring, conversion | Tested on fixture driver (CALL-001/002/006…011) |
-| CRO experiments: 9 test types, conversion rate, lift, winner | Tested (CRO-001…009/017) |
-| Anonymized peer benchmarks + percentile, k-anonymity suppression | Tested (BENCH-001/002/006/007/010…012/017/018) |
-| MSP Growth Score: 10 sub-scores, weighted composite, recommendations, trend | Tested (GSCORE-001…013) |
-| Omnichannel per-channel rollup + unified prospect journey | Tested (OMNI-001/003/009/010/012…014/016…018) |
-| Share of voice / market share of search | Tested (CINT-010/012) |
-| Traffic-source splits, organic clicks, keyword/landing-page attribution | Partial — needs GA4/GSC + tracking pixel |
-| Call recordings/transcription/AI summaries, heatmaps, competitor monitoring | Planned — external providers |
+| Area                                                                        | Result                                          |
+| --------------------------------------------------------------------------- | ----------------------------------------------- |
+| Acquisition funnel (leads/MQL/SQL/meetings/opportunities/pipeline/won/lost) | Tested (ANLY-024…032)                           |
+| Paid-media KPIs (impressions/clicks/CTR/CPC/spend/conversions/CPA/ROAS)     | Tested (ANLY-016…023)                           |
+| SEO visibility + keyword position summary                                   | Tested (ANLY-009…011/015)                       |
+| Revenue (MRR/ARR/contract value/LTV from won deals)                         | Tested (ANLY-033…036)                           |
+| First/last/linear multi-touch attribution + channel/campaign/sales rollups  | Tested (ATTR-001…005/012)                       |
+| CAC + marketing ROI + revenue attribution                                   | Tested (ATTR-013…017)                           |
+| Call tracking: dynamic numbers, source attribution, scoring, conversion     | Tested on fixture driver (CALL-001/002/006…011) |
+| CRO experiments: 9 test types, conversion rate, lift, winner                | Tested (CRO-001…009/017)                        |
+| Anonymized peer benchmarks + percentile, k-anonymity suppression            | Tested (BENCH-001/002/006/007/010…012/017/018)  |
+| MSP Growth Score: 10 sub-scores, weighted composite, recommendations, trend | Tested (GSCORE-001…013)                         |
+| Omnichannel per-channel rollup + unified prospect journey                   | Tested (OMNI-001/003/009/010/012…014/016…018)   |
+| Share of voice / market share of search                                     | Tested (CINT-010/012)                           |
+| Traffic-source splits, organic clicks, keyword/landing-page attribution     | Partial — needs GA4/GSC + tracking pixel        |
+| Call recordings/transcription/AI summaries, heatmaps, competitor monitoring | Planned — external providers                    |
 
 Per §38, everything computed in-house from real tenant rows is **Tested**; call tracking is Tested on
 the **fixture** driver with the live CallRail driver present but untested (no credentials); anything
@@ -67,21 +67,21 @@ and the UI renders an empty state.
 ## Automated test results
 
 - **Pest: 352/352 PASS** (1122 assertions) — +40 analytics tests across 5 suites:
-  - Dashboard (6): funnel from real pipeline rows; ad KPI math; zero-spend guard; SEO summary; won-only
-    revenue; entitled render.
-  - Attribution (6): first/last touch; multi-touch credit totals 1.0; unsourced → direct; channel +
-    campaign rollups exclude open deals; CAC + ROI; no-spend/no-customer guards.
-  - Calls + experiments (9): fixture provisioning; source/campaign inheritance + duration scoring;
-    missed-call zero + conversion bonus; controller paths; conversion rate/lift/winner; conclude stamps
-    winner; conversions > impressions rejected; zero-impression lift guard.
-  - Benchmarks (6): **suppressed below the k-anonymity floor**; aggregate once the cohort is large
-    enough; percentile without exposing peer values (asserted on the exact returned key set); all
-    metrics suppressed at a higher floor; empty orgs excluded from the cohort; avg-MRR benchmark.
-  - Growth score / competitive / omnichannel / access (13): null sub-scores for unmeasured modules;
-    zero overall with no data; renormalized weighting; recommendations rank weakest + flag unmeasured;
-    idempotent daily snapshot; per-tenant scheduled command; share of voice + no-data case; channel
-    active flags; unified journey; viewer read-vs-manage; `analytics` gating (Growth 403 / Professional
-    200); tenant isolation (cross-tenant destroy 404s).
+    - Dashboard (6): funnel from real pipeline rows; ad KPI math; zero-spend guard; SEO summary; won-only
+      revenue; entitled render.
+    - Attribution (6): first/last touch; multi-touch credit totals 1.0; unsourced → direct; channel +
+      campaign rollups exclude open deals; CAC + ROI; no-spend/no-customer guards.
+    - Calls + experiments (9): fixture provisioning; source/campaign inheritance + duration scoring;
+      missed-call zero + conversion bonus; controller paths; conversion rate/lift/winner; conclude stamps
+      winner; conversions > impressions rejected; zero-impression lift guard.
+    - Benchmarks (6): **suppressed below the k-anonymity floor**; aggregate once the cohort is large
+      enough; percentile without exposing peer values (asserted on the exact returned key set); all
+      metrics suppressed at a higher floor; empty orgs excluded from the cohort; avg-MRR benchmark.
+    - Growth score / competitive / omnichannel / access (13): null sub-scores for unmeasured modules;
+      zero overall with no data; renormalized weighting; recommendations rank weakest + flag unmeasured;
+      idempotent daily snapshot; per-tenant scheduled command; share of voice + no-data case; channel
+      active flags; unified journey; viewer read-vs-manage; `analytics` gating (Growth 403 / Professional
+      200); tenant isolation (cross-tenant destroy 404s).
 - PHPStan L6: 0 errors · Pint PASS · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA

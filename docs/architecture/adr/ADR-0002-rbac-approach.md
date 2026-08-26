@@ -7,7 +7,7 @@
 
 Piotrack is multi-tenant: a user can belong to several organizations and hold a **different role in
 each** (Master Prompt §5). Authorization checks must always resolve against the user's role in the
-*currently active organization*. ADR-0001 tentatively named `spatie/laravel-permission`.
+_currently active organization_. ADR-0001 tentatively named `spatie/laravel-permission`.
 
 Spatie's package is global by default. Its "teams" feature can scope roles to a team id (which we
 would map to `organization_id`), but it requires setting a team context before every check, keeps a
@@ -23,8 +23,8 @@ Build a **small, code-defined RBAC** owned by the app:
   source of truth (Master Prompt §5, §11 "permission registry is code-defined").
 - **Roles in code** — `app/Authorization/Role.php` (5 platform + 9 organization roles) each mapping
   to a set of permissions via `app/Authorization/RolePermissions.php`.
-- **Membership carries the role** — the `organization_user` pivot stores the user's role *in that
-  organization*. This is the natural home for per-org roles.
+- **Membership carries the role** — the `organization_user` pivot stores the user's role _in that
+  organization_. This is the natural home for per-org roles.
 - **Enforcement through Laravel's Gate** — a `Gate::before` grants platform Super Admins everything;
   otherwise each permission is checked against the user's role in the resolved current organization.
   Controllers use `can:` middleware / `$this->authorize()`; the frontend receives the resolved

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Everything needed to *run* the product and *deliver the service*: platform administration for our own
+Everything needed to _run_ the product and _deliver the service_: platform administration for our own
 staff, a client-facing portal, project/sprint delivery, support infrastructure, and the strategy,
 brand, training and performance-guarantee workspaces that structure the consulting work an MSP growth
 engagement actually involves.
@@ -19,7 +19,7 @@ performs**, not a computation software can do. Three honest categories, applied 
    the methodology readiness dashboard. Built and **Tested**.
 2. **Workspaces that structure human work** — strategy assessments/audits/research/roadmaps, brand
    positioning and messaging, consulting/training engagements. The platform stores, versions, assigns,
-   schedules and reports on these; the *analysis and judgment* remain human. Recorded as **Partially
+   schedules and reports on these; the _analysis and judgment_ remain human. Recorded as **Partially
    Implemented**, with the note naming what the platform does versus what the consultant does. Marking
    "Competitor brand analysis" as Tested because a text field exists would be dishonest.
 3. **Creative production** — logo creation, graphic style, imagery, typography selection. The platform

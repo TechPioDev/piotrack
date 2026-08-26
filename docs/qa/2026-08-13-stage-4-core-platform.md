@@ -6,15 +6,15 @@ Scope of this delivery: JOBS, NOTIF, FILE, OBS, SRCH, ONBD (checklist). Sequence
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| JOBS — queue infra + scheduler (closes BILL-011/012/016/017) | JOBS-001 Tested; 002/003/004 Partial (retry tuning/idempotency conventions/Horizon dashboard) |
-| NOTIF — in-app center, email, preferences, wired events | 001/002/008/010 Tested; 007 Partial; 003/004/005/006/009 Planned (SMS/Slack/Teams/webhook channels + marketing/sales alert types need integrations & their modules) |
-| FILE — tenant file storage | FILE-001 Tested; FILE-002 Partial (attachable ready) |
-| OBS — health + logging | OBS-001/003 Tested; 002/004 Partial (metrics backend, external alerting) |
-| SRCH — global search | SRCH-003 Tested; 001/002 Partial (over current entities, expands) |
-| ONBD — setup checklist | ONBD-001/002/003/004/005/013/014 Tested; 006–012 Planned (business profile/ICP/competitor/integration-wizard/audit — later modules) |
-| Sequenced | INTG (connector framework), API (public v1), DSGN (formal docs) — remain Planned/Partial, tracked |
+| Area                                                         | Result                                                                                                                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JOBS — queue infra + scheduler (closes BILL-011/012/016/017) | JOBS-001 Tested; 002/003/004 Partial (retry tuning/idempotency conventions/Horizon dashboard)                                                                       |
+| NOTIF — in-app center, email, preferences, wired events      | 001/002/008/010 Tested; 007 Partial; 003/004/005/006/009 Planned (SMS/Slack/Teams/webhook channels + marketing/sales alert types need integrations & their modules) |
+| FILE — tenant file storage                                   | FILE-001 Tested; FILE-002 Partial (attachable ready)                                                                                                                |
+| OBS — health + logging                                       | OBS-001/003 Tested; 002/004 Partial (metrics backend, external alerting)                                                                                            |
+| SRCH — global search                                         | SRCH-003 Tested; 001/002 Partial (over current entities, expands)                                                                                                   |
+| ONBD — setup checklist                                       | ONBD-001/002/003/004/005/013/014 Tested; 006–012 Planned (business profile/ICP/competitor/integration-wizard/audit — later modules)                                 |
+| Sequenced                                                    | INTG (connector framework), API (public v1), DSGN (formal docs) — remain Planned/Partial, tracked                                                                   |
 
 ## Highlight: Stage 3 billing debt closed
 
@@ -74,7 +74,7 @@ This closes BILL-011/012 (previously Partial) and completes the past-due → gra
 - **INTG** connector framework + connectors; **API** public versioned REST (Sanctum tokens already
   exist); **DSGN** formal design-system documentation (the component library already exists and is
   in use) — the Stage 4 continuation.
-- NOTIF SMS/Slack/Teams/webhook channels (need integrations); marketing/sales alert *types* (need
+- NOTIF SMS/Slack/Teams/webhook channels (need integrations); marketing/sales alert _types_ (need
   their modules). JOBS Horizon dashboard (Linux worker + platform admin, Stage 13). OBS metrics
   backend + external alerting.
 

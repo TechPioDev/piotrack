@@ -6,27 +6,27 @@ Two scopes, per Master Prompt §5.
 
 ### Platform level (internal staff — never tenant users)
 
-| Role | Purpose |
-|---|---|
-| Super Administrator | Full platform control, security-sensitive operations |
-| Platform Administrator | Tenants, plans, entitlements, feature flags, system health |
-| Support Administrator | Support tickets, limited tenant visibility, audited impersonation |
-| Finance Administrator | Subscriptions, payments, coupons, invoices, refunds |
-| Read-only Support | View-only diagnostics |
+| Role                   | Purpose                                                           |
+| ---------------------- | ----------------------------------------------------------------- |
+| Super Administrator    | Full platform control, security-sensitive operations              |
+| Platform Administrator | Tenants, plans, entitlements, feature flags, system health        |
+| Support Administrator  | Support tickets, limited tenant visibility, audited impersonation |
+| Finance Administrator  | Subscriptions, payments, coupons, invoices, refunds               |
+| Read-only Support      | View-only diagnostics                                             |
 
 ### Organization level (per tenant)
 
-| Role | Typical use |
-|---|---|
-| Organization Owner | Billing + everything; created at signup |
-| Organization Administrator | Users, settings, integrations |
-| Marketing Manager | Campaigns, content, SEO, automation management |
-| Sales Manager | Pipeline, lead routing, sales reporting |
-| Sales Representative | Own leads/deals, activities, meetings |
-| Marketing User | Execute marketing tasks, no admin rights |
-| Analyst | Read + report/export across marketing and sales data |
-| Billing Administrator | Billing portal only |
-| Viewer | Read-only |
+| Role                       | Typical use                                          |
+| -------------------------- | ---------------------------------------------------- |
+| Organization Owner         | Billing + everything; created at signup              |
+| Organization Administrator | Users, settings, integrations                        |
+| Marketing Manager          | Campaigns, content, SEO, automation management       |
+| Sales Manager              | Pipeline, lead routing, sales reporting              |
+| Sales Representative       | Own leads/deals, activities, meetings                |
+| Marketing User             | Execute marketing tasks, no admin rights             |
+| Analyst                    | Read + report/export across marketing and sales data |
+| Billing Administrator      | Billing portal only                                  |
+| Viewer                     | Read-only                                            |
 
 ## Authorization engine
 

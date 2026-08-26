@@ -8,12 +8,12 @@ source inventory text directly so no feature depends on human memory (Master Pro
 
 ## Sources
 
-| Origin | Document | Features |
-|---|---|---|
-| Feature Inventory | `Jumpfactor_Competitor_Complete_Feature_Inventory.pdf` (50 capability areas) | 977 |
-| Master Prompt | `Master Claude Prompt - Commercial MSP Growth Platform.pdf` (platform/commercial infrastructure) | 165 |
-| QA Audit | Gaps found while testing against Master Prompt §21 and §53; absent from both source documents | 3 |
-| **Total** | | **1,145** |
+| Origin            | Document                                                                                         | Features  |
+| ----------------- | ------------------------------------------------------------------------------------------------ | --------- |
+| Feature Inventory | `Jumpfactor_Competitor_Complete_Feature_Inventory.pdf` (50 capability areas)                     | 977       |
+| Master Prompt     | `Master Claude Prompt - Commercial MSP Growth Platform.pdf` (platform/commercial infrastructure) | 165       |
+| QA Audit          | Gaps found while testing against Master Prompt §21 and §53; absent from both source documents    | 3         |
+| **Total**         |                                                                                                  | **1,145** |
 
 ## QA-origin rows
 
@@ -24,11 +24,11 @@ and did not find, which neither source document lists. They are declared in
 in the CSV is dropped on the next regeneration, which is the silent disappearance
 §65 forbids.
 
-| ID | Feature | Status | Why |
-|---|---|---|---|
-| AUTO-029 | Conditional branching in workflows | Planned | `workflow_steps` has no condition or branch column; sequences are strictly linear, so every enrolled contact runs every step |
-| AUTO-030 | Contact tagging | Not Applicable | No tag concept exists, and marketing list membership already provides it (AUTO-026); a parallel tag model would duplicate it |
-| SUPP-004 | Ticket notifications to requester and assignee | Planned | `TicketService` open/reply/resolve notify nobody, so a customer is never told their ticket was answered; NOTIF-006 covers business alerts and does not extend to support |
+| ID       | Feature                                        | Status         | Why                                                                                                                                                                      |
+| -------- | ---------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AUTO-029 | Conditional branching in workflows             | Planned        | `workflow_steps` has no condition or branch column; sequences are strictly linear, so every enrolled contact runs every step                                             |
+| AUTO-030 | Contact tagging                                | Not Applicable | No tag concept exists, and marketing list membership already provides it (AUTO-026); a parallel tag model would duplicate it                                             |
+| SUPP-004 | Ticket notifications to requester and assignee | Planned        | `TicketService` open/reply/resolve notify nobody, so a customer is never told their ticket was answered; NOTIF-006 covers business alerts and does not extend to support |
 
 Both are pinned by `tests/Feature/Qa/MarketingAutomationTest.php`, which fails if
 the schema ever gains branching or tagging — forcing these rows to be revisited
@@ -44,86 +44,86 @@ A feature may only be marked `Production Ready` when the Definition of Done (Mas
 
 ## Product modules (from the Feature Inventory)
 
-| # | Code | Module | Features |
-|---|---|---|---|
-| 1 | STRAT | Marketing Strategy & Research | 32 |
-| 2 | BRAND | MSP Branding | 37 |
-| 3 | WEB | MSP Website Platform | 55 |
-| 4 | TSEO | Technical SEO | 27 |
-| 5 | KSEO | MSP Keyword SEO | 19 |
-| 6 | LSEO | Local SEO | 22 |
-| 7 | CONT | Content Marketing | 40 |
-| 8 | AEO | Answer Engine Optimization | 19 |
-| 9 | GEO | Generative Engine Optimization | 16 |
-| 10 | LLMO | LLM Optimization | 18 |
-| 11 | PPC | Google Ads / PPC | 25 |
-| 12 | LIAD | LinkedIn Advertising | 17 |
-| 13 | META | Facebook / Meta Advertising | 11 |
-| 14 | RETG | Retargeting Engine | 17 |
-| 15 | SOC | Social Media Management | 27 |
-| 16 | VID | Video Marketing | 18 |
-| 17 | POD | Podcast / Multimedia Authority | 10 |
-| 18 | LEAD | Lead Generation | 23 |
-| 19 | CRM | CRM | 30 |
-| 20 | AUTO | Marketing Automation | 30 |
-| 21 | EMAIL | Email Marketing | 20 |
-| 22 | SMS | SMS Automation | 8 |
-| 23 | LSCR | Lead Scoring | 19 |
-| 24 | INTENT | Buyer Intent Intelligence | 16 |
-| 25 | ALERT | Sales Alerts | 9 |
-| 26 | AISA | AI Sales Agent | 16 |
-| 27 | BOOK | Appointment Booking | 12 |
-| 28 | ABM | Account-Based Marketing | 19 |
-| 29 | ENAB | Sales Enablement | 19 |
-| 30 | REP | Reputation & Authority Management | 19 |
-| 31 | DPR | Digital PR | 13 |
-| 32 | LINK | Link Building | 13 |
-| 33 | OMNI | Omnichannel Marketing | 18 |
-| 34 | FUNL | Funnel Management | 24 |
-| 35 | ANLY | Analytics Dashboard | 36 |
-| 36 | ATTR | Revenue Attribution | 17 |
-| 37 | CALL | Call Tracking | 11 |
-| 38 | CRO | Conversion Rate Optimization | 17 |
-| 39 | PORTAL | Client Portal | 18 |
-| 40 | PROJ | Project Management | 16 |
-| 41 | TRAIN | Training & Consulting | 13 |
-| 42 | MLOC | Multi-Location MSP Support | 12 |
-| 43 | VERT | Vertical Marketing | 20 |
-| 44 | SVC | Service-Specific MSP Campaigns | 24 |
-| 45 | PERF | Lead Guarantee / Performance Model | 11 |
-| 46 | METH | Proprietary Methodology | 5 |
-| 47 | BENCH | Proprietary Data Layer / Benchmarks | 18 |
-| 48 | CINT | Competitive Intelligence | 13 |
-| 49 | GSCORE | MSP Growth Score | 13 |
-| 50 | AIVIS | AI Visibility Dashboard | 17 |
+| #   | Code   | Module                              | Features |
+| --- | ------ | ----------------------------------- | -------- |
+| 1   | STRAT  | Marketing Strategy & Research       | 32       |
+| 2   | BRAND  | MSP Branding                        | 37       |
+| 3   | WEB    | MSP Website Platform                | 55       |
+| 4   | TSEO   | Technical SEO                       | 27       |
+| 5   | KSEO   | MSP Keyword SEO                     | 19       |
+| 6   | LSEO   | Local SEO                           | 22       |
+| 7   | CONT   | Content Marketing                   | 40       |
+| 8   | AEO    | Answer Engine Optimization          | 19       |
+| 9   | GEO    | Generative Engine Optimization      | 16       |
+| 10  | LLMO   | LLM Optimization                    | 18       |
+| 11  | PPC    | Google Ads / PPC                    | 25       |
+| 12  | LIAD   | LinkedIn Advertising                | 17       |
+| 13  | META   | Facebook / Meta Advertising         | 11       |
+| 14  | RETG   | Retargeting Engine                  | 17       |
+| 15  | SOC    | Social Media Management             | 27       |
+| 16  | VID    | Video Marketing                     | 18       |
+| 17  | POD    | Podcast / Multimedia Authority      | 10       |
+| 18  | LEAD   | Lead Generation                     | 23       |
+| 19  | CRM    | CRM                                 | 30       |
+| 20  | AUTO   | Marketing Automation                | 30       |
+| 21  | EMAIL  | Email Marketing                     | 20       |
+| 22  | SMS    | SMS Automation                      | 8        |
+| 23  | LSCR   | Lead Scoring                        | 19       |
+| 24  | INTENT | Buyer Intent Intelligence           | 16       |
+| 25  | ALERT  | Sales Alerts                        | 9        |
+| 26  | AISA   | AI Sales Agent                      | 16       |
+| 27  | BOOK   | Appointment Booking                 | 12       |
+| 28  | ABM    | Account-Based Marketing             | 19       |
+| 29  | ENAB   | Sales Enablement                    | 19       |
+| 30  | REP    | Reputation & Authority Management   | 19       |
+| 31  | DPR    | Digital PR                          | 13       |
+| 32  | LINK   | Link Building                       | 13       |
+| 33  | OMNI   | Omnichannel Marketing               | 18       |
+| 34  | FUNL   | Funnel Management                   | 24       |
+| 35  | ANLY   | Analytics Dashboard                 | 36       |
+| 36  | ATTR   | Revenue Attribution                 | 17       |
+| 37  | CALL   | Call Tracking                       | 11       |
+| 38  | CRO    | Conversion Rate Optimization        | 17       |
+| 39  | PORTAL | Client Portal                       | 18       |
+| 40  | PROJ   | Project Management                  | 16       |
+| 41  | TRAIN  | Training & Consulting               | 13       |
+| 42  | MLOC   | Multi-Location MSP Support          | 12       |
+| 43  | VERT   | Vertical Marketing                  | 20       |
+| 44  | SVC    | Service-Specific MSP Campaigns      | 24       |
+| 45  | PERF   | Lead Guarantee / Performance Model  | 11       |
+| 46  | METH   | Proprietary Methodology             | 5        |
+| 47  | BENCH  | Proprietary Data Layer / Benchmarks | 18       |
+| 48  | CINT   | Competitive Intelligence            | 13       |
+| 49  | GSCORE | MSP Growth Score                    | 13       |
+| 50  | AIVIS  | AI Visibility Dashboard             | 17       |
 
 ## Platform modules (from the Master Prompt)
 
-| Code | Module | Features |
-|---|---|---|
-| AUTH | Identity & Authentication | 11 |
-| TEN | Tenant & Organization Management | 10 |
-| RBAC | Roles & Permissions | 6 |
-| ONBD | Customer Onboarding | 14 |
-| BILL | Billing & Subscriptions | 19 |
-| ENTL | Feature Entitlements & Usage Limits | 7 |
-| DSGN | Design System & UX Standards | 9 |
-| NOTIF | Notification System | 10 |
-| SRCH | Global Search | 3 |
-| IMEX | Import / Export | 4 |
-| AUDIT | Audit Logging | 6 |
-| SEC | Security | 8 |
-| API | API Platform | 5 |
-| JOBS | Background Jobs & Queues | 4 |
-| OBS | Observability & Operations | 4 |
-| BCK | Backups & Disaster Recovery | 4 |
-| PRIV | Privacy & Data Management | 6 |
-| SUPP | Customer Support Infrastructure | 3 |
-| ADMIN | Platform Administration (Super Admin) | 6 |
-| INTG | Integration Framework | 10 |
-| AIPF | AI Platform Infrastructure | 6 |
-| FILE | Files & Documents | 2 |
-| DEVX | Engineering Foundation & Delivery | 8 |
+| Code  | Module                                | Features |
+| ----- | ------------------------------------- | -------- |
+| AUTH  | Identity & Authentication             | 11       |
+| TEN   | Tenant & Organization Management      | 10       |
+| RBAC  | Roles & Permissions                   | 6        |
+| ONBD  | Customer Onboarding                   | 14       |
+| BILL  | Billing & Subscriptions               | 19       |
+| ENTL  | Feature Entitlements & Usage Limits   | 7        |
+| DSGN  | Design System & UX Standards          | 9        |
+| NOTIF | Notification System                   | 10       |
+| SRCH  | Global Search                         | 3        |
+| IMEX  | Import / Export                       | 4        |
+| AUDIT | Audit Logging                         | 6        |
+| SEC   | Security                              | 8        |
+| API   | API Platform                          | 5        |
+| JOBS  | Background Jobs & Queues              | 4        |
+| OBS   | Observability & Operations            | 4        |
+| BCK   | Backups & Disaster Recovery           | 4        |
+| PRIV  | Privacy & Data Management             | 6        |
+| SUPP  | Customer Support Infrastructure       | 3        |
+| ADMIN | Platform Administration (Super Admin) | 6        |
+| INTG  | Integration Framework                 | 10       |
+| AIPF  | AI Platform Infrastructure            | 6        |
+| FILE  | Files & Documents                     | 2        |
+| DEVX  | Engineering Foundation & Delivery     | 8        |
 
 ## Maintenance rules
 
@@ -131,7 +131,7 @@ A feature may only be marked `Production Ready` when the Definition of Done (Mas
 2. A requirement change updates the spec first, then the register, then code (Master Prompt §55).
 3. Rows are never deleted. Features that become out of scope get status `Not Applicable` with a
    documented justification in `notes` (Master Prompt §62).
-4. Some inventory rows describe agency *services* rather than software (e.g. TRAIN, parts of PROJ,
+4. Some inventory rows describe agency _services_ rather than software (e.g. TRAIN, parts of PROJ,
    BRAND creative work). They remain registered; their `notes` will record whether they are served
    by software, by service-delivery workflow inside the platform, or documented as Not Applicable.
    None may be silently dropped.

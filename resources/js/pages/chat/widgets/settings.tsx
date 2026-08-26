@@ -71,6 +71,7 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
             experiment: (widget.settings.experiment as string) ?? '',
             variant: (widget.settings.variant as string) ?? '',
             fallback_contact: (widget.settings.fallback_contact as string) ?? '',
+            suggested_questions: ((widget.settings.suggested_questions as string[]) ?? []).join('\n'),
         },
         consent: {
             required: Boolean(widget.consent.required),
@@ -115,6 +116,17 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
             },
         }));
 
+        form.transform((data) => ({
+            ...data,
+            settings: {
+                ...data.settings,
+                suggested_questions: (data.settings.suggested_questions as string)
+                    .split('\n')
+                    .map((q: string) => q.trim())
+                    .filter(Boolean)
+                    .slice(0, 6),
+            },
+        }));
         form.patch(route('chat.widgets.update', widget.id), { preserveScroll: true });
     };
 
@@ -291,6 +303,20 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                             </Select>
                             <p className="text-muted-foreground text-xs">
                                 A person is only offered when someone is online and you are inside business hours.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-1">
+                            <Label htmlFor="suggested_questions">Suggested questions (one per line, up to 6)</Label>
+                            <textarea
+                                id="suggested_questions"
+                                className="border-input bg-background min-h-24 w-full rounded-md border px-3 py-2 text-sm"
+                                placeholder={'What services do you offer?\nDo you support Microsoft 365?'}
+                                value={form.data.settings.suggested_questions}
+                                onChange={(e) => form.setData('settings', { ...form.data.settings, suggested_questions: e.target.value })}
+                            />
+                            <p className="text-muted-foreground text-xs">
+                                Shown as tappable chips when a visitor reaches the AI question step, so they know what it can answer.
                             </p>
                         </div>
 

@@ -2,11 +2,11 @@
 
 ## Toolchain (this machine)
 
-| Tool | Location / version |
-|---|---|
-| PHP | `C:\tools\php84` (8.4.x, all required extensions incl. pdo_pgsql) |
-| Composer | `C:\tools\composer\composer.phar` |
-| Node / npm | on PATH (Node 22+/24) |
+| Tool       | Location / version                                                |
+| ---------- | ----------------------------------------------------------------- |
+| PHP        | `C:\tools\php84` (8.4.x, all required extensions incl. pdo_pgsql) |
+| Composer   | `C:\tools\composer\composer.phar`                                 |
+| Node / npm | on PATH (Node 22+/24)                                             |
 
 Git Bash session setup:
 

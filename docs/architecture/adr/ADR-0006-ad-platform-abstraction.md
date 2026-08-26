@@ -34,8 +34,8 @@ Drivers are selected by config (`ADVERTISING_DRIVER`):
 
 2. **`google_ads` / `linkedin_ads` / `meta_ads` / `microsoft_ads`** — real drivers implementing the
    same interface over the vendor Ads APIs, resolved per campaign `platform`. Real code, but with no
-   credentials here they are **not run in tests**; register status *Implemented (untested — requires
-   credentials)*, never "Tested." Activated by config + keys, and connected through the **INTG**
+   credentials here they are **not run in tests**; register status _Implemented (untested — requires
+   credentials)_, never "Tested." Activated by config + keys, and connected through the **INTG**
    connector framework (the ad accounts are OAuth connectors surfaced as "coming soon" until then).
 
 An `AdProviderManager` resolves the active driver (mirrors PaymentProvider / Messaging / SEO managers).

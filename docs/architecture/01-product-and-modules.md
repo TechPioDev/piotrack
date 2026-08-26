@@ -21,22 +21,22 @@ Competitive positioning (from the Feature Inventory):
 The inventory's 12 capability groups organize the 50 product modules. Codes refer to the
 [Feature Register](../register/FEATURE_REGISTER.md).
 
-| Group | Modules (codes) |
-|---|---|
-| 1. Strategy | STRAT |
-| 2. Brand | BRAND |
-| 3. Website | WEB, CRO |
-| 4. Search | TSEO, KSEO, LSEO |
-| 5. AI Search | AEO, GEO, LLMO, AIVIS |
-| 6. Authority | CONT, SOC, VID, POD, REP, DPR, LINK |
-| 7. Paid Media | PPC, LIAD, META, RETG |
-| 8. Pipeline | LEAD, LSCR, INTENT, ALERT, BOOK, ABM, FUNL |
-| 9. CRM | CRM, ATTR (record-level), CALL |
-| 10. Automation | AUTO, EMAIL, SMS, AISA |
-| 11. Sales | ENAB, PROJ, TRAIN, PERF, METH |
-| 12. Analytics | ANLY, ATTR (reporting), BENCH, CINT, GSCORE, OMNI |
-| Cross-cutting product | PORTAL, MLOC, VERT, SVC |
-| Platform foundation | AUTH, TEN, RBAC, ONBD, BILL, ENTL, DSGN, NOTIF, SRCH, IMEX, AUDIT, SEC, API, JOBS, OBS, BCK, PRIV, SUPP, ADMIN, INTG, AIPF, FILE, DEVX |
+| Group                 | Modules (codes)                                                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Strategy           | STRAT                                                                                                                                  |
+| 2. Brand              | BRAND                                                                                                                                  |
+| 3. Website            | WEB, CRO                                                                                                                               |
+| 4. Search             | TSEO, KSEO, LSEO                                                                                                                       |
+| 5. AI Search          | AEO, GEO, LLMO, AIVIS                                                                                                                  |
+| 6. Authority          | CONT, SOC, VID, POD, REP, DPR, LINK                                                                                                    |
+| 7. Paid Media         | PPC, LIAD, META, RETG                                                                                                                  |
+| 8. Pipeline           | LEAD, LSCR, INTENT, ALERT, BOOK, ABM, FUNL                                                                                             |
+| 9. CRM                | CRM, ATTR (record-level), CALL                                                                                                         |
+| 10. Automation        | AUTO, EMAIL, SMS, AISA                                                                                                                 |
+| 11. Sales             | ENAB, PROJ, TRAIN, PERF, METH                                                                                                          |
+| 12. Analytics         | ANLY, ATTR (reporting), BENCH, CINT, GSCORE, OMNI                                                                                      |
+| Cross-cutting product | PORTAL, MLOC, VERT, SVC                                                                                                                |
+| Platform foundation   | AUTH, TEN, RBAC, ONBD, BILL, ENTL, DSGN, NOTIF, SRCH, IMEX, AUDIT, SEC, API, JOBS, OBS, BCK, PRIV, SUPP, ADMIN, INTG, AIPF, FILE, DEVX |
 
 ## Module ≠ page (Master Prompt §15)
 

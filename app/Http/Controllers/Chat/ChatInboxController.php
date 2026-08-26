@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Notifications\ChatMentionNotification;
+use App\Services\Chat\ChatConversationSummarizer;
 use App\Services\Chat\ChatPresenceService;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -70,9 +71,17 @@ class ChatInboxController extends Controller
         ]);
     }
 
-    public function show(ChatConversation $conversation): Response
+    public function show(ChatConversation $conversation, ChatConversationSummarizer $summarizer): Response
     {
         $conversation->load(['widget:id,name', 'assignee:id,name', 'contact', 'messages.author:id,name']);
+
+        // A live conversation is a takeover in progress: give the agent the
+        // summary without a click. Anywhere else it stays on-demand, so
+        // opening old conversations never spends AI credits by itself.
+        if ($conversation->is_live && $conversation->summary === null) {
+            $summarizer->summarize($conversation);
+            $conversation->refresh();
+        }
 
         return Inertia::render('chat/inbox/show', [
             'conversation' => [
@@ -90,6 +99,8 @@ class ChatInboxController extends Controller
                 'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority']),
                 'priority' => ($conversation->answers['_priority'] ?? null) === 'high',
                 'is_live' => (bool) $conversation->is_live,
+                'summary' => $conversation->summary,
+                'summary_generated_at' => $conversation->summary_generated_at?->toIso8601String(),
                 'attribution' => $conversation->attribution,
                 'created_at' => $conversation->created_at->toIso8601String(),
             ],
@@ -106,6 +117,19 @@ class ChatInboxController extends Controller
                 'roster' => $this->presence->roster($this->currentOrganization->get()),
             ],
         ]);
+    }
+
+    /**
+     * Generate (or refresh) the AI summary on demand. Idempotent while nothing
+     * new has been said; a failure reports plainly rather than erroring.
+     */
+    public function summarize(ChatConversation $conversation, ChatConversationSummarizer $summarizer): RedirectResponse
+    {
+        $summary = $summarizer->summarize($conversation);
+
+        return back()->with('status', $summary !== null
+            ? 'Summary updated.'
+            : 'The AI could not produce a summary right now.');
     }
 
     public function reply(Request $request, ChatConversation $conversation): RedirectResponse

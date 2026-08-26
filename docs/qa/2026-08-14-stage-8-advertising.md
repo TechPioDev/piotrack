@@ -7,20 +7,20 @@ Scope: PPC-001…025, LIAD-001…017, META-001…011, RETG-001…017 (70 feature
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Campaign / ad-group / ad / keyword structure (+ negative keywords) | Tested (PPC/LIAD/META structure) |
-| Budgets + campaign status lifecycle (draft/active/paused/ended) | Tested |
-| KPI computation (CTR/CPC/CPA/CPL/ROAS/conv-rate, divide-by-zero guarded) | Tested (PPC-019/021…024) |
-| Metrics pipeline (daily snapshots, idempotent, rollups) | Tested on fixture driver |
-| B2B (LinkedIn) + Meta targeting via JSON | Tested (LIAD-003…012, META-004/005) |
-| Retargeting audiences (list/funnel/behavior/all) + conversion exclusions + segmentation | Tested (RETG-008/011…017) |
-| Live platform delivery + real spend/metrics + campaign push | Implemented — untested (no credentials) |
-| Custom-audience push, lead-gen form sync, AI bidding, video retargeting | Partial/Planned |
+| Area                                                                                    | Result                                  |
+| --------------------------------------------------------------------------------------- | --------------------------------------- |
+| Campaign / ad-group / ad / keyword structure (+ negative keywords)                      | Tested (PPC/LIAD/META structure)        |
+| Budgets + campaign status lifecycle (draft/active/paused/ended)                         | Tested                                  |
+| KPI computation (CTR/CPC/CPA/CPL/ROAS/conv-rate, divide-by-zero guarded)                | Tested (PPC-019/021…024)                |
+| Metrics pipeline (daily snapshots, idempotent, rollups)                                 | Tested on fixture driver                |
+| B2B (LinkedIn) + Meta targeting via JSON                                                | Tested (LIAD-003…012, META-004/005)     |
+| Retargeting audiences (list/funnel/behavior/all) + conversion exclusions + segmentation | Tested (RETG-008/011…017)               |
+| Live platform delivery + real spend/metrics + campaign push                             | Implemented — untested (no credentials) |
+| Custom-audience push, lead-gen form sync, AI bidding, video retargeting                 | Partial/Planned                         |
 
 Per ADR-0006, campaign structure, KPI math, and retargeting-audience building are computed **in-house
 and Tested**; the metrics pipeline is Tested on the **fixture** driver, while the real Google/
-LinkedIn/Meta drivers are real code labelled *Implemented (untested — requires credentials)* (§38).
+LinkedIn/Meta drivers are real code labelled _Implemented (untested — requires credentials)_ (§38).
 
 ## Architecture delivered
 
@@ -46,13 +46,13 @@ LinkedIn/Meta drivers are real code labelled *Implemented (untested — requires
 ## Automated test results
 
 - **Pest: 273/273 PASS** (924 assertions) — +17 advertising tests across 4 suites:
-  - KPI (2): CTR/CPC/CPA/ROAS/conv-rate math + `toArray()` formatting; divide-by-zero guard.
-  - Campaign (6): create + audit; activation blocked without an ad-group-with-ad then allowed;
-    ad group/ad/negative-keyword nesting; **idempotent metrics refresh** + KPI rollup; controller refresh.
-  - Retargeting (5): list audience excluding converted; inclusion when off; funnel-stage audience;
-    hashed-email payload (normalized); controller create + member count.
-  - Access (5): viewer read-vs-manage; retargeting-manage gating; `advertising` feature gating
-    (Growth blocked, Professional allowed); tenant isolation.
+    - KPI (2): CTR/CPC/CPA/ROAS/conv-rate math + `toArray()` formatting; divide-by-zero guard.
+    - Campaign (6): create + audit; activation blocked without an ad-group-with-ad then allowed;
+      ad group/ad/negative-keyword nesting; **idempotent metrics refresh** + KPI rollup; controller refresh.
+    - Retargeting (5): list audience excluding converted; inclusion when off; funnel-stage audience;
+      hashed-email payload (normalized); controller create + member count.
+    - Access (5): viewer read-vs-manage; retargeting-manage gating; `advertising` feature gating
+      (Growth blocked, Professional allowed); tenant isolation.
 - PHPStan L6: 0 errors · Pint PASS · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA (browser, http://localhost:8734)

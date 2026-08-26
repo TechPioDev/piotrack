@@ -24,16 +24,16 @@ idempotent queue processing, replay tooling for platform admins.
 
 ## Connector roster (build order follows module phases)
 
-| Wave | Connectors | Consumed by |
-|---|---|---|
-| 1 (Core data) | Google Analytics 4, Google Search Console, Google Business Profile | ANLY, TSEO/KSEO/LSEO dashboards |
-| 2 (Ads) | Google Ads, Microsoft Ads, LinkedIn Ads, Meta Ads | PPC, LIAD, META, RETG |
-| 3 (Comms) | SendGrid/Mailgun (email), Twilio (SMS + STOP handling), Gmail/Outlook sync | EMAIL, SMS, CRM activities |
-| 4 (Scheduling & calls) | Calendly-class booking, Zoom, Teams, CallRail | BOOK, CALL |
-| 5 (Business) | Slack, Teams (notifications), Stripe (billing), QuickBooks | NOTIF, BILL |
-| 6 (CRM interop) | HubSpot, Salesforce, Microsoft Dynamics (import/sync) | CRM migration paths |
-| 7 (Extensibility) | Zapier, generic outbound webhooks, public API | API platform |
-| Continuous | AI providers via AIPF abstraction (Anthropic first) | AISA, AIVIS, GEO, scoring |
+| Wave                   | Connectors                                                                 | Consumed by                     |
+| ---------------------- | -------------------------------------------------------------------------- | ------------------------------- |
+| 1 (Core data)          | Google Analytics 4, Google Search Console, Google Business Profile         | ANLY, TSEO/KSEO/LSEO dashboards |
+| 2 (Ads)                | Google Ads, Microsoft Ads, LinkedIn Ads, Meta Ads                          | PPC, LIAD, META, RETG           |
+| 3 (Comms)              | SendGrid/Mailgun (email), Twilio (SMS + STOP handling), Gmail/Outlook sync | EMAIL, SMS, CRM activities      |
+| 4 (Scheduling & calls) | Calendly-class booking, Zoom, Teams, CallRail                              | BOOK, CALL                      |
+| 5 (Business)           | Slack, Teams (notifications), Stripe (billing), QuickBooks                 | NOTIF, BILL                     |
+| 6 (CRM interop)        | HubSpot, Salesforce, Microsoft Dynamics (import/sync)                      | CRM migration paths             |
+| 7 (Extensibility)      | Zapier, generic outbound webhooks, public API                              | API platform                    |
+| Continuous             | AI providers via AIPF abstraction (Anthropic first)                        | AISA, AIVIS, GEO, scoring       |
 
 Native capability with provider fallback: email/SMS sending, booking pages and call tracking are
 platform features backed by pluggable providers, so tenants aren't forced into third-party accounts

@@ -273,7 +273,7 @@ and retention pruning.
 192.168.1.230    piotrack.local
 ```
 
-Avoid pointing a *public* DNS record at `192.168.1.230`: it publishes your internal addressing, and
+Avoid pointing a _public_ DNS record at `192.168.1.230`: it publishes your internal addressing, and
 DNS-rebinding protection in browsers and routers will often refuse to resolve it anyway.
 
 ## 10. Cache for production
@@ -346,15 +346,15 @@ backups per [backup-and-disaster-recovery.md](backup-and-disaster-recovery.md).
 
 ## Troubleshooting
 
-| Symptom | Cause |
-|---|---|
-| **osTicket broke** | Stop. `sudo a2dissite piotrack && sudo systemctl reload apache2`, then check `php -v` is unchanged and restore from the step-0 backup if needed |
-| 500, blank page | `tail -50 /var/www/piotrack/storage/logs/laravel.log`; usually storage permissions |
-| 502 Bad Gateway | FPM socket path mismatch — compare the pool `listen=` with the vhost `SetHandler` |
-| Styles missing | `npm run build` not run, or `public/build` unreadable by www-data |
-| `.env` changes ignored | Cached config — re-run step 10 |
-| Queued work never runs | `sudo systemctl status piotrack-worker` |
-| `piotrack.local` won't resolve | Step 9 not done on the machine you're browsing from |
+| Symptom                        | Cause                                                                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **osTicket broke**             | Stop. `sudo a2dissite piotrack && sudo systemctl reload apache2`, then check `php -v` is unchanged and restore from the step-0 backup if needed |
+| 500, blank page                | `tail -50 /var/www/piotrack/storage/logs/laravel.log`; usually storage permissions                                                              |
+| 502 Bad Gateway                | FPM socket path mismatch — compare the pool `listen=` with the vhost `SetHandler`                                                               |
+| Styles missing                 | `npm run build` not run, or `public/build` unreadable by www-data                                                                               |
+| `.env` changes ignored         | Cached config — re-run step 10                                                                                                                  |
+| Queued work never runs         | `sudo systemctl status piotrack-worker`                                                                                                         |
+| `piotrack.local` won't resolve | Step 9 not done on the machine you're browsing from                                                                                             |
 
 ## What this deployment still does not do
 

@@ -7,22 +7,22 @@ Scope: CONT-001…040, SOC-001…027, VID-001…018, POD-001…010, REP-001…01
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Content hub (all types) + editorial workflow + clusters + keyword map | Tested (CONT-001…032/037…040) |
-| Content optimization scoring (SEO/CTA/internal-link/depth) | Tested |
-| Copywriting execution (conversion/technical/refresh/expansion) | Partial — human, platform tracks + scores (CONT-033…036) |
-| Social posts + calendar + scheduling + post types + engagement | Tested on fixture driver (SOC-001…017/025/026) |
-| Video + podcast as content pieces (metadata, repurposing) | Tested (VID-002…013/018, POD-002…010) |
-| Reviews + acquisition requests + rating/sentiment aggregation + authority assets | Tested (REP-001…004/008…011/018) |
-| PR + link outreach (pipeline + placements + backlink monitoring) | Tested (DPR-001…013 core, LINK-004…013) |
-| Live social publishing + review sync | Implemented — untested (no credentials) |
-| Social listening/monitoring, paid social, backlink audit/toxic/competitor | Planned — external APIs / other stages |
+| Area                                                                             | Result                                                   |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Content hub (all types) + editorial workflow + clusters + keyword map            | Tested (CONT-001…032/037…040)                            |
+| Content optimization scoring (SEO/CTA/internal-link/depth)                       | Tested                                                   |
+| Copywriting execution (conversion/technical/refresh/expansion)                   | Partial — human, platform tracks + scores (CONT-033…036) |
+| Social posts + calendar + scheduling + post types + engagement                   | Tested on fixture driver (SOC-001…017/025/026)           |
+| Video + podcast as content pieces (metadata, repurposing)                        | Tested (VID-002…013/018, POD-002…010)                    |
+| Reviews + acquisition requests + rating/sentiment aggregation + authority assets | Tested (REP-001…004/008…011/018)                         |
+| PR + link outreach (pipeline + placements + backlink monitoring)                 | Tested (DPR-001…013 core, LINK-004…013)                  |
+| Live social publishing + review sync                                             | Implemented — untested (no credentials)                  |
+| Social listening/monitoring, paid social, backlink audit/toxic/competitor        | Planned — external APIs / other stages                   |
 
 Per ADR-0007, the content hub, editorial workflow, optimization scoring, reviews + aggregation, and
 outreach pipelines are computed **in-house and Tested**; social publishing/metrics + review sync are
 Tested on the **fixture** drivers, while the live channel/review drivers are real code labelled
-*Implemented (untested — requires credentials)*, never "Tested" (§38).
+_Implemented (untested — requires credentials)_, never "Tested" (§38).
 
 ## Architecture delivered
 
@@ -46,14 +46,14 @@ Tested on the **fixture** drivers, while the live channel/review drivers are rea
 ## Automated test results
 
 - **Pest: 294/294 PASS** (976 assertions) — +21 content tests across 4 suites:
-  - Content (5): create + score computed + audit; optimized ≫ bare score; editorial-order enforcement;
-    publish requires body; publish via route stamps published_at.
-  - Social (4): publish captures fixture metrics + external id; idempotent republish; due-post dispatch;
-    controller publish.
-  - Reputation (6): sentiment derivation; record via route; aggregate (avg/count/sentiment); fixture
-    import; send review request; respond.
-  - Outreach/access (6): prospect pipeline + placement + `hasPlacement`; campaign rollup; viewer
-    read-vs-manage; `content` feature gating (Starter blocked, Growth allowed); tenant isolation.
+    - Content (5): create + score computed + audit; optimized ≫ bare score; editorial-order enforcement;
+      publish requires body; publish via route stamps published_at.
+    - Social (4): publish captures fixture metrics + external id; idempotent republish; due-post dispatch;
+      controller publish.
+    - Reputation (6): sentiment derivation; record via route; aggregate (avg/count/sentiment); fixture
+      import; send review request; respond.
+    - Outreach/access (6): prospect pipeline + placement + `hasPlacement`; campaign rollup; viewer
+      read-vs-manage; `content` feature gating (Starter blocked, Growth allowed); tenant isolation.
 - PHPStan L6: 0 errors · Pint PASS · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA (browser, http://localhost:8734)

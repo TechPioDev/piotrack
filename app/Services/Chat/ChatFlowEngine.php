@@ -283,9 +283,23 @@ class ChatFlowEngine
             $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
             $conversation->save();
 
+            $public = $this->publicNode($nodeId, $node);
+            // Suggested questions (CHAT-045): shown as tappable chips so a
+            // visitor knows what the assistant can answer. Tenant-configured,
+            // and only on the ask step - never on data-collection inputs.
+            if ($node['type'] === 'ai') {
+                $suggestions = array_values(array_filter(array_map(
+                    fn ($q) => trim((string) $q),
+                    (array) (($widget->settings['suggested_questions'] ?? [])),
+                )));
+                if ($suggestions !== []) {
+                    $public['suggestions'] = array_slice($suggestions, 0, 4);
+                }
+            }
+
             return [
                 'messages' => $this->drain(),
-                'node' => $this->publicNode($nodeId, $node),
+                'node' => $public,
                 'done' => false,
             ];
         }

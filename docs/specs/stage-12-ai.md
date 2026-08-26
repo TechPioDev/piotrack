@@ -126,5 +126,5 @@ Professional allowed), tenant isolation.
 - Cost + tokens recorded per tenant/user/feature; `AiCredits` hard-caps spend before it happens.
 - **No sensitive AI action can execute without an explicit human confirmation**, proven by tests.
 - Prompts are versioned; each request is traceable to a prompt version.
-- Fixture driver fully tested; live drivers honestly marked *Implemented (untested — requires
-  credentials)*. Full gate green; honest register; Module Completion Report + §65 cycle report.
+- Fixture driver fully tested; live drivers honestly marked _Implemented (untested — requires
+  credentials)_. Full gate green; honest register; Module Completion Report + §65 cycle report.

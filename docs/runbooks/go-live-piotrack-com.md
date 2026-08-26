@@ -44,6 +44,7 @@ Set these in the environment's **Deploy settings** (also mirrored in
 [`.laravel-cloud/deploy.md`](../../.laravel-cloud/deploy.md)):
 
 **Build command**
+
 ```bash
 composer install --no-dev --optimize-autoloader --no-interaction
 npm ci
@@ -51,6 +52,7 @@ npm run build
 ```
 
 **Deploy (release) command**
+
 ```bash
 php artisan migrate --force
 php artisan config:cache
@@ -68,9 +70,9 @@ cache checks passing (this confirms Postgres + Redis wiring before the domain is
 
 1. In the environment → **Domains**, add `piotrack.com` (and `www.piotrack.com`).
 2. Laravel Cloud shows the exact DNS records. Add them at your registrar:
-   - Apex `piotrack.com` → the record Cloud specifies (usually a **CNAME/ALIAS** to the Cloud
-     hostname, or an **A** record if it gives an IP).
-   - `www` → **CNAME** to the Cloud hostname.
+    - Apex `piotrack.com` → the record Cloud specifies (usually a **CNAME/ALIAS** to the Cloud
+      hostname, or an **A** record if it gives an IP).
+    - `www` → **CNAME** to the Cloud hostname.
 3. Wait for DNS propagation; Cloud provisions the TLS certificate automatically.
 4. Verify **https://piotrack.com/health** returns `ok` and **https://piotrack.com/login** loads.
 
@@ -90,10 +92,11 @@ build never reaches production.
 ---
 
 ### What I (Claude) cannot do from here — needs you
+
 - Create the Laravel Cloud account and authorize GitHub.
 - Enter any billing/payment for the host.
 - Add DNS records at your registrar (I can't access it).
 - Paste secrets (mail credentials, app key) into the dashboard.
 
-Everything the platform *reads from the repo* is already in place. Ping me if a build or migration
+Everything the platform _reads from the repo_ is already in place. Ping me if a build or migration
 step errors and I'll debug from the logs.

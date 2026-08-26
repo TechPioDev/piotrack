@@ -6,20 +6,20 @@ Scope: INTG-001…003, API-001…005, DSGN-001/002 (+ standards docs)
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Connector framework (registry, encrypted vault, scopes, lifecycle) | Partially Implemented — api_key done; OAuth pending (INTG-001) |
-| Sync engine (status, last sync, failures, retry, reconnection) | Tested (INTG-002) |
-| Per-connector error logs + health | Tested (INTG-003) |
-| REST API standard (auth, tenant scope, validation, pagination, search) | Partially Implemented — read+create; full filter/sort later (API-001) |
-| Error envelope + request IDs | Tested (API-002) |
-| API versioning (`/api/v1`) | Tested (API-003) |
-| Idempotency keys for unsafe operations | Tested (API-004) |
-| Customer-facing API (token keys, docs, plan-gated) | Partially Implemented — CRM read + contact create (API-005) |
-| Design token system | Implemented + documented (DSGN-001) |
-| Component library | Implemented + documented (DSGN-002) |
-| Responsive & accessibility standards | Partially Implemented — applied + documented; formal audit pending (DSGN-003/004) |
-| Empty-state standard | Implemented + documented (DSGN-007) |
+| Area                                                                   | Result                                                                            |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Connector framework (registry, encrypted vault, scopes, lifecycle)     | Partially Implemented — api_key done; OAuth pending (INTG-001)                    |
+| Sync engine (status, last sync, failures, retry, reconnection)         | Tested (INTG-002)                                                                 |
+| Per-connector error logs + health                                      | Tested (INTG-003)                                                                 |
+| REST API standard (auth, tenant scope, validation, pagination, search) | Partially Implemented — read+create; full filter/sort later (API-001)             |
+| Error envelope + request IDs                                           | Tested (API-002)                                                                  |
+| API versioning (`/api/v1`)                                             | Tested (API-003)                                                                  |
+| Idempotency keys for unsafe operations                                 | Tested (API-004)                                                                  |
+| Customer-facing API (token keys, docs, plan-gated)                     | Partially Implemented — CRM read + contact create (API-005)                       |
+| Design token system                                                    | Implemented + documented (DSGN-001)                                               |
+| Component library                                                      | Implemented + documented (DSGN-002)                                               |
+| Responsive & accessibility standards                                   | Partially Implemented — applied + documented; formal audit pending (DSGN-003/004) |
+| Empty-state standard                                                   | Implemented + documented (DSGN-007)                                               |
 
 OAuth connectors (INTG-004…010) remain **Planned** — they require registered OAuth apps and are
 surfaced in the UI as "coming soon", never as working.
@@ -53,13 +53,13 @@ surfaced in the UI as "coming soon", never as working.
 ## Automated test results
 
 - **Pest: 203/203 PASS** (717 assertions). New suites:
-  - `Settings/IntegrationTest` (9): connect→sync→history→disconnect end-to-end; failure + reconnect
-    recovery; catalog render; not-connectable rejection; api_key required; Viewer read-only vs manage;
-    index forbidden without view; cross-tenant isolation; queued-job sync under correct tenant.
-  - `Api/ApiV1Test` (10): auth required; paginated envelope + X-Request-Id; single-resource envelope;
-    create + audit; 422 validation envelope; entitlement gating (Growth trial blocked); header for a
-    non-member org → 400; permission enforcement on writes; idempotent-replay (no duplicate); tenant
-    isolation for the same user across two orgs.
+    - `Settings/IntegrationTest` (9): connect→sync→history→disconnect end-to-end; failure + reconnect
+      recovery; catalog render; not-connectable rejection; api_key required; Viewer read-only vs manage;
+      index forbidden without view; cross-tenant isolation; queued-job sync under correct tenant.
+    - `Api/ApiV1Test` (10): auth required; paginated envelope + X-Request-Id; single-resource envelope;
+      create + audit; 422 validation envelope; entitlement gating (Growth trial blocked); header for a
+      non-member org → 400; permission enforcement on writes; idempotent-replay (no duplicate); tenant
+      isolation for the same user across two orgs.
 - Pint PASS · PHPStan L6: 0 errors · Prettier PASS · ESLint PASS · tsc PASS · `npm run build` PASS.
 
 ## Manual QA (browser, http://localhost:8734)

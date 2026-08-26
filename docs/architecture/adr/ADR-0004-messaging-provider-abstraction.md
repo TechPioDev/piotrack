@@ -31,7 +31,7 @@ accepted/failed, error). Drivers are selected by config (`MARKETING_MAIL_PROVIDE
 
 2. **`smtp` (email) / `twilio` (SMS)** — real drivers implementing the same interface. They are real
    code but, lacking credentials here, are **not run in tests**; their register status is
-   *Implemented (untested — requires credentials)*, never "Tested." Activated by config + credentials.
+   _Implemented (untested — requires credentials)_, never "Tested." Activated by config + credentials.
 
 A `MessagingProviderManager` resolves the active driver so type-hinting `MailProvider` / `SmsProvider`
 yields it (mirrors `PaymentProviderManager`). Engagement (opens/clicks/unsubscribes/opt-outs) is

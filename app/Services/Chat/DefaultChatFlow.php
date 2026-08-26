@@ -38,6 +38,7 @@ class DefaultChatFlow
                         ['id' => 'cmmc', 'label' => 'CMMC / Compliance', 'score' => 15, 'next' => 'q_size'],
                         ['id' => 'existing', 'label' => 'Existing Customer Support', 'score' => 0, 'next' => 'q_support'],
                         ['id' => 'question', 'label' => 'I just have a question', 'score' => 5, 'next' => 'ai_ask'],
+                        ['id' => 'human', 'label' => 'Talk to a human', 'score' => 5, 'next' => 'hf_human'],
                         ['id' => 'other', 'label' => 'Something Else', 'score' => 0, 'next' => 'q_size'],
                     ],
                 ],
@@ -193,6 +194,14 @@ class DefaultChatFlow
                         ['id' => 'no', 'label' => 'Not right now', 'score' => 0, 'next' => 'end_thanks'],
                     ],
                 ],
+                // ---- Upfront human handoff: if an agent is free the chat goes
+                // live; otherwise the visitor is told what happens next and the
+                // flow keeps collecting the details a person will need.
+                'hf_human' => [
+                    'type' => 'handoff',
+                    'next' => 'q_size',
+                ],
+
                 // ---- AI answers (§26): grounded Q&A, then back to the funnel ----
                 'ai_ask' => [
                     'type' => 'ai',

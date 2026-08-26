@@ -5,11 +5,11 @@
 
 ## Environments (Master Prompt §47)
 
-| Env | Purpose | Data |
-|---|---|---|
-| Local | Development | sqlite / docker-compose Postgres |
-| Staging | Pre-production validation, smoke tests | Synthetic only — never customer data |
-| Production | Customers | PostgreSQL 16 managed instance with PITR |
+| Env        | Purpose                                | Data                                     |
+| ---------- | -------------------------------------- | ---------------------------------------- |
+| Local      | Development                            | sqlite / docker-compose Postgres         |
+| Staging    | Pre-production validation, smoke tests | Synthetic only — never customer data     |
+| Production | Customers                              | PostgreSQL 16 managed instance with PITR |
 
 ## Pipeline (extends .github/workflows/ci.yml per §51)
 

@@ -85,8 +85,8 @@ Every response carries an `X-Request-Id` header. Send your own (8–64 chars of
 
 ```json
 {
-  "data": [ { "id": 1, "name": "Ada Lovelace" } ],
-  "meta": { "current_page": 1, "per_page": 25, "total": 1, "last_page": 1 }
+    "data": [{ "id": 1, "name": "Ada Lovelace" }],
+    "meta": { "current_page": 1, "per_page": 25, "total": 1, "last_page": 1 }
 }
 ```
 
@@ -96,16 +96,16 @@ Every response carries an `X-Request-Id` header. Send your own (8–64 chars of
 { "message": "The given data was invalid.", "errors": { "first_name": ["The first name field is required."] } }
 ```
 
-| Status | Meaning |
-| ------ | ------- |
-| `200`  | OK |
-| `201`  | Created |
-| `400`  | Bad organization context |
-| `401`  | Missing/invalid token |
+| Status | Meaning                                             |
+| ------ | --------------------------------------------------- |
+| `200`  | OK                                                  |
+| `201`  | Created                                             |
+| `400`  | Bad organization context                            |
+| `401`  | Missing/invalid token                               |
 | `403`  | Plan does not include the API, or permission denied |
-| `404`  | Resource not found in this organization |
-| `422`  | Validation failed |
-| `429`  | Rate limit exceeded |
+| `404`  | Resource not found in this organization             |
+| `422`  | Validation failed                                   |
+| `429`  | Rate limit exceeded                                 |
 
 ---
 
@@ -115,38 +115,38 @@ All paths are relative to `https://piotrack.com/api/v1`.
 
 ### Contacts
 
-| Method | Path              | Permission           | Notes |
-| ------ | ----------------- | -------------------- | ----- |
-| `GET`  | `/contacts`       | `crm.contact.read`   | Query: `search`, `per_page` (1–100, default 25) |
-| `GET`  | `/contacts/{id}`  | `crm.contact.read`   | |
-| `POST` | `/contacts`       | `crm.contact.create` | Body below; rejects duplicate email in the org |
+| Method | Path             | Permission           | Notes                                           |
+| ------ | ---------------- | -------------------- | ----------------------------------------------- |
+| `GET`  | `/contacts`      | `crm.contact.read`   | Query: `search`, `per_page` (1–100, default 25) |
+| `GET`  | `/contacts/{id}` | `crm.contact.read`   |                                                 |
+| `POST` | `/contacts`      | `crm.contact.create` | Body below; rejects duplicate email in the org  |
 
 **Create body:**
 
-| Field | Rules |
-| ----- | ----- |
-| `first_name` | required, string, max 120 |
-| `last_name` | nullable, string, max 120 |
-| `email` | nullable, email, max 255, unique per org |
-| `phone` | nullable, string, max 40 |
-| `title` | nullable, string, max 120 |
-| `company_id` | nullable, must belong to the org |
-| `lead_source` | nullable, string, max 120 |
-| `owner_id` | nullable, must be an org member |
+| Field         | Rules                                    |
+| ------------- | ---------------------------------------- |
+| `first_name`  | required, string, max 120                |
+| `last_name`   | nullable, string, max 120                |
+| `email`       | nullable, email, max 255, unique per org |
+| `phone`       | nullable, string, max 40                 |
+| `title`       | nullable, string, max 120                |
+| `company_id`  | nullable, must belong to the org         |
+| `lead_source` | nullable, string, max 120                |
+| `owner_id`    | nullable, must be an org member          |
 
 ### Companies
 
-| Method | Path              | Permission           | Notes |
-| ------ | ----------------- | -------------------- | ----- |
-| `GET`  | `/companies`      | `crm.company.read`   | Query: `search`, `per_page` |
-| `GET`  | `/companies/{id}` | `crm.company.read`   | |
+| Method | Path              | Permission         | Notes                       |
+| ------ | ----------------- | ------------------ | --------------------------- |
+| `GET`  | `/companies`      | `crm.company.read` | Query: `search`, `per_page` |
+| `GET`  | `/companies/{id}` | `crm.company.read` |                             |
 
 ### Deals
 
-| Method | Path            | Permission        | Notes |
-| ------ | --------------- | ----------------- | ----- |
-| `GET`  | `/deals`        | `crm.deal.read`   | Query: `status` (`open`/`won`/`lost`), `per_page` |
-| `GET`  | `/deals/{id}`   | `crm.deal.read`   | |
+| Method | Path          | Permission      | Notes                                             |
+| ------ | ------------- | --------------- | ------------------------------------------------- |
+| `GET`  | `/deals`      | `crm.deal.read` | Query: `status` (`open`/`won`/`lost`), `per_page` |
+| `GET`  | `/deals/{id}` | `crm.deal.read` |                                                   |
 
 ---
 

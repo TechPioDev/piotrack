@@ -3,6 +3,7 @@
 Completed 2026-08-14 before implementation. Finishes the Core-Platform modules deferred from Stage 4.
 
 ## Scope
+
 - **INTG** — the reusable connector framework (registry, connect/disconnect/reconnect, sync engine,
   per-connector health + error logs) with one fully-working demo connector. Real third-party
   connectors (Google/Microsoft/social/CRM/comms — INTG-004…010) stay Planned: they need OAuth apps
@@ -14,7 +15,9 @@ Completed 2026-08-14 before implementation. Finishes the Core-Platform modules d
   library, and the data-table / dashboard / empty-state / confirmation / loading standards.
 
 ## INTG (INTG-001/002/003 → tested framework; 004…010 → Planned)
+
 Data (tenant-scoped via BelongsToTenant):
+
 - `integrations` (organization_id, provider, name, status [connected|disconnected|error],
   credentials [encrypted], scopes [json], settings [json], last_synced_at, last_error, timestamps),
   unique(organization_id, provider).
@@ -22,6 +25,7 @@ Data (tenant-scoped via BelongsToTenant):
   finished_at, records, error).
 
 Code:
+
 - `ConnectorRegistry` — the catalog of available connectors (like PlanCatalog): key, name, category,
   auth type (none|api_key|oauth), whether connectable in this environment.
 - `IntegrationService` — connect (store encrypted credentials), disconnect, reconnect, and sync
@@ -36,6 +40,7 @@ UI: `settings/integrations` — available connectors, connected list with health
 disconnect/reconnect, sync-now, and recent sync runs. Audit events on connect/disconnect/sync.
 
 ## API (API-001…005)
+
 - `routes/api.php` `v1` group. Middleware: `auth:sanctum` → `SetApiOrganization` (resolves the tenant
   from an `X-Organization-Id` header validated against membership, else the user's current
   organization) → `entitlement:api` (API-005: higher plans only) → `throttle:api` → per-endpoint
@@ -49,18 +54,21 @@ disconnect/reconnect, sync-now, and recent sync runs. Audit events on connect/di
   idempotency, endpoint reference).
 
 ## DSGN (DSGN-001…009)
+
 `docs/design-system.md` documenting: color/typography/spacing/icon tokens (theme-aware), the
 component library inventory, responsive breakpoints, WCAG-oriented practices, and the standards for
 data tables, dashboards, empty states, destructive confirmations, and loading/error/retry states —
 each pointing at the real implementation. Most are Tested/in-use; documentation is the deliverable.
 
 ## Business rules
+
 - One integration per (organization, provider). Credentials are encrypted at rest and never returned
   to the client. Disconnect clears credentials.
 - API requests without a resolvable organization → 400; without the `api` entitlement → 403; over the
   rate limit → 429. A repeated `Idempotency-Key` replays the first response without re-executing.
 
 ## Tests
+
 - INTG: connect (creds encrypted, status connected), sync success records a run + updates health,
   sync failure → status error + failed run, disconnect clears creds, tenant isolation, RBAC (viewer
   can't manage).
@@ -70,6 +78,7 @@ each pointing at the real implementation. Most are Tested/in-use; documentation 
 - Stages 1–5 stay green.
 
 ## Acceptance criteria (gate)
+
 Connector framework connects/syncs/disconnects a demo connector with health + history and isolation;
 API v1 authenticates via tokens, scopes to the tenant, gates by plan, paginates, returns the standard
 envelope + errors, and is idempotent; design-system docs published. Full quality gate green; browser

@@ -6,24 +6,24 @@ Scope: BILL-001…019, ENTL-001…007 (+ AUDIT-005)
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Plans, pricing, catalog (BILL-001/002/006) | Tested |
-| Coupons (BILL-007) | Tested |
-| Invoicing (BILL-009) | Tested |
-| Provider abstraction + manual driver (BILL-010) | Tested; **Stripe driver implemented but untested — requires credentials** |
-| Lifecycle: upgrade/downgrade/proration, quantity, cancel/resume, past-due/grace, suspend/expire (BILL-013…017) | Tested |
-| Webhooks (BILL-019) | Tested (verified, idempotent, retry-safe) |
-| Billing portal (BILL-018) | Portal core + billing profile Tested; payment-method management is provider-hosted (pending Stripe) → Partially Implemented |
-| Checkout details capture (BILL-008) | Order summary + promo Tested; company/tax via billing profile; card entry provider-hosted → Partially Implemented |
-| Per-seat pricing (BILL-003) | Schema + quantity + proration Tested; no per-seat-priced plan seeded → Partially |
-| Usage-based pricing (BILL-004) | Metering done; overage billing pending → Partially |
-| Trial expiry / auto-renewal (BILL-011/012) | State machine + methods Tested; automatic sweep/renewal needs the scheduler → Partially |
-| Add-ons (BILL-005) | **Not implemented — Planned** (no add-on schema/UI) |
-| Entitlements engine (ENTL-001/003/005/006/007) | Tested |
-| Entitlement matrix admin (ENTL-002) | Seeded from catalog; admin editing UI in Stage 13 → Partially |
-| Usage-limit registry (ENTL-004) | `members` enforced; others resolve, metered as modules land → Partially |
-| Billing audit events (AUDIT-005) | Tested |
+| Area                                                                                                           | Result                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Plans, pricing, catalog (BILL-001/002/006)                                                                     | Tested                                                                                                                      |
+| Coupons (BILL-007)                                                                                             | Tested                                                                                                                      |
+| Invoicing (BILL-009)                                                                                           | Tested                                                                                                                      |
+| Provider abstraction + manual driver (BILL-010)                                                                | Tested; **Stripe driver implemented but untested — requires credentials**                                                   |
+| Lifecycle: upgrade/downgrade/proration, quantity, cancel/resume, past-due/grace, suspend/expire (BILL-013…017) | Tested                                                                                                                      |
+| Webhooks (BILL-019)                                                                                            | Tested (verified, idempotent, retry-safe)                                                                                   |
+| Billing portal (BILL-018)                                                                                      | Portal core + billing profile Tested; payment-method management is provider-hosted (pending Stripe) → Partially Implemented |
+| Checkout details capture (BILL-008)                                                                            | Order summary + promo Tested; company/tax via billing profile; card entry provider-hosted → Partially Implemented           |
+| Per-seat pricing (BILL-003)                                                                                    | Schema + quantity + proration Tested; no per-seat-priced plan seeded → Partially                                            |
+| Usage-based pricing (BILL-004)                                                                                 | Metering done; overage billing pending → Partially                                                                          |
+| Trial expiry / auto-renewal (BILL-011/012)                                                                     | State machine + methods Tested; automatic sweep/renewal needs the scheduler → Partially                                     |
+| Add-ons (BILL-005)                                                                                             | **Not implemented — Planned** (no add-on schema/UI)                                                                         |
+| Entitlements engine (ENTL-001/003/005/006/007)                                                                 | Tested                                                                                                                      |
+| Entitlement matrix admin (ENTL-002)                                                                            | Seeded from catalog; admin editing UI in Stage 13 → Partially                                                               |
+| Usage-limit registry (ENTL-004)                                                                                | `members` enforced; others resolve, metered as modules land → Partially                                                     |
+| Billing audit events (AUDIT-005)                                                                               | Tested                                                                                                                      |
 
 Honest §38 distinction: the **manual provider path and the entire commercial engine are tested**;
 the **Stripe driver is real code but not exercised** (no keys here) and is never marked "Tested".

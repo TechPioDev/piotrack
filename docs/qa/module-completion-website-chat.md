@@ -17,42 +17,42 @@ conversation, consent to data use, hand over their details, and be turned into a
 routed CRM lead with a sales alert and attribution — and the tenant's team can read and
 work that conversation in an inbox. That whole chain is live and tested end to end.
 
-This is deliberately a *working slice*, not a visual mock: the widget, the public API, the
+This is deliberately a _working slice_, not a visual mock: the widget, the public API, the
 qualification engine, CRM capture, scoring, routing, alerting, attribution and the agent
 inbox are all real.
 
 ## Features implemented (register IDs)
 
-| ID | Feature | Status |
-|---|---|---|
-| CHAT-001 | Embeddable website chat widget | Tested |
-| CHAT-002 | Multiple widgets per tenant | Tested |
-| CHAT-003 | Widget appearance and branding | Partially Implemented |
-| CHAT-004 | Floating launcher and welcome teaser | Tested |
-| CHAT-005 | One-line installation snippet | Tested |
-| CHAT-006 | Authorized domain restriction | Tested |
-| CHAT-007 | Configurable conversation flow | Tested *(completed in Phase 2)* |
-| CHAT-008 | Conditional branching by answer | Tested |
-| CHAT-009 | Message, choice and input node types | Tested |
-| CHAT-012 | MSP and cybersecurity qualification templates | Tested |
-| CHAT-013 | Existing-customer support routing | Tested |
-| CHAT-014 | High-priority security incident routing | Tested |
-| CHAT-015 | Contact capture with configurable fields | Tested *(completed in Phase 2)* |
-| CHAT-016 | Duplicate detection on capture | Tested |
-| CHAT-018 | CRM contact and lead creation | Tested |
-| CHAT-019 | Chat lead scoring | Tested |
-| CHAT-020 | Sales routing and assignment | Tested |
-| CHAT-021 | Hot-lead sales alert | Tested |
-| CHAT-022 | Chat source attribution | Tested |
-| CHAT-023 | In-chat appointment booking | Partially Implemented |
-| CHAT-024 | Configurable consent gate | Tested |
-| CHAT-025 | Per-tenant privacy and terms links | Tested |
-| CHAT-026 | Agent conversation inbox | Tested |
-| CHAT-027 | Conversation transcript view | Tested |
-| CHAT-028 | Conversation status workflow | Tested |
-| CHAT-029 | Agent replies | Implemented |
-| CHAT-030 | Internal notes | Implemented |
-| CHAT-038 | Chat engagement analytics | Partially Implemented |
+| ID       | Feature                                       | Status                          |
+| -------- | --------------------------------------------- | ------------------------------- |
+| CHAT-001 | Embeddable website chat widget                | Tested                          |
+| CHAT-002 | Multiple widgets per tenant                   | Tested                          |
+| CHAT-003 | Widget appearance and branding                | Partially Implemented           |
+| CHAT-004 | Floating launcher and welcome teaser          | Tested                          |
+| CHAT-005 | One-line installation snippet                 | Tested                          |
+| CHAT-006 | Authorized domain restriction                 | Tested                          |
+| CHAT-007 | Configurable conversation flow                | Tested _(completed in Phase 2)_ |
+| CHAT-008 | Conditional branching by answer               | Tested                          |
+| CHAT-009 | Message, choice and input node types          | Tested                          |
+| CHAT-012 | MSP and cybersecurity qualification templates | Tested                          |
+| CHAT-013 | Existing-customer support routing             | Tested                          |
+| CHAT-014 | High-priority security incident routing       | Tested                          |
+| CHAT-015 | Contact capture with configurable fields      | Tested _(completed in Phase 2)_ |
+| CHAT-016 | Duplicate detection on capture                | Tested                          |
+| CHAT-018 | CRM contact and lead creation                 | Tested                          |
+| CHAT-019 | Chat lead scoring                             | Tested                          |
+| CHAT-020 | Sales routing and assignment                  | Tested                          |
+| CHAT-021 | Hot-lead sales alert                          | Tested                          |
+| CHAT-022 | Chat source attribution                       | Tested                          |
+| CHAT-023 | In-chat appointment booking                   | Partially Implemented           |
+| CHAT-024 | Configurable consent gate                     | Tested                          |
+| CHAT-025 | Per-tenant privacy and terms links            | Tested                          |
+| CHAT-026 | Agent conversation inbox                      | Tested                          |
+| CHAT-027 | Conversation transcript view                  | Tested                          |
+| CHAT-028 | Conversation status workflow                  | Tested                          |
+| CHAT-029 | Agent replies                                 | Implemented                     |
+| CHAT-030 | Internal notes                                | Implemented                     |
+| CHAT-038 | Chat engagement analytics                     | Partially Implemented           |
 
 Deferred at the end of Phase 1 and correctly recorded **Planned** at the time: visual flow
 builder (CHAT-010) and template library (CHAT-011) — both delivered in Phase 2 — plus
@@ -63,16 +63,16 @@ notifications (CHAT-042).
 
 ## Automated testing
 
-| Suite | Result |
-|---|---|
-| Pest (backend) | **637 passed**, 2478 assertions — 11 new chat tests, zero regressions |
-| Vitest (frontend) | **30 passed** |
-| Pint (PHP style) | passed |
-| PHPStan | no errors |
-| ESLint | clean |
-| TypeScript | clean |
-| Prettier | clean |
-| Production build | app + `piotrack-chat.js` (13.6 kB / 4.8 kB gzip) |
+| Suite             | Result                                                                |
+| ----------------- | --------------------------------------------------------------------- |
+| Pest (backend)    | **637 passed**, 2478 assertions — 11 new chat tests, zero regressions |
+| Vitest (frontend) | **30 passed**                                                         |
+| Pint (PHP style)  | passed                                                                |
+| PHPStan           | no errors                                                             |
+| ESLint            | clean                                                                 |
+| TypeScript        | clean                                                                 |
+| Prettier          | clean                                                                 |
+| Production build  | app + `piotrack-chat.js` (13.6 kB / 4.8 kB gzip)                      |
 
 New tests (`tests/Feature/Chat/WebsiteChatTest.php`) cover: public config whitelisting,
 hidden/paused/unentitled widgets, the consent gate and decline path, the full §51
@@ -85,20 +85,20 @@ tenant scoring rules layered on the chat score.
 Verified by embedding the widget on a **simulated third-party website** (plain serif page,
 unrelated CSS) served at a separate path, then driving the conversation as a visitor.
 
-| Check | Result |
-|---|---|
-| Widget mounts on a non-Piotrack page | **PASS** |
-| Shadow-DOM isolation (host CSS does not leak in) | **PASS** — host Georgia serif did not reach the widget |
-| Launcher renders (60px, brand accent, correct position, aria-label) | **PASS** |
-| Consent gate shown with message + working Privacy Policy link | **PASS** |
-| Full 12-step §51 journey (Cyber → CMMC → 51-250 → provider → challenge → contact → meeting) | **PASS** |
-| Conditional branching (Cybersecurity opened the CMMC-specific question) | **PASS** |
-| Booking CTA returned with a real booking URL | **PASS** |
-| Desktop layout | **PASS** |
-| Tablet layout | **PASS** |
-| Mobile layout (375×812) — near-full-screen, no horizontal overflow | **PASS** (368×796) |
-| Inbox lists the conversation with avatar, Hot badge, company, status, owner | **PASS** |
-| Conversation view: 25-message transcript, score, captured answers, attribution, reply + note boxes, Open in CRM | **PASS** |
+| Check                                                                                                           | Result                                                 |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Widget mounts on a non-Piotrack page                                                                            | **PASS**                                               |
+| Shadow-DOM isolation (host CSS does not leak in)                                                                | **PASS** — host Georgia serif did not reach the widget |
+| Launcher renders (60px, brand accent, correct position, aria-label)                                             | **PASS**                                               |
+| Consent gate shown with message + working Privacy Policy link                                                   | **PASS**                                               |
+| Full 12-step §51 journey (Cyber → CMMC → 51-250 → provider → challenge → contact → meeting)                     | **PASS**                                               |
+| Conditional branching (Cybersecurity opened the CMMC-specific question)                                         | **PASS**                                               |
+| Booking CTA returned with a real booking URL                                                                    | **PASS**                                               |
+| Desktop layout                                                                                                  | **PASS**                                               |
+| Tablet layout                                                                                                   | **PASS**                                               |
+| Mobile layout (375×812) — near-full-screen, no horizontal overflow                                              | **PASS** (368×796)                                     |
+| Inbox lists the conversation with avatar, Hot badge, company, status, owner                                     | **PASS**                                               |
+| Conversation view: 25-message transcript, score, captured answers, attribution, reply + note boxes, Open in CRM | **PASS**                                               |
 
 ### Backend result of the live journey
 
@@ -111,21 +111,21 @@ MESSAGES: 25   ALERTS: 1   EVENTS: start,lead,qualified,meeting,complete
 
 ## Gate results
 
-| Area | Result |
-|---|---|
-| Desktop | **PASS** |
-| Tablet | **PASS** |
-| Mobile | **PASS** |
-| Tenant isolation | **PASS** — global scope + cross-tenant token test; public resolution sets tenant from the widget's own org |
-| CRM integration | **PASS** — Contact + Lead created, deduplicated by email |
-| Lead scoring | **PASS** — server-authoritative; tenant rules layered on top |
+| Area                | Result                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Desktop             | **PASS**                                                                                                     |
+| Tablet              | **PASS**                                                                                                     |
+| Mobile              | **PASS**                                                                                                     |
+| Tenant isolation    | **PASS** — global scope + cross-tenant token test; public resolution sets tenant from the widget's own org   |
+| CRM integration     | **PASS** — Contact + Lead created, deduplicated by email                                                     |
+| Lead scoring        | **PASS** — server-authoritative; tenant rules layered on top                                                 |
 | Appointment booking | **PARTIAL** — offer + booking link work; in-widget slot picking deferred (no availability engine exists yet) |
-| Attribution | **PASS** — source, page, referrer, UTM captured and stored |
-| Privacy consent | **PASS** — per-tenant copy/URL, blocks capture until accepted |
-| Authorization | **PASS** — per-route `can:` on all admin routes; RBAC suite green |
-| Entitlement | **PASS** — `entitlement:chat`; public endpoints 404 for unentitled tenants |
-| Performance | **PASS** — 4.8 kB gzip, async, no host-page dependencies |
-| Failure handling | **PASS** — outage/blocked origin fails silently; host site unaffected |
+| Attribution         | **PASS** — source, page, referrer, UTM captured and stored                                                   |
+| Privacy consent     | **PASS** — per-tenant copy/URL, blocks capture until accepted                                                |
+| Authorization       | **PASS** — per-route `can:` on all admin routes; RBAC suite green                                            |
+| Entitlement         | **PASS** — `entitlement:chat`; public endpoints 404 for unentitled tenants                                   |
+| Performance         | **PASS** — 4.8 kB gzip, async, no host-page dependencies                                                     |
+| Failure handling    | **PASS** — outage/blocked origin fails silently; host site unaffected                                        |
 
 **UI quality score: 8.5/10** (self-assessed, structural). The widget is a genuine modern
 conversational surface — Shadow-DOM isolated, brand-themed, animated launcher/teaser,
@@ -186,7 +186,7 @@ the seeded default. No JSON is ever edited.
   nothing, a pointer to a deleted step, a question with no answers, no start step, a step
   with no text) **block publishing and disable the Publish button**; warnings (unreachable
   steps, no reachable ending) are advisory. Each error links to the offending step.
-- **Test conversation.** Runs the *unsaved draft* through the **real engine** visitors hit —
+- **Test conversation.** Runs the _unsaved draft_ through the **real engine** visitors hit —
   not a simulation — so what is tested is what ships. Preview conversations are flagged
   `is_preview` and are excluded from the CRM, alerts, analytics and the inbox.
 - **Six templates** (§57): MSP lead qualification, Cybersecurity (with a high-priority
@@ -197,11 +197,11 @@ the seeded default. No JSON is ever edited.
 
 ## Automated testing
 
-| Suite | Result |
-|---|---|
-| Pest (backend) | **650 passed**, 2524 assertions — 13 new builder tests, zero regressions |
-| Vitest (frontend) | **30 passed** |
-| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
+| Suite                                           | Result                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------ |
+| Pest (backend)                                  | **650 passed**, 2524 assertions — 13 new builder tests, zero regressions |
+| Vitest (frontend)                               | **30 passed**                                                            |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean                                                                |
 
 New tests (`tests/Feature/Chat/ChatFlowBuilderTest.php`): valid graph accepted; every
 stranding case rejected; unreachable-step warning; **all six templates validate**; draft
@@ -212,14 +212,14 @@ cross-tenant flow edit blocked.
 
 ## Manual testing — live, in-browser
 
-| Check | Result |
-|---|---|
-| Builder loads the saved flow (19 steps) with toolbar and inspector | **PASS** |
-| Validation banner reflects real state ("ready to publish") | **PASS** |
-| Test dialog runs the real engine, shows the CRM disclaimer | **PASS** |
-| Branching inside the preview (Cybersecurity → security-specific question) | **PASS** |
-| Breaking a connection → Publish **disabled**, banner flips, specific error shown | **PASS** |
-| Preview isolation verified in the live database | **PASS** — 1 preview, 0 contacts created |
+| Check                                                                            | Result                                   |
+| -------------------------------------------------------------------------------- | ---------------------------------------- |
+| Builder loads the saved flow (19 steps) with toolbar and inspector               | **PASS**                                 |
+| Validation banner reflects real state ("ready to publish")                       | **PASS**                                 |
+| Test dialog runs the real engine, shows the CRM disclaimer                       | **PASS**                                 |
+| Branching inside the preview (Cybersecurity → security-specific question)        | **PASS**                                 |
+| Breaking a connection → Publish **disabled**, banner flips, specific error shown | **PASS**                                 |
+| Preview isolation verified in the live database                                  | **PASS** — 1 preview, 0 contacts created |
 
 ## Defects found by this pass and fixed
 
@@ -254,10 +254,10 @@ A visitor who wants a person now gets one — or is told plainly what happens in
   60-second heartbeat: a browser closed without signing out would otherwise look "online"
   forever, so a stale agent is automatically treated as away and never handed a visitor.
 - **Chat modes** (§23) — `bot`, `bot_then_human`, `live`, configured per widget.
-- **Handoff** (§24) — a new **Talk to a human** step. If an agent is online *and* the
+- **Handoff** (§24) — a new **Talk to a human** step. If an agent is online _and_ the
   tenant is inside business hours, the conversation is assigned, marked live, and the
-  transcript records "*Name* joined the conversation."; the widget header changes to
-  "*Name* is here to help". If not, the visitor is told when to expect a reply and the
+  transcript records "_Name_ joined the conversation."; the widget header changes to
+  "_Name_ is here to help". If not, the visitor is told when to expect a reply and the
   conversation carries on collecting their details rather than stopping.
 - **Load-aware routing** — the already-assigned agent if they are around, otherwise the
   available agent handling the fewest live chats.
@@ -274,12 +274,12 @@ A visitor who wants a person now gets one — or is told plainly what happens in
 
 ## Automated testing
 
-| Suite | Result |
-|---|---|
-| Pest (backend) | **663 passed**, 2568 assertions — 13 new live-chat tests, zero regressions |
-| Vitest (frontend) | **30 passed** |
-| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
-| Widget bundle | 15.4 kB / **5.2 kB gzip** |
+| Suite                                           | Result                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| Pest (backend)                                  | **663 passed**, 2568 assertions — 13 new live-chat tests, zero regressions |
+| Vitest (frontend)                               | **30 passed**                                                              |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean                                                                  |
+| Widget bundle                                   | 15.4 kB / **5.2 kB gzip**                                                  |
 
 New tests (`tests/Feature/Chat/ChatLiveHandoffTest.php`): stale presence downgraded to
 away; agent sets own status (and invalid status rejected); business-hours open/closed/
@@ -294,20 +294,20 @@ cross-tenant polling blocked.
 Driven as two real participants: an agent in the app, a visitor on a separate
 non-Piotrack page.
 
-| Check | Result |
-|---|---|
-| Agent sets Online; roster shows "1 agent online" | **PASS** |
-| Visitor opens widget → connected, "Dana Whitfield is joining you now." | **PASS** |
-| Widget header switches to "Dana Whitfield is here to help" | **PASS** |
-| Free-text composer replaces scripted buttons | **PASS** |
-| Visitor message reaches the inbox | **PASS** |
-| Inbox row shows Assigned + owner + "just now" | **PASS** |
-| Transcript shows "… joined the conversation." | **PASS** |
-| Agent reply reaches the visitor by polling | **PASS** |
-| Live badge in the conversation header | **PASS** |
-| Close + reopen restores the transcript and composer | **PASS** |
-| No duplicated messages across poll cycles | **PASS** |
-| Graceful fallback when the agent went stale | **PASS** — correct "reply within one business day" message |
+| Check                                                                  | Result                                                     |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Agent sets Online; roster shows "1 agent online"                       | **PASS**                                                   |
+| Visitor opens widget → connected, "Dana Whitfield is joining you now." | **PASS**                                                   |
+| Widget header switches to "Dana Whitfield is here to help"             | **PASS**                                                   |
+| Free-text composer replaces scripted buttons                           | **PASS**                                                   |
+| Visitor message reaches the inbox                                      | **PASS**                                                   |
+| Inbox row shows Assigned + owner + "just now"                          | **PASS**                                                   |
+| Transcript shows "… joined the conversation."                          | **PASS**                                                   |
+| Agent reply reaches the visitor by polling                             | **PASS**                                                   |
+| Live badge in the conversation header                                  | **PASS**                                                   |
+| Close + reopen restores the transcript and composer                    | **PASS**                                                   |
+| No duplicated messages across poll cycles                              | **PASS**                                                   |
+| Graceful fallback when the agent went stale                            | **PASS** — correct "reply within one business day" message |
 
 ## Defects found by this pass and fixed
 
@@ -356,7 +356,7 @@ editor. All recorded **Planned** in the register.
   WordPress / GTM / Webflow instructions.
 - **Page and behaviour targeting** (§34, §35) — include/exclude page rules with wildcards,
   device rules, first-time vs returning visitors, delay, scroll depth and exit intent. These
-  decide only *when* the launcher appears, never what a visitor may do, so evaluating them
+  decide only _when_ the launcher appears, never what a visitor may do, so evaluating them
   in the browser is appropriate.
 - **Progressive profiling** (§17) — a returning visitor is matched on their anonymous id
   and never re-asked for details they already gave; the question is skipped, the value kept.
@@ -365,12 +365,12 @@ editor. All recorded **Planned** in the register.
 
 ## Automated testing
 
-| Suite | Result |
-|---|---|
-| Pest (backend) | **678 passed**, 2619 assertions — 15 new tests, zero regressions |
-| Vitest (frontend) | **30 passed** |
-| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean |
-| Widget bundle | 17.1 kB / **5.9 kB gzip** |
+| Suite                                           | Result                                                           |
+| ----------------------------------------------- | ---------------------------------------------------------------- |
+| Pest (backend)                                  | **678 passed**, 2619 assertions — 15 new tests, zero regressions |
+| Vitest (frontend)                               | **30 passed**                                                    |
+| Pint · PHPStan · ESLint · TypeScript · Prettier | all clean                                                        |
+| Widget bundle                                   | 17.1 kB / **5.9 kB gzip**                                        |
 
 New tests (`tests/Feature/Chat/ChatAnalyticsTest.php`) pin the arithmetic: counts come only
 from real events; **rates are zero rather than a divide-by-zero** when nothing has happened;
@@ -383,16 +383,16 @@ admin-only; and every reported number is tenant-scoped.
 
 ## Manual testing — live, in-browser
 
-| Check | Result |
-|---|---|
-| Analytics page renders funnel, drop-off and by-widget | **PASS** |
-| Funnel percentages computed per rung | **PASS** |
-| Range filters (7d/30d/90d/1y) and per-widget filter | **PASS** |
-| Settings page: all six sections render | **PASS** |
-| Colour picker updates the launcher preview live | **PASS** — preview turned `rgb(124,58,237)` |
-| Enabling a day reveals its open/close time inputs | **PASS** |
-| Save persists to the database | **PASS** — accent, `include: ["/cybersecurity"]`, `mon: ["09:00","17:00"]` |
-| Install snippet + WordPress / GTM / Webflow guidance | **PASS** |
+| Check                                                 | Result                                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Analytics page renders funnel, drop-off and by-widget | **PASS**                                                                   |
+| Funnel percentages computed per rung                  | **PASS**                                                                   |
+| Range filters (7d/30d/90d/1y) and per-widget filter   | **PASS**                                                                   |
+| Settings page: all six sections render                | **PASS**                                                                   |
+| Colour picker updates the launcher preview live       | **PASS** — preview turned `rgb(124,58,237)`                                |
+| Enabling a day reveals its open/close time inputs     | **PASS**                                                                   |
+| Save persists to the database                         | **PASS** — accent, `include: ["/cybersecurity"]`, `mon: ["09:00","17:00"]` |
+| Install snippet + WordPress / GTM / Webflow guidance  | **PASS**                                                                   |
 
 ## Defect found by this pass and fixed
 

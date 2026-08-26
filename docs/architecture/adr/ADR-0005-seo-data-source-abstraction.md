@@ -37,7 +37,7 @@ Drivers are selected by config (`SEO_RANK_PROVIDER`, `SEO_AI_PROVIDER`):
 
 2. **`serpapi` / `dataforseo` (rank) and `openai` / `perplexity` (AI)** — real drivers implementing the
    same interface over the vendor HTTP APIs. Real code, but with no credentials here they are **not run
-   in tests**; register status *Implemented (untested — requires credentials)*, never "Tested."
+   in tests**; register status _Implemented (untested — requires credentials)_, never "Tested."
    Activated by config + keys.
 
 A manager resolves the active driver so type-hinting the interface yields it (mirrors
@@ -49,7 +49,7 @@ are surfaced as "coming soon" until then.
 
 - The genuinely computable half of SEO — technical audits, schema/JSON-LD, NAP consistency, content
   readiness, keyword inventory + clustering + mapping + gap analysis, and the whole rank/AI-visibility
-  *pipeline* — is real and tested with no SEO/LLM account.
+  _pipeline_ — is real and tested with no SEO/LLM account.
 - Turning on live rankings / AI visibility is configuration + credentials, not a rewrite (§16, §44).
 - We stay honest per §38: computed checks and fixture-driven flows are Tested; live SERP/LLM data is
   labelled untested until keys exist.

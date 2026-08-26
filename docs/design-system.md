@@ -23,19 +23,19 @@ utility class (e.g. `bg-primary`, `text-muted-foreground`, `border-border`).
 Never reference a raw colour. Use the role token that describes intent, so dark
 mode and future re-theming "just work".
 
-| Token | Utility | Used for |
-| ----- | ------- | -------- |
-| `--background` / `--foreground` | `bg-background` / `text-foreground` | Page surface + body text |
-| `--card` / `--card-foreground` | `bg-card` | Raised surfaces, panels |
-| `--popover` / `--popover-foreground` | — | Menus, dialogs, tooltips |
-| `--primary` / `--primary-foreground` | `bg-primary` | Primary actions, emphasis |
-| `--secondary` / `--secondary-foreground` | `bg-secondary` | Secondary buttons/badges |
-| `--muted` / `--muted-foreground` | `text-muted-foreground` | De-emphasised text, table headers |
-| `--accent` / `--accent-foreground` | `bg-accent` | Hover/active nav backgrounds |
-| `--destructive` / `--destructive-foreground` | `bg-destructive` | Delete, errors, danger states |
-| `--border` / `--input` / `--ring` | `border-border` | Borders, field outlines, focus rings |
-| `--chart-1` … `--chart-5` | — | Data-viz series |
-| `--sidebar-*` | — | App sidebar surfaces |
+| Token                                        | Utility                             | Used for                             |
+| -------------------------------------------- | ----------------------------------- | ------------------------------------ |
+| `--background` / `--foreground`              | `bg-background` / `text-foreground` | Page surface + body text             |
+| `--card` / `--card-foreground`               | `bg-card`                           | Raised surfaces, panels              |
+| `--popover` / `--popover-foreground`         | —                                   | Menus, dialogs, tooltips             |
+| `--primary` / `--primary-foreground`         | `bg-primary`                        | Primary actions, emphasis            |
+| `--secondary` / `--secondary-foreground`     | `bg-secondary`                      | Secondary buttons/badges             |
+| `--muted` / `--muted-foreground`             | `text-muted-foreground`             | De-emphasised text, table headers    |
+| `--accent` / `--accent-foreground`           | `bg-accent`                         | Hover/active nav backgrounds         |
+| `--destructive` / `--destructive-foreground` | `bg-destructive`                    | Delete, errors, danger states        |
+| `--border` / `--input` / `--ring`            | `border-border`                     | Borders, field outlines, focus rings |
+| `--chart-1` … `--chart-5`                    | —                                   | Data-viz series                      |
+| `--sidebar-*`                                | —                                   | App sidebar surfaces                 |
 
 Both a **light** palette (`:root`) and a **dark** palette (`.dark`) are defined
 for every role. The theme is toggled by adding/removing the `.dark` class on the
@@ -80,14 +80,14 @@ Application-level shared components include `Heading`, `HeadingSmall`,
 
 `Button` (CVA variants) is the single button primitive:
 
-| Variant | When |
-| ------- | ---- |
-| `default` | Primary action on a screen (one per view) |
-| `secondary` | Alternative action |
-| `outline` | Low-emphasis action |
-| `ghost` | Toolbar / inline actions, table row actions |
-| `destructive` | Irreversible/danger action |
-| `link` | Navigation styled as text |
+| Variant       | When                                        |
+| ------------- | ------------------------------------------- |
+| `default`     | Primary action on a screen (one per view)   |
+| `secondary`   | Alternative action                          |
+| `outline`     | Low-emphasis action                         |
+| `ghost`       | Toolbar / inline actions, table row actions |
+| `destructive` | Irreversible/danger action                  |
+| `link`        | Navigation styled as text                   |
 
 Sizes: `sm`, `default`, `lg`, `icon`. Use `asChild` to render a `Link`/`<a>` with
 button styling. Destructive row actions add `className="text-red-600"` on a
@@ -130,13 +130,13 @@ only when `usePermissions().can(...)` is true for that user (see §4).
 
 ```tsx
 <AppLayout breadcrumbs={breadcrumbs}>
-  <Head title="…" />
-  <SettingsLayout>
-    <div className="space-y-6">
-      <HeadingSmall title="…" description="…" />
-      {/* content */}
-    </div>
-  </SettingsLayout>
+    <Head title="…" />
+    <SettingsLayout>
+        <div className="space-y-6">
+            <HeadingSmall title="…" description="…" />
+            {/* content */}
+        </div>
+    </SettingsLayout>
 </AppLayout>
 ```
 
@@ -167,7 +167,9 @@ users never see actions they cannot take. Use the `usePermissions` hook:
 
 ```tsx
 const { can } = usePermissions();
-{can('integrations.manage') && <Button>Connect</Button>}
+{
+    can('integrations.manage') && <Button>Connect</Button>;
+}
 ```
 
 `can(...)` reads the resolved permission list shared by `HandleInertiaRequests`.

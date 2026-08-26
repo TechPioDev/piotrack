@@ -6,29 +6,29 @@ Scope: TEN-001…010, RBAC-001…006, AUDIT-001…006
 
 ## Features
 
-| ID | Feature | Status |
-|---|---|---|
-| TEN-001 | Organization creation | Tested |
-| TEN-002 | Organization profile & settings | Tested |
-| TEN-003 | Organization deletion with safeguards | Tested |
-| TEN-004 | Row-level tenant scoping | Tested |
-| TEN-005 | Tenant context resolution middleware | Tested |
-| TEN-006 | Automated cross-tenant access tests | Tested |
-| TEN-007 | User membership within organizations | Tested |
-| TEN-008 | Team invitations (send/accept/expire/revoke/resend) | Tested |
-| TEN-009 | Teams / groups | Tested |
-| TEN-010 | User deactivation and removal | Tested |
-| RBAC-001 | Platform roles | Tested (Super Admin bypass; others wired for Stage 13) |
-| RBAC-002 | Organization roles | Tested |
-| RBAC-003 | Granular permission registry | Tested |
-| RBAC-004 | Backend authorization enforcement | Tested |
-| RBAC-005 | Frontend permission-aware visibility | Tested |
-| RBAC-006 | Permission-change audit events | Tested |
-| AUDIT-001 | Central audit log | Tested |
-| AUDIT-002 | Security event coverage | Tested |
-| AUDIT-003 | Admin event coverage | Tested |
-| AUDIT-004 | Data event coverage | Partially Implemented (tenancy entities done; CRM/campaign events arrive with those modules) |
-| AUDIT-006 | Audit log viewer | Tested (org-scoped; platform-level view in Stage 13) |
+| ID        | Feature                                             | Status                                                                                       |
+| --------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| TEN-001   | Organization creation                               | Tested                                                                                       |
+| TEN-002   | Organization profile & settings                     | Tested                                                                                       |
+| TEN-003   | Organization deletion with safeguards               | Tested                                                                                       |
+| TEN-004   | Row-level tenant scoping                            | Tested                                                                                       |
+| TEN-005   | Tenant context resolution middleware                | Tested                                                                                       |
+| TEN-006   | Automated cross-tenant access tests                 | Tested                                                                                       |
+| TEN-007   | User membership within organizations                | Tested                                                                                       |
+| TEN-008   | Team invitations (send/accept/expire/revoke/resend) | Tested                                                                                       |
+| TEN-009   | Teams / groups                                      | Tested                                                                                       |
+| TEN-010   | User deactivation and removal                       | Tested                                                                                       |
+| RBAC-001  | Platform roles                                      | Tested (Super Admin bypass; others wired for Stage 13)                                       |
+| RBAC-002  | Organization roles                                  | Tested                                                                                       |
+| RBAC-003  | Granular permission registry                        | Tested                                                                                       |
+| RBAC-004  | Backend authorization enforcement                   | Tested                                                                                       |
+| RBAC-005  | Frontend permission-aware visibility                | Tested                                                                                       |
+| RBAC-006  | Permission-change audit events                      | Tested                                                                                       |
+| AUDIT-001 | Central audit log                                   | Tested                                                                                       |
+| AUDIT-002 | Security event coverage                             | Tested                                                                                       |
+| AUDIT-003 | Admin event coverage                                | Tested                                                                                       |
+| AUDIT-004 | Data event coverage                                 | Partially Implemented (tenancy entities done; CRM/campaign events arrive with those modules) |
+| AUDIT-006 | Audit log viewer                                    | Tested (org-scoped; platform-level view in Stage 13)                                         |
 
 AUDIT-005 (billing/subscription events) remains Planned — billing arrives in Stage 3.
 
@@ -73,7 +73,7 @@ AUDIT-005 (billing/subscription events) remains Planned — billing arrives in S
    active; an owner of tenant A could delete tenant B's team. Caught by the isolation suite. Fixed
    by inserting `SetCurrentOrganization` before `SubstituteBindings` in the middleware priority list;
    regression covered by "blocks route-model binding across tenants" tests.
-2. **Deactivated members unmanageable** — the membership guard required *active* status, so a
+2. **Deactivated members unmanageable** — the membership guard required _active_ status, so a
    deactivated member returned 404 on reactivate. Added a status-agnostic `isMemberOf()` for member
    management.
 

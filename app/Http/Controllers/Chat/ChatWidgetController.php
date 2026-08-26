@@ -113,6 +113,8 @@ class ChatWidgetController extends Controller
             'settings.experiment' => 'nullable|string|max:60',
             'settings.variant' => 'nullable|string|max:60',
             'settings.fallback_contact' => 'nullable|string|max:200',
+            'settings.suggested_questions' => 'sometimes|array|max:6',
+            'settings.suggested_questions.*' => 'string|max:120',
             'allowed_domains' => 'sometimes|array|max:20',
             'allowed_domains.*' => 'string|max:255',
             'routing' => 'sometimes|array',

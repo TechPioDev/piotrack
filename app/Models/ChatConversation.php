@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
  * @property bool $is_live
  * @property Carbon|null $handoff_requested_at
  * @property Carbon|null $last_message_at
+ * @property string|null $summary
+ * @property Carbon|null $summary_generated_at
  */
 class ChatConversation extends Model
 {
@@ -62,6 +64,7 @@ class ChatConversation extends Model
     {
         return [
             'answers' => 'array',
+            'summary_generated_at' => 'datetime',
             'attribution' => 'array',
             'lead_score' => 'integer',
             'is_preview' => 'boolean',

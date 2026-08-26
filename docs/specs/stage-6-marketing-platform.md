@@ -74,9 +74,9 @@ Full per-ID status lands in the register at gate time (honest §38).
 - `landing_pages` (id, org, name, slug unique, headline, subheadline, body_html, form_id,
   status[draft|published], view_count).
 - `email_templates` (id, org, name, subject, html, text).
-- `campaigns` (id, org, name, channel[email|sms], type, subject, from_name, from_email, preheader,
+- `campaigns` (id, org, name, channel[email|sms], type, subject, from*name, from_email, preheader,
   content_html/text OR body, marketing_list_id, status[draft|scheduled|sending|sent|failed],
-  scheduled_at, sent_at, stat_* counters: recipients, sent, opened, clicked, bounced, unsubscribed).
+  scheduled_at, sent_at, stat*\* counters: recipients, sent, opened, clicked, bounced, unsubscribed).
 - `campaign_recipients` (id, org, campaign_id, contact_id, email/phone snapshot, token unique,
   status[pending|sent|failed|bounced], sent_at, opened_at, clicked_at, unsubscribed_at, error).
 - `outbound_messages` (id, org, channel, contact_id, subject, body, status, token, sent_at,
@@ -106,6 +106,7 @@ campaigns CRUD + `POST /campaigns/{c}/schedule` + `/send` + `/test`; workflows C
 activate/pause; funnels CRUD; marketing dashboard.
 
 **Public** (no auth, CSRF-exempt, tenant by slug/token):
+
 - `GET /f/{slug}` render form · `POST /f/{slug}` submit (honeypot + rate-limited).
 - `GET /p/{slug}` render landing page.
 - `GET /e/o/{token}.gif` open pixel · `GET /e/c/{token}` click redirect (`?u=` validated) ·

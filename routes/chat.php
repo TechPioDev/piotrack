@@ -46,6 +46,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.inbox.handle')->name('conversations.reply');
         Route::post('conversations/{conversation}/note', [ChatInboxController::class, 'note'])
             ->middleware('can:chat.inbox.handle')->name('conversations.note');
+        Route::post('conversations/{conversation}/summarize', [ChatInboxController::class, 'summarize'])
+            ->middleware('can:chat.inbox.handle')->name('conversations.summarize');
         Route::patch('conversations/{conversation}', [ChatInboxController::class, 'update'])
             ->middleware('can:chat.inbox.handle')->name('conversations.update');
         Route::get('conversations/{conversation}/poll', [ChatInboxController::class, 'poll'])

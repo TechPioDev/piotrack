@@ -27,30 +27,30 @@ strategy item carries a `source_module` cross-reference instead of the work bein
 
 ## Status summary
 
-| Area | Result |
-|---|---|
-| Platform console: tenants, subscriptions, usage, MRR, AI spend | Tested (ADMIN-001/003) |
-| Feature flags: kill switch, org targeting, deterministic % rollout | Tested (ADMIN-004) |
-| Announcements + release notes, support tooling | Tested (ADMIN-005) |
-| **Support impersonation — permissioned, visible, audited** | Tested (ADMIN-006) |
-| Plan/entitlement/coupon/payment administration | Partial — code-defined catalog, no admin editor (ADMIN-002) |
-| Help centre, tickets (internal notes hidden), announcements | Tested (SUPP-001…003) |
-| Delivery team roles, sprints, tasks, deliverables, approvals | Tested (PROJ-001…014) |
-| Monthly / quarterly reviews | Partial — scheduled + data-backed, human-delivered (PROJ-015/016) |
-| Client portal: login, dashboard, projects, tasks, deliverables, approvals, tickets, KPI/lead/revenue | Tested (PORTAL-001…011/016…018) |
-| Portal files, reports, campaign status, roadmap views | Partial (PORTAL-003/012/013/015) |
-| Portal meeting notes | Planned (PORTAL-014) |
-| Five-P methodology computed from real module signals + evidence | Tested (METH-001…005) |
-| Performance agreements, targets, quality criteria, lead replacement | Tested (PERF-001…003/005…009) |
-| SLA breach + ROI review, guaranteed-deliverable reconciliation | Partial (PERF-004/010/011) |
-| KPI definition + targets vs real actuals | Tested (STRAT-027…032) |
-| Roadmap, quarterly strategy, prioritisation | Tested (STRAT-024…026) |
-| Assessments, audits, research, positioning analysis | Partial — workspace tested, analysis human (21 STRAT rows) |
-| Brand positioning, messaging, tagline, asset library | Tested (20 BRAND rows) |
-| Palette/typography/imagery direction, discovery, positioning analysis | Partial (11 BRAND rows) |
-| Logo, graphic style, iconography, visual identity production | Planned — creative work (BRAND-019/023…027) |
-| Masterclasses, workshops, QBRs, reviews, growth planning | Tested (TRAIN-008…013) |
-| Consulting + training delivery | Partial — booked/tracked, human-delivered (TRAIN-001…007) |
+| Area                                                                                                 | Result                                                            |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Platform console: tenants, subscriptions, usage, MRR, AI spend                                       | Tested (ADMIN-001/003)                                            |
+| Feature flags: kill switch, org targeting, deterministic % rollout                                   | Tested (ADMIN-004)                                                |
+| Announcements + release notes, support tooling                                                       | Tested (ADMIN-005)                                                |
+| **Support impersonation — permissioned, visible, audited**                                           | Tested (ADMIN-006)                                                |
+| Plan/entitlement/coupon/payment administration                                                       | Partial — code-defined catalog, no admin editor (ADMIN-002)       |
+| Help centre, tickets (internal notes hidden), announcements                                          | Tested (SUPP-001…003)                                             |
+| Delivery team roles, sprints, tasks, deliverables, approvals                                         | Tested (PROJ-001…014)                                             |
+| Monthly / quarterly reviews                                                                          | Partial — scheduled + data-backed, human-delivered (PROJ-015/016) |
+| Client portal: login, dashboard, projects, tasks, deliverables, approvals, tickets, KPI/lead/revenue | Tested (PORTAL-001…011/016…018)                                   |
+| Portal files, reports, campaign status, roadmap views                                                | Partial (PORTAL-003/012/013/015)                                  |
+| Portal meeting notes                                                                                 | Planned (PORTAL-014)                                              |
+| Five-P methodology computed from real module signals + evidence                                      | Tested (METH-001…005)                                             |
+| Performance agreements, targets, quality criteria, lead replacement                                  | Tested (PERF-001…003/005…009)                                     |
+| SLA breach + ROI review, guaranteed-deliverable reconciliation                                       | Partial (PERF-004/010/011)                                        |
+| KPI definition + targets vs real actuals                                                             | Tested (STRAT-027…032)                                            |
+| Roadmap, quarterly strategy, prioritisation                                                          | Tested (STRAT-024…026)                                            |
+| Assessments, audits, research, positioning analysis                                                  | Partial — workspace tested, analysis human (21 STRAT rows)        |
+| Brand positioning, messaging, tagline, asset library                                                 | Tested (20 BRAND rows)                                            |
+| Palette/typography/imagery direction, discovery, positioning analysis                                | Partial (11 BRAND rows)                                           |
+| Logo, graphic style, iconography, visual identity production                                         | Planned — creative work (BRAND-019/023…027)                       |
+| Masterclasses, workshops, QBRs, reviews, growth planning                                             | Tested (TRAIN-008…013)                                            |
+| Consulting + training delivery                                                                       | Partial — booked/tracked, human-delivered (TRAIN-001…007)         |
 
 ## Architecture delivered
 
@@ -85,30 +85,30 @@ strategy item carries a `source_module` cross-reference instead of the work bein
 - **Pest: 439/439 PASS** (1445 assertions) · PHPStan L6: 0 errors · Pint PASS · Prettier PASS ·
   ESLint PASS · tsc PASS · `npm run build` PASS.
 - +40 tests across 5 suites:
-  - **Impersonation (9)**: audited session with reason; **platform staff can never be impersonated**;
-    non-platform users refused; reason required; stop ends the session and restores the operator;
-    the banner state reaches the UI; the route requires the permission; stopping needs none; the
-    platform console refuses tenant users.
-  - Feature flags (6): unknown flag off; default; org targeting; **kill switch overrides targeting and
-    100% rollout**; deterministic percentage; save through the console.
-  - Projects/support (8): role staffing incl. idempotency + unknown role; sprint/task progress with
-    overdue; submit→approve records approver and makes visible; **rejection is recoverable**; viewer
-    cannot approve; internal notes stay out of the client thread; replying reopens a resolved ticket;
-    cross-tenant project edit 404s.
-  - **Portal (8)**: only client-visible deliverables listed; a hidden deliverable **404s rather than
-    403s** so its existence is never revealed; client approve and reject-with-feedback; client raises a
-    ticket; internal notes stripped; **the Client role is refused CRM, projects, support, strategy and
-    the platform console**; non-client roles refused the portal.
-  - Strategy/performance (9): KPI attainment vs real actuals; lower-is-better metric; attainment net of
-    replaced leads; expired unmet agreement reported **breached**; quality-criteria evaluation; five-P
-    scores + evidence from real data; strategy item cross-references its source module; viewer cannot
-    edit; cross-tenant agreement delete 404s.
+    - **Impersonation (9)**: audited session with reason; **platform staff can never be impersonated**;
+      non-platform users refused; reason required; stop ends the session and restores the operator;
+      the banner state reaches the UI; the route requires the permission; stopping needs none; the
+      platform console refuses tenant users.
+    - Feature flags (6): unknown flag off; default; org targeting; **kill switch overrides targeting and
+      100% rollout**; deterministic percentage; save through the console.
+    - Projects/support (8): role staffing incl. idempotency + unknown role; sprint/task progress with
+      overdue; submit→approve records approver and makes visible; **rejection is recoverable**; viewer
+      cannot approve; internal notes stay out of the client thread; replying reopens a resolved ticket;
+      cross-tenant project edit 404s.
+    - **Portal (8)**: only client-visible deliverables listed; a hidden deliverable **404s rather than
+      403s** so its existence is never revealed; client approve and reject-with-feedback; client raises a
+      ticket; internal notes stripped; **the Client role is refused CRM, projects, support, strategy and
+      the platform console**; non-client roles refused the portal.
+    - Strategy/performance (9): KPI attainment vs real actuals; lower-is-better metric; attainment net of
+      replaced leads; expired unmet agreement reported **breached**; quality-criteria evaluation; five-P
+      scores + evidence from real data; strategy item cross-references its source module; viewer cannot
+      edit; cross-tenant agreement delete 404s.
 
 ## Defects discovered & fixed
 
 - **The impersonation dialog required typing a raw user ID.** `PlatformAdminService::tenants()` shipped
   only organization-level fields, so the operator had to type the target's numeric id — and mistyping
-  one means impersonating the *wrong customer*, which the audit log would faithfully record as
+  one means impersonating the _wrong customer_, which the audit log would faithfully record as
   intentional. Fixed by shipping each tenant's impersonatable members (id, name, email) with platform
   staff filtered out server-side, and replacing the numeric input with a named select. Covered by a
   test asserting members are listed and platform staff excluded.
@@ -147,8 +147,8 @@ impersonation banner state is asserted to reach the client (`impersonation.activ
 
 ## Completion
 
-**APPROVED — Stage 13 (Administration & Service Delivery) gate passed.** piotrack can now be *operated*
-and the service *delivered*: platform staff have a cross-tenant console with feature flags and an
+**APPROVED — Stage 13 (Administration & Service Delivery) gate passed.** piotrack can now be _operated_
+and the service _delivered_: platform staff have a cross-tenant console with feature flags and an
 impersonation capability that cannot be used invisibly or to escalate privilege; delivery teams run
 projects, sprints and approvals; clients get a portal narrowed to exactly what was shared with them; and
 the strategy, brand, training and performance-guarantee workspaces structure the consulting engagement

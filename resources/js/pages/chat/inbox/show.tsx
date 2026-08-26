@@ -21,6 +21,8 @@ type Conversation = {
     answers: Record<string, string>;
     priority: boolean;
     is_live: boolean;
+    summary: string | null;
+    summary_generated_at: string | null;
     attribution: Record<string, string> | null;
     created_at: string;
 };
@@ -65,6 +67,7 @@ export default function ChatConversationShow({
     statuses: string[];
     presence: { me: string; roster: { id: number; name: string; status: string }[] };
 }) {
+    const [summarizing, setSummarizing] = useState(false);
     const { can } = usePermissions();
     const reply = useForm({ body: '' });
     const note = useForm({ body: '' });
@@ -267,6 +270,41 @@ export default function ChatConversationShow({
                             </Button>
                         )}
                     </div>
+
+                    <section className="bg-card rounded-xl border p-4">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <h2 className="text-foreground text-sm font-semibold">AI summary</h2>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={summarizing}
+                                onClick={() => {
+                                    setSummarizing(true);
+                                    router.post(
+                                        route('chat.conversations.summarize', conversation.id),
+                                        {},
+                                        { preserveScroll: true, onFinish: () => setSummarizing(false) },
+                                    );
+                                }}
+                            >
+                                {summarizing ? 'Summarizing…' : conversation.summary ? 'Refresh' : 'Summarize'}
+                            </Button>
+                        </div>
+                        {conversation.summary ? (
+                            <>
+                                <p className="text-sm leading-relaxed">{conversation.summary}</p>
+                                {conversation.summary_generated_at && (
+                                    <p className="text-muted-foreground mt-2 text-xs">
+                                        Generated {new Date(conversation.summary_generated_at).toLocaleString()}
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="text-muted-foreground text-sm">
+                                No summary yet — generate one before taking over, so you start with the story instead of the scroll.
+                            </p>
+                        )}
+                    </section>
 
                     {Object.keys(conversation.answers).length > 0 && (
                         <div className="border-border bg-card rounded-lg border">
