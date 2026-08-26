@@ -1,6 +1,9 @@
+import { BarList, type BarItem } from '@/components/charts/bar-list';
+import { LineChart, type LinePoint } from '@/components/charts/line-chart';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
@@ -40,7 +43,17 @@ function scoreVariant(score: number): 'default' | 'secondary' | 'destructive' {
     return 'destructive';
 }
 
-export default function SeoDashboard({ stats, recentAudits }: { stats: Stats; recentAudits: RecentAudit[] }) {
+export default function SeoDashboard({
+    stats,
+    recentAudits,
+    distribution,
+    auditTrend,
+}: {
+    stats: Stats;
+    recentAudits: RecentAudit[];
+    distribution: BarItem[];
+    auditTrend: LinePoint[];
+}) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SEO" />
@@ -51,6 +64,32 @@ export default function SeoDashboard({ stats, recentAudits }: { stats: Stats; re
                     {STAT_CARDS.map((card) => (
                         <StatCard key={card.key} label={card.label} value={stats[card.key]} />
                     ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Ranking distribution</h3>
+                            <BarList
+                                className="mt-3"
+                                items={distribution}
+                                color="var(--chart-2)"
+                                ariaLabel="Tracked keywords by ranking bucket"
+                                emptyText="No tracked keywords yet. Track keywords to see where they rank."
+                            />
+                        </CardContent>
+                    </Card>
+                    <Card className="lg:col-span-2">
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Audit score over recent audits</h3>
+                            <LineChart
+                                className="mt-3"
+                                data={auditTrend}
+                                ariaLabel="Technical audit score across recent audits"
+                                emptyText="No audits yet. Run a technical audit to start the trend."
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div>

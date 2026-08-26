@@ -338,7 +338,12 @@
       "Bash(nslookup -type=TXT _acme-challenge.piotrack.com 8.8.8.8)",
       "Bash(python \"C:/Users/DalbeirSingh/AppData/Local/Temp/claude/E--autotask-DPI-Autotask-piotrack/ab44bac9-8a15-4fd9-af3b-3ab8faae7a82/scratchpad/patch_p1_ui.py\")",
       "Bash(curl -s -o /dev/null -m 3 http://192.168.1.183:8000/chat-p1.tar.gz)",
-      "Bash(curl -s -o /dev/null -m 8 -w \"  reachable: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.183:8000/chat-p1.tar.gz)"
+      "Bash(curl -s -o /dev/null -m 8 -w \"  reachable: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.183:8000/chat-p1.tar.gz)",
+      "Bash(curl -fs -o /dev/null -w \"%{http_code} %{size_download}\\\\n\" http://192.168.1.183:8000/chat-p1b.tar.gz)",
+      "Bash(curl -fs -o /dev/null -w \"old: %{http_code} %{size_download}\\\\n\" http://192.168.1.183:8000/chat-p1.tar.gz)",
+      "PowerShell(\\(Get-CimInstance Win32_Process -Filter \"ProcessId=14724\"\\).CommandLine)",
+      "PowerShell(\\(Get-Process -Id 14724\\).Path; try { $cwd = \\(Get-CimInstance Win32_Process -Filter \"ProcessId=14724\"\\).ExecutablePath } catch {}; Get-ChildItem -Path E:\\\\autotask -Filter chat-p1.tar.gz -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)",
+      "Bash(xargs grep -ln \"invitations.accept\\\\|function accept\")"
     ]
   }
 }

@@ -37,6 +37,21 @@ class SeoDashboardController extends Controller
             ],
             'recentAudits' => SeoAudit::latest('id')->limit(5)->get()
                 ->map(fn (SeoAudit $a) => ['id' => $a->id, 'url' => $a->url, 'score' => $a->score, 'issues_count' => $a->issues_count]),
+
+            // Where tracked keywords actually sit (design-shell module):
+            // unranked stays visible — pretending it away would flatter the number.
+            'distribution' => [
+                ['label' => 'Top 3', 'value' => $trackedKeywords->filter(fn (Keyword $k) => $k->current_position !== null && $k->current_position <= 3)->count()],
+                ['label' => 'Page 1', 'value' => $trackedKeywords->filter(fn (Keyword $k) => $k->current_position !== null && $k->current_position >= 4 && $k->current_position <= 10)->count()],
+                ['label' => '11–20', 'value' => $trackedKeywords->filter(fn (Keyword $k) => $k->current_position !== null && $k->current_position >= 11 && $k->current_position <= 20)->count()],
+                ['label' => '21+', 'value' => $trackedKeywords->filter(fn (Keyword $k) => $k->current_position !== null && $k->current_position > 20)->count()],
+                ['label' => 'Unranked', 'value' => $trackedKeywords->whereNull('current_position')->count()],
+            ],
+
+            // Audit score over the last audits, oldest first, as a trend.
+            'auditTrend' => SeoAudit::latest('id')->limit(12)->get(['id', 'score', 'created_at'])
+                ->reverse()->values()
+                ->map(fn (SeoAudit $a) => ['label' => $a->created_at?->format('M j') ?? '#'.$a->id, 'value' => (int) $a->score]),
         ]);
     }
 }

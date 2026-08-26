@@ -1,3 +1,5 @@
+import { LineChart, type LinePoint } from '@/components/charts/line-chart';
+import { SegmentBar } from '@/components/charts/segment-bar';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -5,6 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+
+/** Lifecycle stages in funnel order, so the mix reads left-to-right. */
+const LIFECYCLE_ORDER = ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'];
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Marketing', href: '/marketing' }];
 
@@ -37,15 +42,20 @@ const STAT_CARDS: { key: keyof Stats; label: string }[] = [
 ];
 
 export default function MarketingDashboard({
+    trend,
     stats,
     lifecycle,
     recentCampaigns,
 }: {
+    trend: LinePoint[];
     stats: Stats;
     lifecycle: Record<string, number>;
     recentCampaigns: RecentCampaign[];
 }) {
-    const lifecycleEntries = Object.entries(lifecycle);
+    const lifecycleSegments = [
+        ...LIFECYCLE_ORDER.filter((stage) => stage in lifecycle),
+        ...Object.keys(lifecycle).filter((s) => !LIFECYCLE_ORDER.includes(s)),
+    ].map((stage) => ({ label: stage.replace(/_/g, ' '), value: lifecycle[stage] }));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -60,25 +70,32 @@ export default function MarketingDashboard({
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-3">
-                    <Card className="lg:col-span-1">
-                        <CardContent className="space-y-2 p-4">
-                            <h3 className="text-sm font-medium">By lifecycle stage</h3>
-                            {lifecycleEntries.length === 0 ? (
-                                <p className="text-muted-foreground text-sm">No contacts yet. Add contacts to see lifecycle breakdown.</p>
-                            ) : (
-                                <ul className="space-y-1 text-sm">
-                                    {lifecycleEntries.map(([stage, count]) => (
-                                        <li key={stage} className="flex items-center justify-between">
-                                            <span className="text-muted-foreground capitalize">{stage.replace(/_/g, ' ')}</span>
-                                            <span className="font-medium">{count}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                    <Card className="lg:col-span-2">
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">New contacts — last 30 days</h3>
+                            <LineChart
+                                className="mt-3"
+                                data={trend}
+                                ariaLabel="New contacts per day over the last 30 days"
+                                emptyText="No new contacts in the last 30 days yet."
+                            />
                         </CardContent>
                     </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">By lifecycle stage</h3>
+                            <SegmentBar
+                                className="mt-3"
+                                segments={lifecycleSegments}
+                                ariaLabel="Contacts by lifecycle stage"
+                                emptyText="No contacts yet. Add contacts to see the lifecycle mix."
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
 
-                    <div className="lg:col-span-2">
+                <div className="grid gap-4">
+                    <div>
                         <h3 className="mb-2 text-sm font-medium">Recent campaigns</h3>
                         {recentCampaigns.length === 0 ? (
                             <p className="text-muted-foreground text-sm">No campaigns yet. Create one from the Campaigns page to see it here.</p>

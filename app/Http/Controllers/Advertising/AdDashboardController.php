@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Advertising;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdCampaign;
+use App\Models\AdMetric;
 use App\Models\RetargetingAudience;
 use App\Services\Advertising\AdMetricsService;
 use Inertia\Inertia;
@@ -15,7 +16,24 @@ class AdDashboardController extends Controller
 
     public function __invoke(): Response
     {
+        // Daily spend and clicks for the trend charts (design-shell module).
+        // ad_metrics is one row per campaign per day, so group across campaigns.
+        $since = now()->subDays(29)->startOfDay();
+        $daily = AdMetric::query()
+            ->where('date', '>=', $since)
+            ->selectRaw('date, sum(spend) as spend, sum(clicks) as clicks')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(fn (AdMetric $row) => [
+                'label' => $row->date->format('M j'),
+                'spend' => (int) $row->spend,
+                'clicks' => (int) $row->clicks,
+            ])
+            ->values();
+
         return Inertia::render('advertising/dashboard', [
+            'trend' => $daily,
             'kpi' => $this->metrics->organizationKpi(now()->subDays(30))->toArray(),
             'stats' => [
                 'campaigns' => AdCampaign::count(),

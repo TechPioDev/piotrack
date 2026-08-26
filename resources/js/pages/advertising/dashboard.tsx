@@ -1,3 +1,4 @@
+import { LineChart } from '@/components/charts/line-chart';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,19 @@ function kpiCards(kpi: Kpi): { label: string; value: string | number }[] {
     ];
 }
 
-export default function AdvertisingDashboard({ kpi, stats, campaigns }: { kpi: Kpi; stats: Stats; campaigns: CampaignRow[] }) {
+type TrendDay = { label: string; spend: number; clicks: number };
+
+export default function AdvertisingDashboard({
+    trend,
+    kpi,
+    stats,
+    campaigns,
+}: {
+    trend: TrendDay[];
+    kpi: Kpi;
+    stats: Stats;
+    campaigns: CampaignRow[];
+}) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Advertising" />
@@ -72,6 +85,33 @@ export default function AdvertisingDashboard({ kpi, stats, campaigns }: { kpi: K
                     {kpiCards(kpi).map((card) => (
                         <StatCard key={card.label} label={card.label} value={card.value} />
                     ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Spend per day — last 30 days</h3>
+                            <LineChart
+                                className="mt-3"
+                                data={trend.map((d) => ({ label: d.label, value: d.spend }))}
+                                formatValue={money}
+                                ariaLabel="Ad spend per day over the last 30 days"
+                                emptyText="No ad metrics in the last 30 days yet."
+                            />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Clicks per day — last 30 days</h3>
+                            <LineChart
+                                className="mt-3"
+                                data={trend.map((d) => ({ label: d.label, value: d.clicks }))}
+                                color="var(--chart-2)"
+                                ariaLabel="Ad clicks per day over the last 30 days"
+                                emptyText="No ad metrics in the last 30 days yet."
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 sm:max-w-md">

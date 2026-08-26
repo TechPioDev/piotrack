@@ -152,7 +152,10 @@ it('walks a lead from signup to attributed closed-won revenue', function () {
     expect((int) $deal->mrr)->toBe(450000)->and((int) $deal->arr)->toBe(5400000);
 
     // ---- Pipeline: walk every stage to closed-won ---------------------------
-    $stages = $deal->pipeline->stages()->orderBy('position')->get();
+    // stages() already orders by sort_order; naming a wrong column here would
+    // pass silently on sqlite (unknown "identifiers" fall back to string
+    // literals in ORDER BY) and only fail on Postgres.
+    $stages = $deal->pipeline->stages;
     foreach ($stages as $stage) {
         $this->actingAs($daniel)
             ->patch(route('crm.deals.stage', $deal->id), ['stage_id' => $stage->id])

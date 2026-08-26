@@ -15,7 +15,22 @@ class MarketingDashboardController extends Controller
 {
     public function __invoke(): Response
     {
+        // New contacts per day for the trend chart (design-shell module).
+        // Days with no signups appear as zero: a gap is information here.
+        $since = now()->subDays(29)->startOfDay();
+        $byDay = Contact::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw('date(created_at) as day, count(*) as total')
+            ->groupBy('day')
+            ->pluck('total', 'day');
+        $trend = collect(range(0, 29))->map(function (int $offset) use ($since, $byDay) {
+            $day = $since->copy()->addDays($offset);
+
+            return ['label' => $day->format('M j'), 'value' => (int) ($byDay[$day->toDateString()] ?? 0)];
+        })->values();
+
         return Inertia::render('marketing/dashboard', [
+            'trend' => $trend,
             'stats' => [
                 'lists' => MarketingList::count(),
                 'forms' => Form::count(),

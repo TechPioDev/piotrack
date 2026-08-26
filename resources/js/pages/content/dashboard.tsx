@@ -1,9 +1,14 @@
+import { BarList } from '@/components/charts/bar-list';
+import { SegmentBar } from '@/components/charts/segment-bar';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+
+/** Editorial workflow order, so the pipeline reads as a pipeline. */
+const STATUS_ORDER = ['idea', 'draft', 'in_review', 'approved', 'published', 'archived'];
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Content', href: '/content' }];
 
@@ -52,7 +57,12 @@ export default function ContentDashboard({
         { label: 'Reviews', value: `${reviews.average} ★` },
     ];
 
-    const statusEntries = Object.entries(byStatus);
+    const pipeline = [...STATUS_ORDER.filter((s) => s in byStatus), ...Object.keys(byStatus).filter((s) => !STATUS_ORDER.includes(s))].map(
+        (status) => ({
+            label: status.replace(/_/g, ' '),
+            value: byStatus[status],
+        }),
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -73,45 +83,37 @@ export default function ContentDashboard({
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <div>
-                        <h3 className="mb-2 text-sm font-medium">By status</h3>
-                        {statusEntries.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">No content yet. Create a piece to start planning.</p>
-                        ) : (
-                            <div className="divide-y rounded-lg border">
-                                {statusEntries.map(([status, count]) => (
-                                    <div key={status} className="flex items-center justify-between gap-3 p-3">
-                                        <Badge variant={statusVariant(status)}>{status}</Badge>
-                                        <span className="text-sm font-medium">{count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Editorial pipeline</h3>
+                            <BarList
+                                className="mt-3"
+                                items={pipeline}
+                                color="var(--chart-4)"
+                                ariaLabel="Content pieces by workflow status"
+                                emptyText="No content yet. Create a piece to start planning."
+                            />
+                        </CardContent>
+                    </Card>
 
-                    <div>
-                        <h3 className="mb-2 text-sm font-medium">Review sentiment</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            <Card>
-                                <CardContent className="p-4">
-                                    <p className="text-muted-foreground text-sm">Positive</p>
-                                    <p className="text-2xl font-semibold">{reviews.by_sentiment.positive}</p>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-4">
-                                    <p className="text-muted-foreground text-sm">Neutral</p>
-                                    <p className="text-2xl font-semibold">{reviews.by_sentiment.neutral}</p>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-4">
-                                    <p className="text-muted-foreground text-sm">Negative</p>
-                                    <p className="text-2xl font-semibold">{reviews.by_sentiment.negative}</p>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="text-sm font-medium">Review sentiment</h3>
+                            <SegmentBar
+                                className="mt-3"
+                                segments={[
+                                    { label: 'Positive', value: reviews.by_sentiment.positive, color: 'var(--chart-1)' },
+                                    { label: 'Neutral', value: reviews.by_sentiment.neutral, color: 'var(--chart-3)' },
+                                    { label: 'Negative', value: reviews.by_sentiment.negative, color: 'var(--chart-5)' },
+                                ]}
+                                ariaLabel="Reviews by sentiment"
+                                emptyText="No reviews yet. Reviews appear here once collected."
+                            />
+                            <p className="text-muted-foreground mt-3 text-xs">
+                                {reviews.count} reviews · {reviews.average} average rating
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div>
