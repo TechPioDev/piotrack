@@ -119,9 +119,12 @@ class ChatFlowValidator
         // Anything the visitor can never arrive at is dead weight in the flow.
         if ($start !== null && isset($nodes[$start])) {
             $reachable = $this->reachableFrom($nodes, $start);
-            foreach (array_keys($nodes) as $id) {
+            foreach ($nodes as $id => $node) {
                 if (! in_array((string) $id, $reachable, true)) {
-                    $warnings[] = ['node' => (string) $id, 'message' => 'Nothing leads to this step, so a visitor will never see it.'];
+                    $warnings[] = [
+                        'node' => (string) $id,
+                        'message' => sprintf('Nothing leads to %s, so a visitor will never see it. Connect it or delete it.', $this->describe($node)),
+                    ];
                 }
             }
 
@@ -138,6 +141,25 @@ class ChatFlowValidator
         }
 
         return ['valid' => $errors === [], 'errors' => $errors, 'warnings' => $warnings];
+    }
+
+    /**
+     * How a tenant would name a step: by what it says, not by its internal id.
+     * Seven identical "this step" warnings are unactionable; naming each one is
+     * what lets someone find it in the list.
+     */
+    private function describe(mixed $node): string
+    {
+        $text = is_array($node) ? trim((string) ($node['text'] ?? '')) : '';
+        if ($text === '') {
+            return 'this step';
+        }
+
+        if (mb_strlen($text) > 44) {
+            $text = rtrim(mb_substr($text, 0, 44)).'…';
+        }
+
+        return sprintf('the step "%s"', $text);
     }
 
     /**

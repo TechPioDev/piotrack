@@ -318,6 +318,7 @@ export default function FlowBuilder({
                                     const m = meta(flow.nodes[id].type);
                                     const Icon = m.icon;
                                     const hasError = validation.errors.some((e) => e.node === id);
+                                    const hasWarning = !hasError && validation.warnings.some((w) => w.node === id);
                                     return (
                                         <li key={id}>
                                             <button
@@ -338,6 +339,9 @@ export default function FlowBuilder({
                                                         )}
                                                         {hasError && (
                                                             <AlertTriangle className="size-3.5 shrink-0 text-red-500" aria-label="Has a problem" />
+                                                        )}
+                                                        {hasWarning && (
+                                                            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" aria-label="Worth a look" />
                                                         )}
                                                     </span>
                                                     <span className="text-muted-foreground line-clamp-2 text-xs">{summarise(flow.nodes[id])}</span>
@@ -765,7 +769,15 @@ function ValidationBanner({ validation, dirty, onSelect }: { validation: Validat
                     </div>
                     <ul className="mt-1.5 space-y-1 text-sm">
                         {validation.warnings.map((w, i) => (
-                            <li key={i}>{w.message}</li>
+                            <li key={i}>
+                                {w.node ? (
+                                    <button type="button" className="underline underline-offset-2" onClick={() => onSelect(w.node as string)}>
+                                        {w.message}
+                                    </button>
+                                ) : (
+                                    w.message
+                                )}
+                            </li>
                         ))}
                     </ul>
                 </div>

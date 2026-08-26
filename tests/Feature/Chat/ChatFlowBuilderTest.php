@@ -86,9 +86,12 @@ it('warns about steps a visitor can never reach', function () {
         ],
     ]);
 
+    // The warning names the step by what it says — several identical "this
+    // step" lines would leave the tenant hunting for which ones they are.
     expect($result['valid'])->toBeTrue()
         ->and($result['warnings'])->toHaveCount(1)
-        ->and($result['warnings'][0]['node'])->toBe('orphan');
+        ->and($result['warnings'][0]['node'])->toBe('orphan')
+        ->and($result['warnings'][0]['message'])->toContain('"Nobody sees me"');
 });
 
 it('warns when a question saves its answer nowhere', function () {
