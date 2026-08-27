@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Ai;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiPrompt;
+use App\Models\AiVisibilityCheck;
 use App\Seo\SeoProviderManager;
 use App\Services\Ai\AiVisibilityDashboard;
 use App\Support\CurrentOrganization;
@@ -44,6 +45,22 @@ class AiVisibilityController extends Controller
                 'is_active' => $p->is_active,
             ]),
             'engines' => AiVisibilityDashboard::ENGINES,
+            // live|simulated per engine (AIVM): ChatGPT/Gemini flip to live the
+            // moment a key exists; the rest stay labeled simulated.
+            'engineStatuses' => app(SeoProviderManager::class)->engineStatuses(AiVisibilityDashboard::ENGINES),
+            // The receipts: latest checks with the answer text behind the numbers.
+            'evidence' => AiVisibilityCheck::latest('checked_at')->limit(10)
+                ->get(['id', 'prompt', 'engine', 'provider', 'mentioned', 'position', 'answer_excerpt', 'checked_at'])
+                ->map(fn ($c) => [
+                    'id' => $c->id,
+                    'prompt' => $c->prompt,
+                    'engine' => $c->engine,
+                    'provider' => $c->provider,
+                    'mentioned' => (bool) $c->mentioned,
+                    'position' => $c->position,
+                    'answer_excerpt' => $c->answer_excerpt,
+                    'checked_at' => $c->checked_at?->diffForHumans(),
+                ]),
         ]);
     }
 

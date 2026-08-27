@@ -6,6 +6,7 @@ use App\Seo\Contracts\AiSearchProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\Providers\FixtureAiSearchProvider;
 use App\Seo\Providers\FixtureRankProvider;
+use App\Seo\Providers\GeminiAiSearchProvider;
 use App\Seo\Providers\OpenAiSearchProvider;
 use App\Seo\Providers\SerpApiRankProvider;
 use InvalidArgumentException;
@@ -34,9 +35,54 @@ class SeoProviderManager
 
         return match ($name) {
             'fixture' => new FixtureAiSearchProvider,
-            'openai' => new OpenAiSearchProvider,
+            'openai' => new OpenAiSearchProvider(new AnswerAnalyzer),
+            'gemini' => new GeminiAiSearchProvider(new AnswerAnalyzer),
             default => throw new InvalidArgumentException("Unknown AI search provider [{$name}]."),
         };
+    }
+
+    /**
+     * Engine label -> the driver that can actually ask that engine (AIVM).
+     * ChatGPT and Gemini have wired APIs and go live the moment a key exists
+     * (env or the platform AI console's); every other engine label runs on the
+     * configured default so its numbers stay clearly simulated.
+     */
+    public function aiFor(string $engine): AiSearchProvider
+    {
+        return match ($this->aiProviderNameFor($engine)) {
+            'openai' => new OpenAiSearchProvider(new AnswerAnalyzer),
+            'gemini' => new GeminiAiSearchProvider(new AnswerAnalyzer),
+            default => $this->ai(),
+        };
+    }
+
+    /** Which driver name backs an engine label, recorded on every check. */
+    public function aiProviderNameFor(string $engine): string
+    {
+        if ($engine === 'chatgpt' && OpenAiSearchProvider::key() !== '') {
+            return 'openai';
+        }
+        if ($engine === 'gemini' && GeminiAiSearchProvider::key() !== '') {
+            return 'gemini';
+        }
+
+        return $this->aiProviderName();
+    }
+
+    /**
+     * live|simulated per engine, so the UI can label numbers honestly.
+     *
+     * @param  list<string>  $engines
+     * @return array<string, string>
+     */
+    public function engineStatuses(array $engines): array
+    {
+        $statuses = [];
+        foreach ($engines as $engine) {
+            $statuses[$engine] = $this->aiProviderNameFor($engine) === 'fixture' ? 'simulated' : 'live';
+        }
+
+        return $statuses;
     }
 
     /** The configured rank driver's name, recorded against every position. */

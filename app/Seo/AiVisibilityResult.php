@@ -18,5 +18,7 @@ final class AiVisibilityResult
         public array $citedSources,
         public array $competitors,
         public int $shareOfAnswer,
+        // The receipt (AIVM): the answer text the numbers were computed from.
+        public string $answerExcerpt = '',
     ) {}
 }

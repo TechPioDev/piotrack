@@ -13,13 +13,17 @@ use App\Seo\Contracts\AiSearchProvider;
  */
 class FixtureAiSearchProvider implements AiSearchProvider
 {
-    public function query(string $prompt, string $brand): AiVisibilityResult
+    public function query(string $prompt, string $brand, array $competitors = []): AiVisibilityResult
     {
         $seed = crc32(mb_strtolower($prompt.'|'.$brand));
         $mentioned = ($seed % 3) !== 0; // ~2 in 3
 
+        // The excerpt must never read as a market finding (AIVM).
+        $excerpt = '[Simulated answer — fixture driver, not a live AI engine] '
+            .($mentioned ? "{$brand} appears in this simulated response to: {$prompt}" : "Simulated response to: {$prompt}");
+
         if (! $mentioned) {
-            return new AiVisibilityResult(false, null, [], ['competitor-msp.com', 'rival-it.com'], 0);
+            return new AiVisibilityResult(false, null, [], ['competitor-msp.com', 'rival-it.com'], 0, $excerpt);
         }
 
         $position = (int) ($seed % 5) + 1;
@@ -31,6 +35,7 @@ class FixtureAiSearchProvider implements AiSearchProvider
             [mb_strtolower(str_replace(' ', '', $brand)).'.com', 'wikipedia.org'],
             ['competitor-msp.com'],
             $share,
+            $excerpt,
         );
     }
 }

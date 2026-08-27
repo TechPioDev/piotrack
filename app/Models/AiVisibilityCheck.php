@@ -19,7 +19,7 @@ class AiVisibilityCheck extends Model
 
     protected $fillable = [
         'organization_id', 'ai_prompt_id', 'prompt', 'engine', 'provider', 'brand', 'mentioned', 'recommended',
-        'position', 'cited_sources', 'competitors', 'share_of_answer', 'checked_at',
+        'position', 'cited_sources', 'competitors', 'share_of_answer', 'answer_excerpt', 'checked_at',
     ];
 
     protected function casts(): array

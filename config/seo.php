@@ -22,6 +22,11 @@ return [
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+    ],
+
     // AI engines surfaced for visibility tracking.
     'ai_engines' => ['chatgpt', 'gemini', 'perplexity', 'copilot', 'ai_overview'],
 ];

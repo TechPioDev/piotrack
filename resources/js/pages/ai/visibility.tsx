@@ -188,6 +188,8 @@ export default function AiVisibility({
     alert,
     prompts,
     engines,
+    engineStatuses,
+    evidence,
 }: {
     frequencies: Frequencies;
     share_of_voice: number;
@@ -200,6 +202,17 @@ export default function AiVisibility({
     alert: ChangeAlert;
     prompts: Prompt[];
     engines: string[];
+    engineStatuses: Record<string, string>;
+    evidence: {
+        id: number;
+        prompt: string;
+        engine: string;
+        provider: string | null;
+        mentioned: boolean;
+        position: number | null;
+        answer_excerpt: string | null;
+        checked_at: string | null;
+    }[];
 }) {
     const { can } = usePermissions();
     const canManage = can('ai.prompts.manage');
@@ -274,7 +287,21 @@ export default function AiVisibility({
                 <div>
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-sm font-medium">By engine</h3>
-                        <p className="text-muted-foreground text-sm">Monitoring {engines.join(', ')}</p>
+                        {/* live = a wired API with a key answers this engine; simulated = fixture numbers (AIVM). */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {engines.map((engine) => (
+                                <span
+                                    key={engine}
+                                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                        engineStatuses[engine] === 'live'
+                                            ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                                            : 'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {engine.replace(/_/g, ' ')} · {engineStatuses[engine] ?? 'simulated'}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                     {by_engine.length === 0 ? (
                         <p className="text-muted-foreground text-sm">No checks recorded yet. Run the library to populate per-engine visibility.</p>
@@ -358,6 +385,46 @@ export default function AiVisibility({
                                 <span>{trend[0].date}</span>
                                 <span>{trend[trend.length - 1].date}</span>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">Evidence — the answers behind the numbers</h3>
+                    {evidence.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">No checks recorded yet. Every check stores the answer it was measured from.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {evidence.map((check) => (
+                                <details key={check.id} className="border-border bg-card rounded-lg border px-4 py-2.5">
+                                    <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
+                                        <span className="font-medium">{check.prompt}</span>
+                                        <span className="text-muted-foreground text-xs capitalize">{check.engine.replace(/_/g, ' ')}</span>
+                                        <span
+                                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                                check.mentioned
+                                                    ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
+                                                    : 'bg-muted text-muted-foreground'
+                                            }`}
+                                        >
+                                            {check.mentioned
+                                                ? check.position !== null
+                                                    ? `Mentioned #${check.position}`
+                                                    : 'Mentioned'
+                                                : 'Not mentioned'}
+                                        </span>
+                                        {check.provider === 'fixture' && (
+                                            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                simulated
+                                            </span>
+                                        )}
+                                        <span className="text-muted-foreground ml-auto text-xs">{check.checked_at}</span>
+                                    </summary>
+                                    <p className="text-muted-foreground mt-2 text-sm whitespace-pre-wrap">
+                                        {check.answer_excerpt ?? 'No answer text stored for this check (recorded before evidence storage).'}
+                                    </p>
+                                </details>
+                            ))}
                         </div>
                     )}
                 </div>

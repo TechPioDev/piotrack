@@ -10,5 +10,9 @@ use App\Seo\AiVisibilityResult;
  */
 interface AiSearchProvider
 {
-    public function query(string $prompt, string $brand): AiVisibilityResult;
+    /**
+     * @param  list<string>  $competitors  Known competitor names, so analysis
+     *                                     can rank the brand among them.
+     */
+    public function query(string $prompt, string $brand, array $competitors = []): AiVisibilityResult;
 }

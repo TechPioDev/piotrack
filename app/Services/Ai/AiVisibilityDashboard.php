@@ -4,7 +4,9 @@ namespace App\Services\Ai;
 
 use App\Models\AiPrompt;
 use App\Models\AiVisibilityCheck;
+use App\Models\Competitor;
 use App\Seo\Contracts\AiSearchProvider;
+use App\Seo\SeoProviderManager;
 use App\Support\AuditLogger;
 use Illuminate\Support\Carbon;
 
@@ -39,6 +41,11 @@ class AiVisibilityDashboard
         $engines ??= self::ENGINES;
         $recorded = 0;
 
+        // Known competitor names sharpen position analysis (AIVM): the brand's
+        // rank is measured against entities we can actually detect.
+        $competitorNames = Competitor::query()->pluck('name')->filter()->values()->all();
+        $manager = app(SeoProviderManager::class);
+
         foreach (AiPrompt::where('is_active', true)->get() as $prompt) {
             foreach ($engines as $engine) {
                 $alreadyToday = AiVisibilityCheck::where('ai_prompt_id', $prompt->id)
@@ -50,12 +57,15 @@ class AiVisibilityDashboard
                     continue;
                 }
 
-                $result = $this->provider->query($prompt->text, $brand);
+                // Engine-specific driver: ChatGPT/Gemini go live with a key,
+                // the rest stay clearly simulated (AIVIS-002/003).
+                $result = $manager->aiFor($engine)->query($prompt->text, $brand, $competitorNames);
 
                 AiVisibilityCheck::create([
                     'ai_prompt_id' => $prompt->id,
                     'prompt' => $prompt->text,
                     'engine' => $engine,
+                    'provider' => $manager->aiProviderNameFor($engine),
                     'brand' => $brand,
                     'mentioned' => $result->mentioned,
                     // A top-three placement is treated as an active recommendation.
@@ -64,6 +74,7 @@ class AiVisibilityDashboard
                     'cited_sources' => $result->citedSources,
                     'competitors' => $result->competitors,
                     'share_of_answer' => $result->shareOfAnswer,
+                    'answer_excerpt' => $result->answerExcerpt !== '' ? $result->answerExcerpt : null,
                     'checked_at' => now(),
                 ]);
 
