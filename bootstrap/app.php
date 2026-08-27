@@ -49,7 +49,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // cross-origin capture endpoints protected by honeypot + throttling.
         // wc/* is the public chat-widget API: cross-origin + session-less, so CSRF
         // does not apply; it is protected by throttling, honeypot and origin checks.
-        $middleware->validateCsrfTokens(except: ['webhooks/*', 'f/*', 'e/*', 'b/*', 's/*', 'wc/*']);
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'f/*', 'e/*', 'b/*', 's/*', 'wc/*', 't/*']);
+
+        // The visitor-pixel cookie is written by plain JS on public pages, so
+        // it must stay out of cookie encryption to be readable server-side.
+        $middleware->encryptCookies(except: ['_pt_vid']);
 
         $middleware->web(append: [
             SetCurrentOrganization::class,

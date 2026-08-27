@@ -7,6 +7,7 @@ use App\Http\Controllers\Sales\EnablementController;
 use App\Http\Controllers\Sales\IntentController;
 use App\Http\Controllers\Sales\SalesDashboardController;
 use App\Http\Controllers\Sales\ScoringController;
+use App\Http\Controllers\Sales\VisitorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +28,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
             Route::delete('scoring/{rule}', [ScoringController::class, 'destroy'])->name('scoring.destroy');
             Route::post('scoring/recompute', [ScoringController::class, 'recompute'])->name('scoring.recompute');
         });
+
+        // Visitor Intelligence (VINT).
+        Route::get('visitors', [VisitorController::class, 'index'])->middleware('can:sales.view')->name('visitors.index');
 
         // Buyer intent.
         Route::get('intent', [IntentController::class, 'index'])->middleware('can:sales.view')->name('intent.index');

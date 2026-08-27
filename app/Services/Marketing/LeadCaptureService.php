@@ -7,6 +7,7 @@ use App\Models\Form;
 use App\Models\FormSubmission;
 use App\Models\MarketingList;
 use App\Notifications\LeadCapturedNotification;
+use App\Services\Sales\VisitorTracker;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use App\Support\NotificationDispatcher;
@@ -34,7 +35,7 @@ class LeadCaptureService
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function capture(Form $form, array $payload, ?string $ip = null, ?string $userAgent = null): Contact
+    public function capture(Form $form, array $payload, ?string $ip = null, ?string $userAgent = null, ?string $visitorKey = null): Contact
     {
         $email = isset($payload['email']) ? Str::lower(trim((string) $payload['email'])) : null;
 
@@ -85,6 +86,12 @@ class LeadCaptureService
         }
 
         $this->trigger->fire('form_submission', $contact, ['form_id' => $form->id]);
+
+        // VINT: the pixel cookie rode the same-domain submit, so the browsing
+        // trail that led here now belongs to a named contact.
+        if ($visitorKey !== null) {
+            app(VisitorTracker::class)->linkContact($visitorKey, $contact);
+        }
 
         return $contact;
     }

@@ -41,5 +41,10 @@
         @yield('content')
         <p class="muted">Powered by Piotrack</p>
     </div>
+    @php($trackingKey = app(\App\Support\CurrentOrganization::class)->get()?->tracking_key)
+    @if ($trackingKey !== null)
+        {{-- Visitor Intelligence pixel (VINT): first-party, same-origin here. --}}
+        <script src="{{ route('public.track.script', $trackingKey) }}" defer></script>
+    @endif
 </body>
 </html>

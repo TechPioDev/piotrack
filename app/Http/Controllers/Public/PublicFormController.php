@@ -41,7 +41,7 @@ class PublicFormController extends Controller
 
         $data = $request->validate($this->rulesFor($form));
 
-        $this->capture->capture($form, $data, $request->ip(), $request->userAgent());
+        $this->capture->capture($form, $data, $request->ip(), $request->userAgent(), $request->cookie('_pt_vid'));
 
         $settings = $form->settings ?? [];
         if (! empty($settings['redirect_url'])) {

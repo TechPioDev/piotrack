@@ -121,6 +121,7 @@ export function AppSidebar() {
     const salesNavItems: NavItem[] = [
         can('sales.view') && { title: 'Dashboard', url: '/sales', icon: Gauge },
         can('sales.view') && { title: 'Scoring', url: '/sales/scoring', icon: Flame },
+        can('sales.view') && { title: 'Visitors', url: '/sales/visitors', icon: Eye },
         can('sales.view') && { title: 'Intent', url: '/sales/intent', icon: Radar },
         can('sales.view') && { title: 'Alerts', url: '/sales/alerts', icon: Bell },
         can('sales.view') && { title: 'Booking', url: '/sales/booking', icon: CalendarClock },

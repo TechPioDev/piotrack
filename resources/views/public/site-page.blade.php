@@ -553,5 +553,9 @@
         <div>&copy; {{ date('Y') }} {{ $organization->name }}</div>
     </div>
 </footer>
+@if ($organization->tracking_key !== null)
+    {{-- Visitor Intelligence pixel (VINT): first-party, same-origin here. --}}
+    <script src="{{ route('public.track.script', $organization->tracking_key) }}" defer></script>
+@endif
 </body>
 </html>
