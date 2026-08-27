@@ -31,6 +31,15 @@ abstract class PlatformNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * Stable identity for repeat-prone alerts (ALRT): the sweep skips sending
+     * when a notification with the same key was already created today.
+     */
+    public function dedupeKey(): ?string
+    {
+        return null;
+    }
+
+    /**
      * @return list<string>
      */
     public function via(object $notifiable): array
@@ -58,6 +67,7 @@ abstract class PlatformNotification extends Notification implements ShouldQueue
             'title' => $this->title(),
             'body' => $this->body(),
             'url' => $this->url(),
+            'key' => $this->dedupeKey(),
         ];
     }
 

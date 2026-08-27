@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NotificationPreference extends Model
 {
     /** Notification categories. */
-    public const CATEGORIES = ['billing', 'members', 'operations', 'security'];
+    public const CATEGORIES = ['billing', 'members', 'operations', 'security', 'sales', 'marketing'];
 
     /** Channels a user can toggle. Security notices ignore opt-out. */
     public const CHANNELS = ['in_app', 'email'];

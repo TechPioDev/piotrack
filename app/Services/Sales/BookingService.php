@@ -6,9 +6,12 @@ use App\Models\Activity;
 use App\Models\Booking;
 use App\Models\BookingPage;
 use App\Models\Contact;
+use App\Models\User;
+use App\Notifications\BookingCreatedNotification;
 use App\Services\Marketing\MessageDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -24,6 +27,7 @@ class BookingService
         private CurrentOrganization $currentOrganization,
         private AuditLogger $audit,
         private MessageDispatcher $messages,
+        private NotificationDispatcher $notifier,
     ) {}
 
     /**
@@ -89,6 +93,16 @@ class BookingService
         ]);
 
         $this->confirm($booking, $page, $contact);
+
+        // ALRT / NOTIF-006: tell the seller too, not only the prospect. Covers
+        // public booking pages and in-chat booking, which share this service.
+        $notification = new BookingCreatedNotification($booking->name, $booking->scheduled_at, (string) $booking->source);
+        $owner = $ownerId !== null ? User::find($ownerId) : null;
+        if ($owner !== null) {
+            $this->notifier->toUser($owner, $notification);
+        } else {
+            $this->notifier->toOrganizationOwners($this->currentOrganization->get(), $notification);
+        }
 
         $this->audit->log('sales.booking.created', context: ['page' => $page->name], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 

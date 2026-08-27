@@ -3,8 +3,12 @@
 namespace App\Services\Sales;
 
 use App\Models\Contact;
+use App\Models\Organization;
 use App\Models\ScoringRule;
+use App\Models\User;
+use App\Notifications\SqlPromotedNotification;
 use App\Support\AuditLogger;
+use App\Support\NotificationDispatcher;
 
 /**
  * Rules-based lead scoring (LSCR). Sums the points of every matched active rule
@@ -23,6 +27,7 @@ class LeadScoringService
     public function __construct(
         private IntentService $intent,
         private AuditLogger $audit,
+        private NotificationDispatcher $notifier,
     ) {}
 
     public function scoreContact(Contact $contact): int
@@ -43,11 +48,30 @@ class LeadScoringService
         $score = $this->scoreContact($contact);
         $updates = ['lead_score' => $score];
 
+        $promoted = false;
         if ($score >= self::SQL_THRESHOLD && ! in_array($contact->lifecycle_stage, ['sql', 'opportunity', 'customer'], true)) {
             $updates['lifecycle_stage'] = 'sql';
+            $promoted = true;
         }
 
         $contact->update($updates);
+
+        // ALRT / NOTIF-006: the promotion guard above fires at most once per
+        // contact, so this cannot repeat. Owner first; owners of the org when
+        // nobody owns the contact yet.
+        if ($promoted) {
+            $notification = new SqlPromotedNotification($contact->id, $contact->fullName(), $score);
+            $owner = $contact->owner_id !== null ? User::find($contact->owner_id) : null;
+
+            if ($owner !== null) {
+                $this->notifier->toUser($owner, $notification);
+            } else {
+                $organization = Organization::find($contact->organization_id);
+                if ($organization !== null) {
+                    $this->notifier->toOrganizationOwners($organization, $notification);
+                }
+            }
+        }
 
         return $contact;
     }
