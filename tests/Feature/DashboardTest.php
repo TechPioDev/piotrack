@@ -32,9 +32,12 @@ class DashboardTest extends TestCase
             ->get('/dashboard')
             ->assertInertia(fn ($page) => $page
                 ->component('dashboard')
-                ->has('metrics.leads')
-                ->has('metrics.mrr')
-                ->has('metrics.arr')
+                ->has('kpis.new_leads.value')
+                ->has('kpis.new_mrr.delta_pct')
+                ->has('kpis.arr')
+                ->has('leadTrend')
+                ->has('growthScore.overall')
+                ->has('attention.alerts')
                 ->has('sources'));
     }
 

@@ -343,7 +343,12 @@
       "Bash(curl -fs -o /dev/null -w \"old: %{http_code} %{size_download}\\\\n\" http://192.168.1.183:8000/chat-p1.tar.gz)",
       "PowerShell(\\(Get-CimInstance Win32_Process -Filter \"ProcessId=14724\"\\).CommandLine)",
       "PowerShell(\\(Get-Process -Id 14724\\).Path; try { $cwd = \\(Get-CimInstance Win32_Process -Filter \"ProcessId=14724\"\\).ExecutablePath } catch {}; Get-ChildItem -Path E:\\\\autotask -Filter chat-p1.tar.gz -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)",
-      "Bash(xargs grep -ln \"invitations.accept\\\\|function accept\")"
+      "Bash(xargs grep -ln \"invitations.accept\\\\|function accept\")",
+      "Bash(curl -s -o /dev/null -w \"app root: %{http_code}\\\\n\" http://192.168.1.230:8080/)",
+      "Bash(curl -s http://192.168.1.230:8080/login)",
+      "Bash(curl -s -o /dev/null -w \"served asset: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.230:8080/build/assets/app-BWGrtd3P.js)",
+      "Bash(awk '{print \"local size:  \" $5}')",
+      "Bash(curl -s -X POST http://192.168.1.230:8080/wc/wc_5lpqlgzuanilkcbadwiib5qw/conversations -H \"Content-Type: application/json\" -d '{\"visitor\":\"verify-m01\"}')"
     ]
   }
 }
