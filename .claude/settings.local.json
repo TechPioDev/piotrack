@@ -348,7 +348,8 @@
       "Bash(curl -s http://192.168.1.230:8080/login)",
       "Bash(curl -s -o /dev/null -w \"served asset: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.230:8080/build/assets/app-BWGrtd3P.js)",
       "Bash(awk '{print \"local size:  \" $5}')",
-      "Bash(curl -s -X POST http://192.168.1.230:8080/wc/wc_5lpqlgzuanilkcbadwiib5qw/conversations -H \"Content-Type: application/json\" -d '{\"visitor\":\"verify-m01\"}')"
+      "Bash(curl -s -X POST http://192.168.1.230:8080/wc/wc_5lpqlgzuanilkcbadwiib5qw/conversations -H \"Content-Type: application/json\" -d '{\"visitor\":\"verify-m01\"}')",
+      "Bash(curl -fs -o /dev/null -w \"reachable: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.183:8000/module02.tar.gz)"
     ]
   }
 }

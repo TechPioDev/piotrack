@@ -23,17 +23,24 @@ class LeadController extends Controller
 
     public function index(Request $request): Response
     {
+        // Sortable columns (CRMT): allow-listed, never raw input into orderBy.
+        $sorts = ['name' => 'first_name', 'company_name' => 'company_name', 'created_at' => 'created_at'];
+
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(Lead::STATUSES)],
+            'sort' => ['nullable', Rule::in(array_keys($sorts))],
+            'dir' => ['nullable', Rule::in(['asc', 'desc'])],
         ]);
+
+        $sort = $sorts[$filters['sort'] ?? ''] ?? null;
 
         $leads = Lead::with('owner:id,name')
             ->when($filters['search'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
                 ->whereLike('first_name', "%{$s}%")->orWhereLike('last_name', "%{$s}%")
                 ->orWhereLike('email', "%{$s}%")->orWhereLike('company_name', "%{$s}%")))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->latest('id')
+            ->when($sort !== null, fn ($q) => $q->orderBy($sort, $filters['dir'] ?? 'asc'), fn ($q) => $q->latest('id'))
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Lead $l) => [

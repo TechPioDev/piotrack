@@ -1,3 +1,4 @@
+import { SortHeader } from '@/components/crm/sort-header';
 import { EmptyState } from '@/components/empty-state';
 import { InitialAvatar } from '@/components/initial-avatar';
 import InputError from '@/components/input-error';
@@ -36,7 +37,21 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
     converted: 'outline',
 };
 
-export default function Leads({ leads, filters, statuses }: { leads: Paginated; filters: { search?: string; status?: string }; statuses: string[] }) {
+export default function Leads({
+    leads,
+    filters,
+    statuses,
+}: {
+    leads: Paginated;
+    filters: { search?: string; status?: string; sort?: string; dir?: string };
+    statuses: string[];
+}) {
+    const sortBy = (column: string, dir: 'asc' | 'desc') =>
+        router.get(
+            route('crm.leads.index'),
+            { ...(filters.status ? { status: filters.status } : {}), sort: column, dir },
+            { preserveState: true, replace: true },
+        );
     const { can } = usePermissions();
     const [open, setOpen] = useState(false);
     const create = useForm({ first_name: '', last_name: '', email: '', company_name: '', source: '' });
@@ -158,8 +173,8 @@ export default function Leads({ leads, filters, statuses }: { leads: Paginated; 
                     <Table>
                         <TableHeader>
                             <tr>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Company</TableHead>
+                                <SortHeader label="Name" column="name" sort={filters.sort} dir={filters.dir} onSort={sortBy} />
+                                <SortHeader label="Company" column="company_name" sort={filters.sort} dir={filters.dir} onSort={sortBy} />
                                 <TableHead>Source</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>

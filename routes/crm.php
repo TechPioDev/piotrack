@@ -25,6 +25,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         Route::post('contacts/import/preview', [ContactImportController::class, 'preview'])->middleware('can:crm.import')->name('contacts.import.preview');
         Route::post('contacts/import', [ContactImportController::class, 'store'])->middleware('can:crm.import')->name('contacts.import.store');
         Route::post('contacts', [ContactController::class, 'store'])->middleware('can:crm.contact.create')->name('contacts.store');
+        // Bulk actions (CRMT): delete inside additionally re-checks crm.contact.delete.
+        Route::post('contacts/bulk', [ContactController::class, 'bulk'])->middleware('can:crm.contact.update')->name('contacts.bulk');
+        // Saved views are personal; reading rights are enough to manage your own.
+        Route::post('contacts/views', [ContactController::class, 'storeView'])->middleware('can:crm.contact.read')->name('contacts.views.store');
+        Route::delete('contacts/views/{view}', [ContactController::class, 'destroyView'])->middleware('can:crm.contact.read')->name('contacts.views.destroy');
         Route::get('contacts/{contact}', [ContactController::class, 'show'])->middleware('can:crm.contact.read')->name('contacts.show');
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:crm.contact.update')->name('contacts.update');
         Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:crm.contact.delete')->name('contacts.destroy');

@@ -21,11 +21,20 @@ class CompanyController extends Controller
 
     public function index(Request $request): Response
     {
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        // Sortable columns (CRMT): allow-listed, never raw input into orderBy.
+        $sorts = ['name' => 'name', 'contacts_count' => 'contacts_count', 'deals_count' => 'deals_count', 'created_at' => 'created_at'];
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'sort' => ['nullable', Rule::in(array_keys($sorts))],
+            'dir' => ['nullable', Rule::in(['asc', 'desc'])],
+        ]);
+
+        $sort = $sorts[$filters['sort'] ?? ''] ?? null;
 
         $companies = Company::withCount('contacts', 'deals')
             ->when($filters['search'] ?? null, fn ($q, $s) => $q->whereLike('name', "%{$s}%")->orWhereLike('domain', "%{$s}%"))
-            ->latest('id')
+            ->when($sort !== null, fn ($q) => $q->orderBy($sort, $filters['dir'] ?? 'asc'), fn ($q) => $q->latest('id'))
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Company $c) => [

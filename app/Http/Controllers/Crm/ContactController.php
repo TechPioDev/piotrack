@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\SavedView;
+use App\Services\Sales\LeadScoringService;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,17 +23,36 @@ class ContactController extends Controller
         private AuditLogger $audit,
     ) {}
 
-    public function index(Request $request): Response
+    /** Sortable columns (CRMT): request input maps here, never into orderBy raw. */
+    private const SORTS = [
+        'name' => 'first_name',
+        'email' => 'email',
+        'lead_score' => 'lead_score',
+        'created_at' => 'created_at',
+    ];
+
+    public function index(Request $request, LeadScoringService $scoring): Response
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'owner' => ['nullable', 'integer'],
+            'lifecycle' => ['nullable', Rule::in(Contact::LIFECYCLE_STAGES)],
+            'source' => ['nullable', 'string', 'max:120'],
+            'company' => ['nullable', TenantExists::in('companies')],
+            'sort' => ['nullable', Rule::in(array_keys(self::SORTS))],
+            'dir' => ['nullable', Rule::in(['asc', 'desc'])],
         ]);
+
+        $sort = self::SORTS[$filters['sort'] ?? ''] ?? null;
+        $dir = $filters['dir'] ?? 'asc';
 
         $contacts = Contact::with('company:id,name', 'owner:id,name')
             ->search($filters['search'] ?? null)
             ->when($filters['owner'] ?? null, fn ($q, $owner) => $q->where('owner_id', $owner))
-            ->latest('id')
+            ->when($filters['lifecycle'] ?? null, fn ($q, $stage) => $q->where('lifecycle_stage', $stage))
+            ->when($filters['source'] ?? null, fn ($q, $source) => $q->where('lead_source', $source))
+            ->when($filters['company'] ?? null, fn ($q, $company) => $q->where('company_id', $company))
+            ->when($sort !== null, fn ($q) => $q->orderBy($sort, $dir), fn ($q) => $q->latest('id'))
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Contact $c) => [
@@ -40,6 +62,9 @@ class ContactController extends Controller
                 'title' => $c->title,
                 'company' => $c->company?->name,
                 'owner' => $c->owner?->name,
+                'lifecycle_stage' => $c->lifecycle_stage,
+                'lead_score' => (int) $c->lead_score,
+                'temperature' => $scoring->temperature((int) $c->lead_score),
             ]);
 
         return Inertia::render('crm/contacts/index', [
@@ -47,7 +72,91 @@ class ContactController extends Controller
             'filters' => $filters,
             'owners' => $this->memberOptions(),
             'companies' => $this->companyOptions(),
+            'lifecycleStages' => Contact::LIFECYCLE_STAGES,
+            // Distinct sources actually present, so the filter never offers a dead option.
+            'sources' => Contact::query()->whereNotNull('lead_source')->where('lead_source', '!=', '')
+                ->distinct()->orderBy('lead_source')->pluck('lead_source')->all(),
+            'views' => SavedView::where('resource', 'contacts')->where('user_id', $request->user()->id)
+                ->orderBy('name')->get(['id', 'name', 'filters'])
+                ->map(fn (SavedView $v) => ['id' => $v->id, 'name' => $v->name, 'filters' => $v->filters])
+                ->all(),
         ]);
+    }
+
+    /**
+     * One action applied to many contacts (CRMT). The route requires
+     * crm.contact.update; destructive bulk delete re-checks its own permission.
+     */
+    public function bulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['assign', 'stage', 'delete'])],
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['integer', TenantExists::in('contacts')],
+            'owner_id' => ['required_if:action,assign', 'nullable', Rule::exists('organization_user', 'user_id')->where('organization_id', $this->currentOrganization->id())],
+            'lifecycle_stage' => ['required_if:action,stage', 'nullable', Rule::in(Contact::LIFECYCLE_STAGES)],
+        ]);
+
+        $action = (string) $data['action'];
+
+        if ($action === 'delete') {
+            abort_unless($request->user()->can('crm.contact.delete'), 403);
+        }
+
+        $contacts = Contact::whereIn('id', $data['ids'])->get();
+
+        foreach ($contacts as $contact) {
+            if ($action === 'assign') {
+                $contact->update(['owner_id' => $data['owner_id']]);
+            } elseif ($action === 'stage') {
+                $contact->update(['lifecycle_stage' => $data['lifecycle_stage']]);
+            } else {
+                $contact->delete();
+            }
+        }
+
+        $this->audit->log('crm.contact.bulk_'.$action, context: ['count' => $contacts->count()], resourceType: 'contact');
+
+        $status = match ($action) {
+            'assign' => __(':n contacts reassigned.', ['n' => $contacts->count()]),
+            'stage' => __(':n contacts moved to :stage.', ['n' => $contacts->count(), 'stage' => $data['lifecycle_stage']]),
+            default => __(':n contacts deleted.', ['n' => $contacts->count()]),
+        };
+
+        return back()->with('status', $status);
+    }
+
+    /** Save the current filter set as a personal view (CRM-030). */
+    public function storeView(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+            'filters' => ['required', 'array'],
+            'filters.search' => ['nullable', 'string', 'max:100'],
+            'filters.owner' => ['nullable', 'integer'],
+            'filters.lifecycle' => ['nullable', Rule::in(Contact::LIFECYCLE_STAGES)],
+            'filters.source' => ['nullable', 'string', 'max:120'],
+            'filters.sort' => ['nullable', Rule::in(array_keys(self::SORTS))],
+            'filters.dir' => ['nullable', Rule::in(['asc', 'desc'])],
+        ]);
+
+        SavedView::create([
+            'user_id' => $request->user()->id,
+            'resource' => 'contacts',
+            'name' => $data['name'],
+            'filters' => array_filter($data['filters'], fn ($v) => $v !== null && $v !== ''),
+        ]);
+
+        return back()->with('status', __('View saved.'));
+    }
+
+    public function destroyView(Request $request, SavedView $view): RedirectResponse
+    {
+        // Views are personal: another member's view is not yours to delete.
+        abort_unless((int) $view->user_id === (int) $request->user()->id, 403);
+        $view->delete();
+
+        return back()->with('status', __('View removed.'));
     }
 
     public function show(Contact $contact): Response

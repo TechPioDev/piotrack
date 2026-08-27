@@ -1,3 +1,4 @@
+import { SortHeader } from '@/components/crm/sort-header';
 import { EmptyState } from '@/components/empty-state';
 import { InitialAvatar } from '@/components/initial-avatar';
 import InputError from '@/components/input-error';
@@ -19,8 +20,14 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Companies', href: '/crm/compani
 type Company = { id: number; name: string; domain: string | null; industry: string | null; contacts_count: number; deals_count: number };
 type Paginated = { data: Company[]; links: { url: string | null; label: string; active: boolean }[]; total: number };
 
-export default function Companies({ companies, filters }: { companies: Paginated; filters: { search?: string } }) {
+export default function Companies({ companies, filters }: { companies: Paginated; filters: { search?: string; sort?: string; dir?: string } }) {
     const { can } = usePermissions();
+    const sortBy = (column: string, dir: 'asc' | 'desc') =>
+        router.get(
+            route('crm.companies.index'),
+            { ...(filters.search ? { search: filters.search } : {}), sort: column, dir },
+            { preserveState: true, replace: true },
+        );
     const [search, setSearch] = useState(filters.search ?? '');
     const [open, setOpen] = useState(false);
     const form = useForm({ name: '', domain: '', industry: '', website: '' });
@@ -111,10 +118,24 @@ export default function Companies({ companies, filters }: { companies: Paginated
                     <Table>
                         <TableHeader>
                             <tr>
-                                <TableHead>Name</TableHead>
+                                <SortHeader label="Name" column="name" sort={filters.sort} dir={filters.dir} onSort={sortBy} />
                                 <TableHead>Industry</TableHead>
-                                <TableHead className="text-center">Contacts</TableHead>
-                                <TableHead className="text-center">Deals</TableHead>
+                                <SortHeader
+                                    label="Contacts"
+                                    column="contacts_count"
+                                    sort={filters.sort}
+                                    dir={filters.dir}
+                                    onSort={sortBy}
+                                    className="text-center"
+                                />
+                                <SortHeader
+                                    label="Deals"
+                                    column="deals_count"
+                                    sort={filters.sort}
+                                    dir={filters.dir}
+                                    onSort={sortBy}
+                                    className="text-center"
+                                />
                             </tr>
                         </TableHeader>
                         <TableBody>

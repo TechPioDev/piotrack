@@ -25,6 +25,9 @@ class Contact extends Model implements HasActivities
     /** @use HasFactory<ContactFactory> */
     use BelongsToTenant, HasFactory, SoftDeletes;
 
+    /** Funnel order. The single source for validation and stage pickers (CRMT). */
+    public const LIFECYCLE_STAGES = ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'];
+
     protected $fillable = [
         'organization_id', 'company_id', 'first_name', 'last_name', 'email', 'phone',
         'title', 'lead_source', 'campaign', 'owner_id',
