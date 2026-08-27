@@ -24,6 +24,9 @@ class CompetitorController extends Controller
                 'is_tracked' => $c->is_tracked,
             ]),
             'share_of_voice' => $competitive->shareOfVoice(),
+            // CINT-001/011: keyword head-to-head and AI recommendation share.
+            'headToHead' => $competitive->keywordHeadToHead(),
+            'aiShare' => $competitive->aiRecommendationShare(),
         ]);
     }
 

@@ -39,3 +39,6 @@ Schedule::command('alerts:sweep')->dailyAt('07:00')->withoutOverlapping();
 
 // AI-visibility monitoring (Stage 12) — run each tenant's prompt library daily.
 Schedule::command('ai:run-visibility-checks')->dailyAt('03:00')->withoutOverlapping();
+
+// CINT-001: our and tracked competitors' keyword positions, daily.
+Schedule::command('seo:track-rankings')->dailyAt('04:00')->withoutOverlapping();

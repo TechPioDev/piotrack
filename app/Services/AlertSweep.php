@@ -7,6 +7,7 @@ use App\Models\Keyword;
 use App\Models\Organization;
 use App\Models\User;
 use App\Notifications\AiVisibilityChangeNotification;
+use App\Notifications\CompetitorOutrankNotification;
 use App\Notifications\PlatformNotification;
 use App\Notifications\RankingDropNotification;
 use App\Notifications\UsageLimitApproachingNotification;
@@ -42,7 +43,38 @@ class AlertSweep
             'usage' => $this->checkUsage($organization),
             'rankings' => $this->checkRankingDrops($organization),
             'ai_visibility' => $this->checkAiVisibility($organization),
+            'competitors' => $this->checkCompetitorOutranks($organization),
         ];
+    }
+
+    /**
+     * A tracked competitor's latest recorded position beats ours on a tracked
+     * keyword (CINT-013). Deduped per keyword+competitor per day.
+     */
+    private function checkCompetitorOutranks(Organization $organization): int
+    {
+        $sent = 0;
+
+        Keyword::where('is_tracked', true)->whereNotNull('current_position')->each(function (Keyword $keyword) use ($organization, &$sent) {
+            $latestPerCompetitor = $keyword->rankings()
+                ->where('is_competitor', true)->whereNotNull('competitor_domain')
+                ->orderByDesc('checked_at')->get(['competitor_domain', 'position'])
+                ->unique('competitor_domain');
+
+            foreach ($latestPerCompetitor as $ranking) {
+                if ($ranking->position !== null && (int) $ranking->position < (int) $keyword->current_position) {
+                    $sent += $this->notifyOwners($organization, new CompetitorOutrankNotification(
+                        $keyword->id,
+                        $keyword->phrase,
+                        (string) $ranking->competitor_domain,
+                        (int) $ranking->position,
+                        (int) $keyword->current_position,
+                    ));
+                }
+            }
+        });
+
+        return $sent;
     }
 
     private function checkUsage(Organization $organization): int

@@ -2,6 +2,8 @@
 
 namespace App\Services\Analytics;
 
+use App\Models\AiVisibilityCheck;
+use App\Models\Competitor;
 use App\Models\Keyword;
 use App\Models\KeywordRanking;
 
@@ -77,6 +79,80 @@ class CompetitiveService
             'our_visibility' => $ours,
             'our_share' => $share($ours),
             'competitors' => $competitorRows,
+        ];
+    }
+
+    /**
+     * Keyword head-to-head (CINT-001): our current position vs each tracked
+     * competitor's latest recorded position, per tracked keyword. A null means
+     * "no recorded position" — never invented.
+     *
+     * @return list<array{keyword: string, our_position: int|null, competitors: array<string, int|null>, leading: bool|null}>
+     */
+    public function keywordHeadToHead(): array
+    {
+        $domains = Competitor::where('is_tracked', true)->whereNotNull('domain')->pluck('domain')->all();
+
+        return Keyword::where('is_tracked', true)->orderBy('phrase')->get()
+            ->map(function (Keyword $keyword) use ($domains) {
+                $theirs = [];
+                foreach ($domains as $domain) {
+                    $latest = KeywordRanking::where('keyword_id', $keyword->id)
+                        ->where('is_competitor', true)->where('competitor_domain', $domain)
+                        ->orderByDesc('checked_at')->value('position');
+                    $theirs[$domain] = $latest !== null ? (int) $latest : null;
+                }
+
+                $our = $keyword->current_position !== null ? (int) $keyword->current_position : null;
+                $best = collect($theirs)->filter()->min();
+
+                return [
+                    'keyword' => $keyword->phrase,
+                    'our_position' => $our,
+                    'competitors' => $theirs,
+                    // Leading = we rank and nobody recorded ranks better; null when unmeasurable.
+                    'leading' => $our === null ? null : ($best === null ? true : $our <= $best),
+                ];
+            })->values()->all();
+    }
+
+    /**
+     * Share of AI recommendations (CINT-011), from recorded checks: of every
+     * check where we or a known competitor appeared in the answer, the share
+     * where WE were the active recommendation.
+     *
+     * @return array{checks: int, contested: int, our_recommendations: int, share: float, competitor_appearances: array<string, int>}
+     */
+    public function aiRecommendationShare(): array
+    {
+        $checks = AiVisibilityCheck::query()->get(['mentioned', 'recommended', 'competitors']);
+
+        $contested = 0;
+        $ourRecommendations = 0;
+        $appearances = [];
+
+        foreach ($checks as $check) {
+            $competitors = is_array($check->competitors) ? $check->competitors : [];
+            foreach ($competitors as $name) {
+                $appearances[(string) $name] = ($appearances[(string) $name] ?? 0) + 1;
+            }
+
+            if ($check->mentioned || $competitors !== []) {
+                $contested++;
+                if ($check->recommended) {
+                    $ourRecommendations++;
+                }
+            }
+        }
+
+        arsort($appearances);
+
+        return [
+            'checks' => $checks->count(),
+            'contested' => $contested,
+            'our_recommendations' => $ourRecommendations,
+            'share' => $contested > 0 ? round($ourRecommendations / $contested * 100, 1) : 0.0,
+            'competitor_appearances' => $appearances,
         ];
     }
 }

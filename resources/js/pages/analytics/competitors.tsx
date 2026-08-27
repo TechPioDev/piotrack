@@ -171,7 +171,32 @@ function EditCompetitorDialog({ competitor }: { competitor: Competitor }) {
     );
 }
 
-export default function Competitors({ competitors, share_of_voice }: { competitors: Competitor[]; share_of_voice: ShareOfVoice }) {
+type HeadToHeadRow = {
+    keyword: string;
+    our_position: number | null;
+    competitors: Record<string, number | null>;
+    leading: boolean | null;
+};
+type AiShare = {
+    checks: number;
+    contested: number;
+    our_recommendations: number;
+    share: number;
+    competitor_appearances: Record<string, number>;
+};
+
+export default function Competitors({
+    competitors,
+    share_of_voice,
+    headToHead,
+    aiShare,
+}: {
+    competitors: Competitor[];
+    share_of_voice: ShareOfVoice;
+    headToHead: HeadToHeadRow[];
+    aiShare: AiShare;
+}) {
+    const competitorDomains = headToHead.length > 0 ? Object.keys(headToHead[0].competitors) : [];
     const { can } = usePermissions();
     const canManage = can('analytics.competitors.manage');
 
@@ -227,6 +252,98 @@ export default function Competitors({ competitors, share_of_voice }: { competito
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">Keyword head-to-head</h3>
+                    {headToHead.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            Track keywords (and map them to pages) to see your position against every tracked competitor, checked daily.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                    <tr>
+                                        <th className="p-3 font-medium">Keyword</th>
+                                        <th className="p-3 text-center font-medium">You</th>
+                                        {competitorDomains.map((domain) => (
+                                            <th key={domain} className="p-3 text-center font-medium">
+                                                {domain}
+                                            </th>
+                                        ))}
+                                        <th className="p-3 text-center font-medium">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {headToHead.map((row) => (
+                                        <tr key={row.keyword} className="hover:bg-muted/40">
+                                            <td className="p-3 font-medium">{row.keyword}</td>
+                                            <td className="p-3 text-center font-semibold tabular-nums">
+                                                {row.our_position !== null ? `#${row.our_position}` : '—'}
+                                            </td>
+                                            {competitorDomains.map((domain) => (
+                                                <td key={domain} className="text-muted-foreground p-3 text-center tabular-nums">
+                                                    {row.competitors[domain] !== null ? `#${row.competitors[domain]}` : '—'}
+                                                </td>
+                                            ))}
+                                            <td className="p-3 text-center">
+                                                {row.leading === null ? (
+                                                    <span className="text-muted-foreground text-xs">unmeasured</span>
+                                                ) : row.leading ? (
+                                                    <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                                        Leading
+                                                    </span>
+                                                ) : (
+                                                    <span className="rounded-full bg-red-500/12 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                                                        Behind
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">Share of AI recommendations</h3>
+                    {aiShare.contested === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No contested AI answers recorded yet — run visibility checks to measure who AI engines recommend.
+                        </p>
+                    ) : (
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <Card>
+                                <CardContent className="p-4">
+                                    <p className="text-muted-foreground text-sm">You are the recommendation</p>
+                                    <p className="text-2xl font-semibold tabular-nums">{aiShare.share}%</p>
+                                    <p className="text-muted-foreground text-xs">
+                                        of {aiShare.contested} contested answers ({aiShare.checks} checks)
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card className="sm:col-span-2">
+                                <CardContent className="p-4">
+                                    <p className="text-muted-foreground mb-2 text-sm">Competitor appearances in AI answers</p>
+                                    {Object.keys(aiShare.competitor_appearances).length === 0 ? (
+                                        <p className="text-muted-foreground text-sm">No competitors detected in recorded answers.</p>
+                                    ) : (
+                                        <ul className="space-y-1 text-sm">
+                                            {Object.entries(aiShare.competitor_appearances).map(([name, count]) => (
+                                                <li key={name} className="flex items-center justify-between">
+                                                    <span>{name}</span>
+                                                    <span className="text-muted-foreground tabular-nums">{count}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </CardContent>
+                            </Card>
                         </div>
                     )}
                 </div>

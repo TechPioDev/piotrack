@@ -21,7 +21,7 @@ class RunAlertSweep extends Command
 
     public function handle(AlertSweep $sweep, CurrentOrganization $current): int
     {
-        $totals = ['usage' => 0, 'rankings' => 0, 'ai_visibility' => 0];
+        $totals = ['usage' => 0, 'rankings' => 0, 'ai_visibility' => 0, 'competitors' => 0];
 
         Organization::query()->each(function (Organization $organization) use ($sweep, $current, &$totals) {
             $current->set($organization);
@@ -33,10 +33,11 @@ class RunAlertSweep extends Command
         $current->forget();
 
         $this->components->info(sprintf(
-            'Alerts sent - usage: %d, ranking drops: %d, AI visibility: %d.',
+            'Alerts sent - usage: %d, ranking drops: %d, AI visibility: %d, competitor outranks: %d.',
             $totals['usage'],
             $totals['rankings'],
             $totals['ai_visibility'],
+            $totals['competitors'],
         ));
 
         return self::SUCCESS;
