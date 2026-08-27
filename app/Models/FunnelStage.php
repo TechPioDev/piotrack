@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $position
@@ -25,5 +26,13 @@ class FunnelStage extends Model
     public function funnel(): BelongsTo
     {
         return $this->belongsTo(Funnel::class);
+    }
+
+    /**
+     * @return HasMany<FunnelAsset, $this>
+     */
+    public function assets(): HasMany
+    {
+        return $this->hasMany(FunnelAsset::class);
     }
 }

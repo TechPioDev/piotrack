@@ -56,6 +56,10 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:marketing'])
         Route::get('funnels', [FunnelController::class, 'index'])->middleware('can:marketing.funnels.view')->name('funnels.index');
         Route::post('funnels', [FunnelController::class, 'store'])->middleware('can:marketing.campaigns.manage')->name('funnels.store');
         Route::delete('funnels/{funnel}', [FunnelController::class, 'destroy'])->middleware('can:marketing.campaigns.manage')->name('funnels.destroy');
+        // Funnel Builder (FUNL): the funnel as an executable, measured map.
+        Route::get('funnels/{funnel}', [FunnelController::class, 'show'])->middleware('can:marketing.funnels.view')->name('funnels.show');
+        Route::post('funnels/{funnel}/stages/{stage}/assets', [FunnelController::class, 'attachAsset'])->middleware('can:marketing.campaigns.manage')->name('funnels.assets.attach');
+        Route::delete('funnels/{funnel}/stages/{stage}/assets/{asset}', [FunnelController::class, 'detachAsset'])->middleware('can:marketing.campaigns.manage')->name('funnels.assets.detach');
 
         // Automation / workflows (also gated by the `automation` feature).
         Route::middleware('entitlement:automation')->group(function () {

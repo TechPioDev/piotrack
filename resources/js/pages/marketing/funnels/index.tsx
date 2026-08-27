@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Funnels', href: '/marketing/funnels' }];
@@ -79,6 +79,28 @@ export default function Funnels({ funnels }: { funnels: Funnel[] }) {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogTitle>New funnel</DialogTitle>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="self-start"
+                                    onClick={() =>
+                                        form.setData({
+                                            name: 'MSP Growth Funnel',
+                                            description: 'The standard full-funnel journey: attract, educate, qualify, convert, close, retain.',
+                                            stages: [
+                                                { name: 'Awareness', category: 'tof', lifecycle_stage: 'subscriber' },
+                                                { name: 'Interest', category: 'tof', lifecycle_stage: 'lead' },
+                                                { name: 'Evaluation', category: 'mof', lifecycle_stage: 'mql' },
+                                                { name: 'Sales-ready', category: 'bof', lifecycle_stage: 'sql' },
+                                                { name: 'Opportunity', category: 'bof', lifecycle_stage: 'opportunity' },
+                                                { name: 'Customer', category: 'post', lifecycle_stage: 'customer' },
+                                            ],
+                                        })
+                                    }
+                                >
+                                    Start from the MSP Growth template
+                                </Button>
                                 <form onSubmit={create} className="space-y-3">
                                     <div className="grid gap-1">
                                         <Label htmlFor="name">Name</Label>
@@ -167,7 +189,12 @@ export default function Funnels({ funnels }: { funnels: Funnel[] }) {
                                 <CardContent className="space-y-3 p-4">
                                     <div className="flex items-start justify-between gap-2">
                                         <div>
-                                            <p className="font-medium">{funnel.name}</p>
+                                            <Link
+                                                href={route('marketing.funnels.show', funnel.id)}
+                                                className="hover:text-brand-strong font-medium hover:underline"
+                                            >
+                                                {funnel.name}
+                                            </Link>
                                             {funnel.description && <p className="text-muted-foreground text-sm">{funnel.description}</p>}
                                         </div>
                                         {canManage && (
