@@ -105,13 +105,17 @@ export default function AuthSplitLayout({ children, title, description }: { chil
 
             {/* Form column on the design-system ground. */}
             <div className="bg-background flex flex-col px-6 py-8 sm:px-10">
-                <Link href={route('home')} className="flex items-center gap-2.5 self-start text-base font-semibold tracking-tight lg:invisible">
-                    <BrandMark />
-                    {name}
-                </Link>
-
                 <div className="flex flex-1 items-center justify-center py-10">
                     <div className="w-full max-w-sm">
+                        {/* The logo heads the form itself and always leads home. */}
+                        <Link
+                            href={route('home')}
+                            aria-label={`${name} home`}
+                            className="mb-8 inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight"
+                        >
+                            <BrandMark size="lg" />
+                            {name}
+                        </Link>
                         <div className="mb-8">
                             <h1 className="text-2xl font-semibold tracking-tight text-balance">{title}</h1>
                             {description && <p className="text-muted-foreground mt-1.5 text-sm">{description}</p>}
