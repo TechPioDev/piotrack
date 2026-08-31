@@ -1,6 +1,6 @@
 import { useAppearance } from '@/hooks/use-appearance';
 import { type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -745,16 +745,114 @@ html:has(.lp) {
 }
 .lp .foot {
     border-top: 1px solid var(--lp-line);
-    padding: 40px 0 60px;
+    padding: 56px 0 36px;
     color: var(--lp-muted);
     font-size: 14px;
 }
-.lp .foot-inner {
+.lp .foot-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.3fr) 1fr 1fr minmax(240px, 1.4fr);
+    gap: 40px;
+}
+@media (max-width: 900px) {
+    .lp .foot-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 560px) {
+    .lp .foot-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.lp .foot-brand p {
+    margin-top: 14px;
+    max-width: 320px;
+    line-height: 1.65;
+}
+.lp .foot-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+.lp .foot-col h4 {
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--lp-ink-soft);
+    margin-bottom: 4px;
+}
+.lp .foot-col a {
+    color: var(--lp-muted);
+    font-weight: 600;
+}
+.lp .foot-col a:hover {
+    color: var(--lp-teal-deep);
+}
+.lp .foot-news p {
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+.lp .news-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+.lp .news-row input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--lp-line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--lp-ink);
+    background: #fff;
+}
+.lp .news-row input:focus {
+    outline: 2px solid var(--lp-teal);
+    outline-offset: 1px;
+    border-color: var(--lp-teal);
+}
+.lp .news-row button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(140deg, var(--lp-teal-bright), var(--lp-teal-deep));
+    cursor: pointer;
+    white-space: nowrap;
+}
+.lp .news-row button:hover {
+    filter: brightness(1.06);
+}
+.lp .news-row button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.lp .news-done {
+    font-weight: 700;
+    color: var(--lp-teal-deep);
+}
+.lp .news-error {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--lp-coral);
+}
+.lp .foot-bottom {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
     flex-wrap: wrap;
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--lp-line);
+    font-size: 13px;
 }
 .lp .foot-links {
     display: flex;
@@ -928,6 +1026,56 @@ html:has(.lp) {
     }
 }
 `;
+
+/** Footer newsletter signup — a real list (POST /newsletter), not decoration. */
+function NewsletterForm() {
+    const { flash } = usePage<SharedData>().props;
+    const form = useForm({ email: '', website: '' });
+    const [submitted, setSubmitted] = useState(false);
+
+    if (submitted && flash?.status) {
+        return <p className="news-done">{flash.status}</p>;
+    }
+
+    return (
+        <form
+            className="news-form"
+            onSubmit={(e) => {
+                e.preventDefault();
+                form.post(route('newsletter.subscribe'), {
+                    preserveScroll: true,
+                    onSuccess: () => setSubmitted(true),
+                });
+            }}
+        >
+            {/* Honeypot — humans never see it. */}
+            <input
+                type="text"
+                name="website"
+                value={form.data.website}
+                onChange={(e) => form.setData('website', e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                style={{ position: 'absolute', left: -9999, width: 1, height: 1 }}
+            />
+            <div className="news-row">
+                <input
+                    type="email"
+                    required
+                    placeholder="you@yourmsp.com"
+                    aria-label="Email address for the newsletter"
+                    value={form.data.email}
+                    onChange={(e) => form.setData('email', e.target.value)}
+                />
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Subscribing…' : 'Subscribe'}
+                </button>
+            </div>
+            {form.errors.email && <p className="news-error">{form.errors.email}</p>}
+        </form>
+    );
+}
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
@@ -1547,36 +1695,63 @@ export default function Welcome() {
                 </main>
 
                 <footer className="foot">
-                    <div className="wrap foot-inner">
-                        <a className="brand" href="#top" style={{ fontSize: 18 }}>
-                            <span className="mark" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M3 17l5-5 4 3 8-9" />
-                                    <path d="M15 6h5v5" />
-                                </svg>
-                            </span>
-                            Piotrack
-                        </a>
-                        <div className="foot-links">
-                            <a href="/piotrack-user-guide.pdf" target="_blank" rel="noopener noreferrer">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <path d="M14 2v6h6M9 13h6M9 17h6" />
-                                </svg>
-                                User Guide (PDF)
-                            </a>
-                            <span>The growth operating system for MSPs.</span>
+                    <div className="wrap">
+                        <div className="foot-grid">
+                            <div className="foot-brand">
+                                <a className="brand" href="#top" style={{ fontSize: 18 }}>
+                                    <span className="mark" aria-hidden="true">
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="#fff"
+                                            strokeWidth="2.4"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <path d="M3 17l5-5 4 3 8-9" />
+                                            <path d="M15 6h5v5" />
+                                        </svg>
+                                    </span>
+                                    Piotrack
+                                </a>
+                                <p>
+                                    The growth operating system for managed service providers — marketing, sales, attribution and AI visibility,
+                                    measured to revenue in one place.
+                                </p>
+                            </div>
+
+                            <nav className="foot-col" aria-label="Product">
+                                <h4>Product</h4>
+                                <a href="#features">Platform</a>
+                                <a href="#how">How it works</a>
+                                <a href="#proof">Results</a>
+                                <Link href={route('login')}>Log in</Link>
+                                <Link href={route('register')}>Start free</Link>
+                            </nav>
+
+                            <nav className="foot-col" aria-label="Resources">
+                                <h4>Resources</h4>
+                                <a href="/piotrack-user-guide.pdf" target="_blank" rel="noopener noreferrer">
+                                    User Guide (PDF)
+                                </a>
+                                <a href="#features">Website chat &amp; booking</a>
+                                <a href="#features">AI visibility tracking</a>
+                                <a href="#features">Revenue attribution</a>
+                            </nav>
+
+                            <div className="foot-col foot-news">
+                                <h4>MSP growth insights</h4>
+                                <p>Practical notes on pipeline, SEO and AI visibility for MSPs. No spam, unsubscribe anytime.</p>
+                                <NewsletterForm />
+                            </div>
                         </div>
-                        <span className="mono" style={{ fontSize: 12.5 }}>
-                            © 2026 Piotrack
-                        </span>
+
+                        <div className="foot-bottom">
+                            <span className="mono" style={{ fontSize: 12.5 }}>
+                                © 2026 Piotrack
+                            </span>
+                            <span>Built for MSPs. Measured to revenue.</span>
+                        </div>
                     </div>
                 </footer>
             </div>

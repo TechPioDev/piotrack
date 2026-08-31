@@ -6,6 +6,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\Public\EmailTrackingController;
+use App\Http\Controllers\Public\NewsletterController;
 use App\Http\Controllers\Public\PublicBookingController;
 use App\Http\Controllers\Public\PublicFormController;
 use App\Http\Controllers\Public\PublicLandingPageController;
@@ -32,6 +33,10 @@ Route::post('webhooks/{provider}', [WebhookController::class, 'handle'])->name('
 Route::get('f/{slug}', [PublicFormController::class, 'show'])->name('public.form.show');
 Route::post('f/{slug}', [PublicFormController::class, 'submit'])->middleware('throttle:20,1')->name('public.form.submit');
 Route::get('p/{slug}', [PublicLandingPageController::class, 'show'])->name('public.landing.show');
+// Homepage newsletter signup (product-level, throttled).
+Route::post('newsletter', [NewsletterController::class, 'subscribe'])
+    ->middleware('throttle:10,1')->name('newsletter.subscribe');
+
 // Visitor Intelligence tracker (VINT): keyed to a tenant, throttled, CSRF-exempt.
 Route::get('t/{key}.js', [TrackingController::class, 'script'])->middleware('throttle:60,1')->name('public.track.script');
 Route::post('t/{key}/e', [TrackingController::class, 'event'])->middleware('throttle:60,1')->name('public.track.event');
