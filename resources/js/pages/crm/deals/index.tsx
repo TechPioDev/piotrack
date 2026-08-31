@@ -42,53 +42,65 @@ export default function Deals({ pipeline, stages }: { pipeline: { id: number; na
                     title="Deals"
                     description={`Your opportunity pipeline · ${pipeline.name}`}
                     actions={
-                        can('crm.deal.create') && (
-                            <Dialog open={open} onOpenChange={setOpen}>
-                                <DialogTrigger asChild>
-                                    <Button>New deal</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogTitle>New deal</DialogTitle>
-                                    <form onSubmit={create} className="space-y-3">
-                                        <div className="grid gap-1">
-                                            <Label htmlFor="name">Name</Label>
-                                            <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-                                            <InputError message={form.errors.name} />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <Label htmlFor="value">Value ($)</Label>
-                                            <Input
-                                                id="value"
-                                                type="number"
-                                                min="0"
-                                                value={form.data.value}
-                                                onChange={(e) => form.setData('value', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <Label htmlFor="stage">Stage</Label>
-                                            <Select value={form.data.stage_id} onValueChange={(v) => form.setData('stage_id', v)}>
-                                                <SelectTrigger id="stage">
-                                                    <SelectValue placeholder="First stage" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {stages.map((s) => (
-                                                        <SelectItem key={s.id} value={String(s.id)}>
-                                                            {s.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit" disabled={form.processing}>
-                                                Create
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        )
+                        <>
+                            {can('crm.deal.read') && (
+                                <Button variant="outline" asChild>
+                                    <a href={route('crm.deals.export')}>Export CSV</a>
+                                </Button>
+                            )}
+                            {can('crm.import') && (
+                                <Button variant="outline" asChild>
+                                    <Link href={route('crm.entity.import', 'deals')}>Import</Link>
+                                </Button>
+                            )}
+                            {can('crm.deal.create') && (
+                                <Dialog open={open} onOpenChange={setOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button>New deal</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogTitle>New deal</DialogTitle>
+                                        <form onSubmit={create} className="space-y-3">
+                                            <div className="grid gap-1">
+                                                <Label htmlFor="name">Name</Label>
+                                                <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                                                <InputError message={form.errors.name} />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label htmlFor="value">Value ($)</Label>
+                                                <Input
+                                                    id="value"
+                                                    type="number"
+                                                    min="0"
+                                                    value={form.data.value}
+                                                    onChange={(e) => form.setData('value', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label htmlFor="stage">Stage</Label>
+                                                <Select value={form.data.stage_id} onValueChange={(v) => form.setData('stage_id', v)}>
+                                                    <SelectTrigger id="stage">
+                                                        <SelectValue placeholder="First stage" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {stages.map((s) => (
+                                                            <SelectItem key={s.id} value={String(s.id)}>
+                                                                {s.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button type="submit" disabled={form.processing}>
+                                                    Create
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                        </>
                     }
                 />
 

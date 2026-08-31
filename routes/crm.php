@@ -6,6 +6,8 @@ use App\Http\Controllers\Crm\ContactController;
 use App\Http\Controllers\Crm\ContactExportController;
 use App\Http\Controllers\Crm\ContactImportController;
 use App\Http\Controllers\Crm\DealController;
+use App\Http\Controllers\Crm\EntityExportController;
+use App\Http\Controllers\Crm\EntityImportController;
 use App\Http\Controllers\Crm\LeadController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,24 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         Route::get('contacts/{contact}', [ContactController::class, 'show'])->middleware('can:crm.contact.read')->name('contacts.show');
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:crm.contact.update')->name('contacts.update');
         Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:crm.contact.delete')->name('contacts.destroy');
+
+        // Import/export breadth (IMEX): companies, leads, deals on the shared
+        // wizard and streamed-export patterns. {entity} is allow-listed.
+        Route::get('companies/export-csv', EntityExportController::class)
+            ->defaults('entity', 'companies')->middleware('can:crm.company.read')->name('companies.export');
+        Route::get('leads/export-csv', EntityExportController::class)
+            ->defaults('entity', 'leads')->middleware('can:crm.lead.read')->name('leads.export');
+        Route::get('deals/export-csv', EntityExportController::class)
+            ->defaults('entity', 'deals')->middleware('can:crm.deal.read')->name('deals.export');
+        Route::get('{entity}/import', [EntityImportController::class, 'create'])
+            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->middleware('can:crm.import')->name('entity.import');
+        Route::post('{entity}/import/preview', [EntityImportController::class, 'preview'])
+            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->middleware('can:crm.import')->name('entity.import.preview');
+        Route::post('{entity}/import', [EntityImportController::class, 'store'])
+            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->middleware('can:crm.import')->name('entity.import.store');
 
         // Companies.
         Route::get('companies', [CompanyController::class, 'index'])->middleware('can:crm.company.read')->name('companies.index');

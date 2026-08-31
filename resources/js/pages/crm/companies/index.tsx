@@ -51,46 +51,58 @@ export default function Companies({ companies, filters }: { companies: Paginated
                     title="Companies"
                     description={`Track the organizations behind your contacts · ${companies.total} total`}
                     actions={
-                        can('crm.company.create') && (
-                            <Dialog open={open} onOpenChange={setOpen}>
-                                <DialogTrigger asChild>
-                                    <Button>New company</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogTitle>New company</DialogTitle>
-                                    <form onSubmit={create} className="space-y-3">
-                                        <div className="grid gap-1">
-                                            <Label htmlFor="name">Name</Label>
-                                            <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-                                            <InputError message={form.errors.name} />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
+                        <>
+                            {can('crm.company.read') && (
+                                <Button variant="outline" asChild>
+                                    <a href={route('crm.companies.export')}>Export CSV</a>
+                                </Button>
+                            )}
+                            {can('crm.import') && (
+                                <Button variant="outline" asChild>
+                                    <Link href={route('crm.entity.import', 'companies')}>Import</Link>
+                                </Button>
+                            )}
+                            {can('crm.company.create') && (
+                                <Dialog open={open} onOpenChange={setOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button>New company</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogTitle>New company</DialogTitle>
+                                        <form onSubmit={create} className="space-y-3">
                                             <div className="grid gap-1">
-                                                <Label htmlFor="domain">Domain</Label>
-                                                <Input
-                                                    id="domain"
-                                                    value={form.data.domain}
-                                                    onChange={(e) => form.setData('domain', e.target.value)}
-                                                />
+                                                <Label htmlFor="name">Name</Label>
+                                                <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                                                <InputError message={form.errors.name} />
                                             </div>
-                                            <div className="grid gap-1">
-                                                <Label htmlFor="industry">Industry</Label>
-                                                <Input
-                                                    id="industry"
-                                                    value={form.data.industry}
-                                                    onChange={(e) => form.setData('industry', e.target.value)}
-                                                />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="domain">Domain</Label>
+                                                    <Input
+                                                        id="domain"
+                                                        value={form.data.domain}
+                                                        onChange={(e) => form.setData('domain', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="industry">Industry</Label>
+                                                    <Input
+                                                        id="industry"
+                                                        value={form.data.industry}
+                                                        onChange={(e) => form.setData('industry', e.target.value)}
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button type="submit" disabled={form.processing}>
-                                                Create
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        )
+                                            <DialogFooter>
+                                                <Button type="submit" disabled={form.processing}>
+                                                    Create
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                        </>
                     }
                 />
 
