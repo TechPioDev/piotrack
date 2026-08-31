@@ -352,7 +352,25 @@
       "Bash(curl -fs -o /dev/null -w \"reachable: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.183:8000/module02.tar.gz)",
       "Bash(curl -s -o /dev/null -w \"app: %{http_code}\\\\n\" http://192.168.1.230:8080/up)",
       "Bash(xargs grep -ln \"AiSearchProvider\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(curl -fs -o /dev/null -w \"module09: %{http_code} \\(%{size_download} bytes\\)\\\\n\" http://192.168.1.183:8000/module09.tar.gz)",
+      "Bash(curl -fs -o /dev/null -w \"module08: %{http_code}\\\\n\" http://192.168.1.183:8000/module08.tar.gz)",
+      "Bash(curl -s http://192.168.1.230:8080/up)",
+      "Bash(curl -s -o /dev/null -w \"home: %{http_code}\\\\n\" http://192.168.1.230:8080/)",
+      "Bash(curl -s -o /dev/null -w \"login: %{http_code}\\\\n\" http://192.168.1.230:8080/login)",
+      "Bash(curl -s -o /dev/null -w \"8080 /up: %{http_code}\\\\n\" http://192.168.1.230:8080/up)",
+      "Bash(curl -vk --max-time 10 https://192.168.1.230:8443/up)",
+      "Bash(curl -s -o /dev/null -w \"LAN 8080: %{http_code}\\\\n\" http://192.168.1.230:8080/up)",
+      "Bash(curl -sk -o /dev/null -w \"LAN 8443: %{http_code}\\\\n\" https://192.168.1.230:8443/up)",
+      "Bash(curl -s -o /dev/null -w \"public 8443 \\(piotrack.com\\): %{http_code}\\\\n\" --max-time 10 --resolve piotrack.com:8443:223.178.220.63 https://piotrack.com:8443/up)",
+      "Bash(curl -s -o /dev/null -w \"public 8080 \\(old\\): %{http_code}\\\\n\" --max-time 8 http://223.178.220.63:8080/up)",
+      "Bash(curl -s -o /dev/null -w \"LAN 8080: %{http_code}\\\\n\" --max-time 5 http://192.168.1.230:8080/up)",
+      "Bash(curl -s -o /dev/null -w \"public 8443: %{http_code}\\\\n\" --max-time 10 --resolve piotrack.com:8443:223.178.220.63 https://piotrack.com:8443/up)",
+      "Bash(curl -s -o /dev/null -w \"public 8080: %{http_code}\\\\n\" --max-time 8 http://223.178.220.63:8080/up)",
+      "Bash(sed -i 's/AppLogoIcon className=\"h-6 w-6 fill-current text-black dark:text-white\"/AppLogoIcon className=\"h-6 w-6 text-black dark:text-white\"/' resources/js/components/app-header.tsx)",
+      "Bash(sed -i 's/AppLogoIcon className=\"size-5 fill-current text-white dark:text-black\"/AppLogoIcon className=\"size-5 text-white dark:text-black\"/' resources/js/components/app-logo.tsx)",
+      "Bash(sed -i 's/AppLogoIcon className=\"size-9 fill-current text-black dark:text-white\"/AppLogoIcon className=\"size-9 text-black dark:text-white\"/' resources/js/layouts/auth/auth-card-layout.tsx)",
+      "Bash(sed -i 's/AppLogoIcon className=\"size-9 fill-current text-\\\\[var\\(--foreground\\)\\\\] dark:text-white\"/AppLogoIcon className=\"size-9 text-[var\\(--foreground\\)] dark:text-white\"/' resources/js/layouts/auth/auth-simple-layout.tsx)"
     ]
   }
 }
