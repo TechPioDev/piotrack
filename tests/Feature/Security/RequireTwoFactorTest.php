@@ -59,8 +59,21 @@ it('does not trap the user: enrolment and logout stay reachable', function (stri
 })->with([
     'the setup page' => ['get', '/settings/two-factor'],
     'password confirmation guarding it' => ['get', '/confirm-password'],
+    'submitting the password confirmation' => ['post', '/confirm-password'],
     'logging out' => ['post', '/logout'],
 ]);
+
+it('lets an un-enrolled user actually confirm their password', function () {
+    // The POST half of confirm-password must be exempt too — blocking it leaves
+    // the confirm screen resubmitting to itself forever (found live, 2026-09-01).
+    $user = User::factory()->create(['two_factor_confirmed_at' => null]);
+
+    $this->actingAs($user)
+        ->from('/confirm-password')
+        ->post('/confirm-password', ['password' => 'password'])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('auth.password_confirmed_at');
+});
 
 it('refuses a json caller rather than redirecting it into html', function () {
     $this->actingAs(User::factory()->create(['two_factor_confirmed_at' => null]))

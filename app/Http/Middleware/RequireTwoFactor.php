@@ -40,6 +40,7 @@ class RequireTwoFactor
         'two-factor.recovery-codes',
         'two-factor.challenge',
         'password.confirm',
+        'password.confirm.store',
         'logout',
         'verification.notice',
         'verification.verify',
