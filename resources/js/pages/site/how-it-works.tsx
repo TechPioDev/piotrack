@@ -1,4 +1,5 @@
 import { CtaBand } from '@/marketing/cta-band';
+import { Float, HeroScene, PanelRow } from '@/marketing/hero-banner';
 import MarketingLayout from '@/marketing/marketing-layout';
 
 const STEPS = [
@@ -36,23 +37,36 @@ export default function HowItWorks() {
     return (
         <MarketingLayout title="How Piotrack Works" path="/how-it-works">
             <section className="sub-hero">
-                <div className="wrap">
-                    <span className="eyebrow-chip">How it works</span>
-                    <h1>
-                        From anonymous visitor to <span className="accent">attributed revenue.</span>
-                    </h1>
-                    <p className="lead">
-                        Piotrack follows the whole journey a real MSP client takes — and measures every step of it, so you stop guessing which
-                        marketing works.
-                    </p>
-                    <div className="sub-chips">
-                        <span>TRACK</span>
-                        <span>CAPTURE</span>
-                        <span>QUALIFY</span>
-                        <span>BOOK</span>
-                        <span>CLOSE</span>
-                        <span>ATTRIBUTE</span>
+                <div className="wrap sub-hero-grid">
+                    <div>
+                        <span className="eyebrow-chip">How it works</span>
+                        <h1>
+                            From anonymous visitor to <span className="accent">attributed revenue.</span>
+                        </h1>
+                        <p className="lead">
+                            Piotrack follows the whole journey a real MSP client takes — and measures every step of it, so you stop guessing which
+                            marketing works.
+                        </p>
+                        <div className="sub-chips">
+                            <span>TRACK</span>
+                            <span>CAPTURE</span>
+                            <span>QUALIFY</span>
+                            <span>BOOK</span>
+                            <span>CLOSE</span>
+                            <span>ATTRIBUTE</span>
+                        </div>
                     </div>
+                    <HeroScene
+                        label="piotrack · one journey"
+                        floats={<Float pos="f1" icon="trend" text="Attributed to SEO" sub="First touch · organic search" />}
+                    >
+                        <div className="rows">
+                            <PanelRow icon="radar" color="teal" text="Visitor identified" sub="Reading your pricing page" amount="intent 42" />
+                            <PanelRow icon="users" color="coral" text="Lead captured" sub="Assessment form submitted" />
+                            <PanelRow icon="calendar" color="amber" text="Meeting booked" sub="Tuesday · 10:00 AM" />
+                            <PanelRow icon="receipt" color="navy" text="Closed won" sub="Managed services contract" amount="+$4.5K MRR" />
+                        </div>
+                    </HeroScene>
                 </div>
             </section>
 

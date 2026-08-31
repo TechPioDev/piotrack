@@ -1,4 +1,5 @@
 import { CtaBand } from '@/marketing/cta-band';
+import { Float, HeroScene, Kpi, PanelChart } from '@/marketing/hero-banner';
 import { Icon, type IconName } from '@/marketing/icons';
 import MarketingLayout from '@/marketing/marketing-layout';
 
@@ -45,15 +46,38 @@ export default function Results() {
     return (
         <MarketingLayout title="MSP Marketing Results You Can Prove" path="/results">
             <section className="sub-hero">
-                <div className="wrap">
-                    <span className="eyebrow-chip">Results</span>
-                    <h1>
-                        We will not show numbers we cannot prove. <span className="accent">Neither should your marketing.</span>
-                    </h1>
-                    <p className="lead">
-                        Most marketing tools report activity — sends, clicks, impressions. Piotrack is built around a stricter standard: every result
-                        on your dashboard is traceable to a real record.
-                    </p>
+                <div className="wrap sub-hero-grid">
+                    <div>
+                        <span className="eyebrow-chip">Results</span>
+                        <h1>
+                            We will not show numbers we cannot prove. <span className="accent">Neither should your marketing.</span>
+                        </h1>
+                        <p className="lead">
+                            Most marketing tools report activity — sends, clicks, impressions. Piotrack is built around a stricter standard: every
+                            result on your dashboard is traceable to a real record.
+                        </p>
+                        <div className="sub-chips">
+                            <span>ATTRIBUTED MRR</span>
+                            <span>RANK HISTORY</span>
+                            <span>AI EVIDENCE</span>
+                        </div>
+                    </div>
+                    <HeroScene
+                        label="piotrack · evidence"
+                        floats={
+                            <>
+                                <Float pos="f1" icon="sparkle" text="Answer stored" sub="AI excerpt saved as proof" />
+                                <Float pos="f2" icon="shield" text="Traceable" sub="Every metric → a record" />
+                            </>
+                        }
+                    >
+                        <div className="kpi-row">
+                            <Kpi label="Attributed MRR" value="$31.4K" tone="teal" />
+                            <Kpi label="Funnel" value="3.2%" />
+                            <Kpi label="Avg. rank" value="#4" tone="coral" />
+                        </div>
+                        <PanelChart gradientId="resAreaFill" />
+                    </HeroScene>
                 </div>
             </section>
 

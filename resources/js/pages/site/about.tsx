@@ -1,4 +1,5 @@
 import { CtaBand } from '@/marketing/cta-band';
+import { Float, HeroScene, PanelRow } from '@/marketing/hero-banner';
 import { Icon, type IconName } from '@/marketing/icons';
 import MarketingLayout from '@/marketing/marketing-layout';
 
@@ -33,15 +34,30 @@ export default function About() {
     return (
         <MarketingLayout title="About Piotrack" path="/about">
             <section className="sub-hero">
-                <div className="wrap">
-                    <span className="eyebrow-chip">About us</span>
-                    <h1>
-                        The growth operating system <span className="accent">for MSPs.</span>
-                    </h1>
-                    <p className="lead">
-                        Piotrack exists because MSP marketing runs on tools built for someone else — generic CRMs, e-commerce email platforms, agency
-                        dashboards full of numbers nobody trusts.
-                    </p>
+                <div className="wrap sub-hero-grid">
+                    <div>
+                        <span className="eyebrow-chip">About us</span>
+                        <h1>
+                            The growth operating system <span className="accent">for MSPs.</span>
+                        </h1>
+                        <p className="lead">
+                            Piotrack exists because MSP marketing runs on tools built for someone else — generic CRMs, e-commerce email platforms,
+                            agency dashboards full of numbers nobody trusts.
+                        </p>
+                        <div className="sub-chips">
+                            <span>HONESTY FIRST</span>
+                            <span>MSP-ONLY</span>
+                            <span>NO LOCK-IN</span>
+                        </div>
+                    </div>
+                    <HeroScene label="piotrack · principles" floats={<Float pos="f1" icon="trend" text="Measured to revenue" sub="Not to clicks" />}>
+                        <div className="rows">
+                            <PanelRow icon="shield" color="teal" text="Every number → a real record" sub="Traceable by design" />
+                            <PanelRow icon="sparkle" color="coral" text="Simulated data says simulated" sub="Right in the interface" />
+                            <PanelRow icon="receipt" color="amber" text="CSV in, CSV out" sub="Your data is never locked in" />
+                            <PanelRow icon="users" color="navy" text="Built only for MSPs" sub="MRR deals, long trust cycles" />
+                        </div>
+                    </HeroScene>
                 </div>
             </section>
 

@@ -1,3 +1,4 @@
+import { Float, HeroScene, PanelRow } from '@/marketing/hero-banner';
 import { Icon } from '@/marketing/icons';
 import MarketingLayout from '@/marketing/marketing-layout';
 import { type SharedData } from '@/types';
@@ -12,15 +13,29 @@ export default function Contact() {
     return (
         <MarketingLayout title="Contact Piotrack" path="/contact">
             <section className="sub-hero">
-                <div className="wrap">
-                    <span className="eyebrow-chip">Contact</span>
-                    <h1>
-                        Talk to the team <span className="accent">building Piotrack.</span>
-                    </h1>
-                    <p className="lead">
-                        Questions about the platform, plans, a demo, or whether Piotrack fits your MSP — send a message. We read every one and reply
-                        by email.
-                    </p>
+                <div className="wrap sub-hero-grid">
+                    <div>
+                        <span className="eyebrow-chip">Contact</span>
+                        <h1>
+                            Talk to the team <span className="accent">building Piotrack.</span>
+                        </h1>
+                        <p className="lead">
+                            Questions about the platform, plans, a demo, or whether Piotrack fits your MSP — send a message. We read every one and
+                            reply by email.
+                        </p>
+                        <div className="sub-chips">
+                            <span>REAL HUMANS</span>
+                            <span>REPLY BY EMAIL</span>
+                            <span>DEMOS WELCOME</span>
+                        </div>
+                    </div>
+                    <HeroScene label="piotrack · inbox" floats={<Float pos="f2" icon="reply" text="We reply by email" sub="Usually the same day" />}>
+                        <div className="rows">
+                            <PanelRow icon="chat" color="teal" text="Demo request" sub="12-person MSP · Texas" amount="new" />
+                            <PanelRow icon="mail" color="coral" text="Pricing question" sub="Growth vs. Professional" amount="replied" />
+                            <PanelRow icon="calendar" color="amber" text="Walkthrough booked" sub="Live on their own use case" dim />
+                        </div>
+                    </HeroScene>
                 </div>
             </section>
 

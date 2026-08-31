@@ -1,4 +1,5 @@
 import { CtaBand } from '@/marketing/cta-band';
+import { Float, HeroScene, Kpi, PanelChart } from '@/marketing/hero-banner';
 import { Icon, type IconName } from '@/marketing/icons';
 import MarketingLayout from '@/marketing/marketing-layout';
 
@@ -69,22 +70,40 @@ export default function Features() {
     return (
         <MarketingLayout title="MSP Marketing Software Features" path="/features">
             <section className="sub-hero">
-                <div className="wrap">
-                    <span className="eyebrow-chip">Features</span>
-                    <h1>
-                        Every growth tool an MSP needs. <span className="accent">One platform.</span>
-                    </h1>
-                    <p className="lead">
-                        Piotrack replaces the duct-taped stack of CRM, email tool, form builder, rank tracker, and spreadsheets with one system where
-                        every activity is measured to closed revenue.
-                    </p>
-                    <div className="sub-chips">
-                        <span>CRM</span>
-                        <span>AUTOMATION</span>
-                        <span>SEO + AI</span>
-                        <span>BOOKING</span>
-                        <span>ATTRIBUTION</span>
+                <div className="wrap sub-hero-grid">
+                    <div>
+                        <span className="eyebrow-chip">Features</span>
+                        <h1>
+                            Every growth tool an MSP needs. <span className="accent">One platform.</span>
+                        </h1>
+                        <p className="lead">
+                            Piotrack replaces the duct-taped stack of CRM, email tool, form builder, rank tracker, and spreadsheets with one system
+                            where every activity is measured to closed revenue.
+                        </p>
+                        <div className="sub-chips">
+                            <span>CRM</span>
+                            <span>AUTOMATION</span>
+                            <span>SEO + AI</span>
+                            <span>BOOKING</span>
+                            <span>ATTRIBUTION</span>
+                        </div>
                     </div>
+                    <HeroScene
+                        label="piotrack · command center"
+                        floats={
+                            <>
+                                <Float pos="f1" icon="sparkle" text="AI visible" sub="ChatGPT recommends you" />
+                                <Float pos="f2" icon="receipt" text="+$4,500 MRR" sub="Closed won · attributed" />
+                            </>
+                        }
+                    >
+                        <div className="kpi-row">
+                            <Kpi label="Pipeline" value="$486K" tone="teal" />
+                            <Kpi label="Bookings" value="24" />
+                            <Kpi label="ROAS" value="4.57x" tone="coral" />
+                        </div>
+                        <PanelChart gradientId="featAreaFill" />
+                    </HeroScene>
                 </div>
             </section>
 

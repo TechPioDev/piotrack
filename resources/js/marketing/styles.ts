@@ -1412,4 +1412,110 @@ html:has(.lp) {
         padding: 30px 26px;
     }
 }
+
+/* Hero banners on subpages: reuse the landing scene/panel/float system. */
+.lp .sub-hero-grid {
+    display: grid;
+    grid-template-columns: 1.02fr 0.98fr;
+    gap: 48px;
+    align-items: center;
+    text-align: left;
+}
+.lp .sub-hero-grid .lead {
+    margin-left: 0;
+}
+.lp .sub-hero-grid .sub-chips {
+    justify-content: flex-start;
+}
+.lp .sub-hero .scene {
+    aspect-ratio: 1 / 0.82;
+}
+.lp .panel .rows {
+    display: grid;
+    gap: 10px;
+}
+.lp .prow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--lp-surface2);
+    border: 1px solid var(--lp-line);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--lp-ink);
+}
+.lp .prow .pic {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+.lp .prow .pic svg {
+    width: 15px;
+    height: 15px;
+}
+.lp .prow .pic.teal {
+    background: linear-gradient(140deg, var(--lp-teal-bright), var(--lp-teal-deep));
+}
+.lp .prow .pic.coral {
+    background: linear-gradient(140deg, #ff9075, var(--lp-coral-deep));
+}
+.lp .prow .pic.amber {
+    background: linear-gradient(140deg, var(--lp-amber), #f39a12);
+}
+.lp .prow .pic.navy {
+    background: linear-gradient(140deg, #2b4a58, var(--lp-band));
+}
+.lp .prow small {
+    display: block;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--lp-muted);
+}
+.lp .prow .amt {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--lp-teal-deep);
+    white-space: nowrap;
+}
+.lp .prow .amt.coral {
+    color: var(--lp-coral);
+}
+.lp .prow.dim {
+    opacity: 0.6;
+}
+.lp .scene .rows .prow {
+    opacity: 0;
+    animation: lp-pop-in 0.5s ease forwards;
+}
+.lp .scene .rows .prow:nth-child(1) {
+    animation-delay: 0.45s;
+}
+.lp .scene .rows .prow:nth-child(2) {
+    animation-delay: 0.6s;
+}
+.lp .scene .rows .prow:nth-child(3) {
+    animation-delay: 0.75s;
+}
+.lp .scene .rows .prow:nth-child(4) {
+    animation-delay: 0.9s;
+}
+@media (max-width: 900px) {
+    .lp .sub-hero-grid {
+        grid-template-columns: 1fr;
+        gap: 34px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lp .scene .rows .prow {
+        opacity: 1;
+    }
+}
 `;
