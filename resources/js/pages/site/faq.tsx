@@ -1,5 +1,5 @@
+import { CtaBand } from '@/marketing/cta-band';
 import MarketingLayout from '@/marketing/marketing-layout';
-import { Link } from '@inertiajs/react';
 
 interface FaqProps {
     /** Q&A pairs from MarketingSiteController::faqItems() — the same source that renders the FAQPage JSON-LD. */
@@ -11,8 +11,10 @@ export default function Faq({ items }: FaqProps) {
         <MarketingLayout title="Piotrack FAQ" path="/faq">
             <section className="sub-hero">
                 <div className="wrap">
-                    <span className="eyebrow">FAQ</span>
-                    <h1>Frequently asked questions.</h1>
+                    <span className="eyebrow-chip">FAQ</span>
+                    <h1>
+                        Frequently asked <span className="accent">questions.</span>
+                    </h1>
                     <p className="lead">
                         Pricing, the free trial, tracking, AI visibility, and how Piotrack fits alongside the PSA and RMM you already run.
                     </p>
@@ -21,7 +23,7 @@ export default function Faq({ items }: FaqProps) {
 
             <section className="sub-section">
                 <div className="wrap">
-                    <div className="faq-list">
+                    <div className="faq-list reveal">
                         {items.map((item, index) => (
                             <details key={item.q} open={index === 0}>
                                 <summary>{item.q}</summary>
@@ -29,17 +31,16 @@ export default function Faq({ items }: FaqProps) {
                             </details>
                         ))}
                     </div>
-
-                    <div className="sub-cta">
-                        <Link className="btn btn-primary" href={route('register')}>
-                            Start your free trial
-                        </Link>
-                        <Link className="btn btn-ghost" href="/contact">
-                            Still have a question?
-                        </Link>
-                    </div>
                 </div>
             </section>
+
+            <CtaBand
+                title="Question answered? Prove it to yourself."
+                body="Fourteen days on the Growth plan, no credit card — or send us the question the FAQ missed."
+                primaryLabel="Start your free trial"
+                ghostLabel="Ask us directly"
+                ghostHref="/contact"
+            />
         </MarketingLayout>
     );
 }

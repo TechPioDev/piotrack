@@ -1,5 +1,5 @@
+import { CtaBand } from '@/marketing/cta-band';
 import MarketingLayout from '@/marketing/marketing-layout';
-import { Link } from '@inertiajs/react';
 
 const STEPS = [
     {
@@ -8,7 +8,7 @@ const STEPS = [
     },
     {
         title: 'Capture and identify visitors',
-        body: 'Landing pages, forms, and the chat builder turn anonymous traffic into named leads. The first-touch source is stamped once and never overwritten, so you always know what actually started the relationship.',
+        body: 'Landing pages, forms, and the chat builder turn anonymous traffic into named leads. The first-touch source is stamped once and never overwritten, so you always know what started the relationship.',
     },
     {
         title: 'Qualify with intent, not gut feel',
@@ -24,7 +24,7 @@ const STEPS = [
     },
     {
         title: 'Attribute revenue back to the source',
-        body: 'When a deal closes, Piotrack traces it back through the funnel to the campaign, page, or keyword that started it. You see marketing spend on one side and attributed MRR on the other.',
+        body: 'When a deal closes, Piotrack traces it back through the funnel to the campaign, page, or keyword that started it. Marketing spend on one side, attributed MRR on the other.',
     },
     {
         title: 'Watch your visibility — including AI',
@@ -37,38 +37,48 @@ export default function HowItWorks() {
         <MarketingLayout title="How Piotrack Works" path="/how-it-works">
             <section className="sub-hero">
                 <div className="wrap">
-                    <span className="eyebrow">How it works</span>
-                    <h1>From anonymous visitor to attributed revenue, in seven steps.</h1>
+                    <span className="eyebrow-chip">How it works</span>
+                    <h1>
+                        From anonymous visitor to <span className="accent">attributed revenue.</span>
+                    </h1>
                     <p className="lead">
                         Piotrack follows the whole journey a real MSP client takes — and measures every step of it, so you stop guessing which
                         marketing works.
                     </p>
+                    <div className="sub-chips">
+                        <span>TRACK</span>
+                        <span>CAPTURE</span>
+                        <span>QUALIFY</span>
+                        <span>BOOK</span>
+                        <span>CLOSE</span>
+                        <span>ATTRIBUTE</span>
+                    </div>
                 </div>
             </section>
 
             <section className="sub-section">
                 <div className="wrap">
-                    <ol className="step-list">
-                        {STEPS.map((step) => (
-                            <li key={step.title}>
+                    <div className="timeline">
+                        {STEPS.map((step, index) => (
+                            <div className="tstep reveal" key={step.title}>
+                                <div className="n">{String(index + 1).padStart(2, '0')}</div>
                                 <div>
                                     <h3>{step.title}</h3>
                                     <p>{step.body}</p>
                                 </div>
-                            </li>
+                            </div>
                         ))}
-                    </ol>
-
-                    <div className="sub-cta">
-                        <Link className="btn btn-primary" href={route('register')}>
-                            Start free — no credit card
-                        </Link>
-                        <Link className="btn btn-ghost" href="/results">
-                            What you can prove
-                        </Link>
                     </div>
                 </div>
             </section>
+
+            <CtaBand
+                title="Watch it run on your own traffic."
+                body="The snippet takes two minutes to install, and the trial is 14 days on the Growth plan — no credit card."
+                primaryLabel="Start free"
+                ghostLabel="What you can prove"
+                ghostHref="/results"
+            />
         </MarketingLayout>
     );
 }

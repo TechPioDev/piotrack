@@ -1,55 +1,66 @@
+import { CtaBand } from '@/marketing/cta-band';
+import { Icon, type IconName } from '@/marketing/icons';
 import MarketingLayout from '@/marketing/marketing-layout';
-import { Link } from '@inertiajs/react';
 
-const CLUSTERS = [
+const CLUSTERS: { icon: IconName; color: string; title: string; body: string }[] = [
     {
-        tag: 'Command center',
-        title: 'One dashboard, measured to revenue',
-        body: 'The Growth Command Center rolls your whole funnel into one screen: pipeline value, bookings, campaign performance, search rankings, and AI visibility — with a growth score that tells you exactly where to act next.',
+        icon: 'gauge',
+        color: 'c-teal',
+        title: 'Growth Command Center',
+        body: 'Your whole funnel on one screen: pipeline value, bookings, campaign performance, search rankings, and AI visibility — with a growth score that tells you exactly where to act next.',
     },
     {
-        tag: 'CRM & pipeline',
+        icon: 'users',
+        color: 'c-coral',
         title: 'An MSP-shaped CRM',
-        body: 'Companies, contacts, leads, and deals with lifecycle stages built for IT services sales. Filter, sort, save views, act in bulk, and import or export everything as CSV — your data is never locked in.',
+        body: 'Companies, contacts, leads, and deals with lifecycle stages built for IT services sales. Filter, sort, save views, act in bulk — and import or export everything as CSV.',
     },
     {
-        tag: 'Visitor intelligence',
-        title: 'Know who is on your website',
-        body: 'A one-line tracking snippet records visits, sessions, and intent — scoring visitors by the pages they read. When someone submits a form or books a meeting, their anonymous history links to the new lead automatically.',
+        icon: 'radar',
+        color: 'c-navy',
+        title: 'Visitor intelligence',
+        body: 'A one-line snippet records visits, sessions, and intent — scoring visitors by the pages they read. When someone converts, their anonymous history links to the new lead automatically.',
     },
     {
-        tag: 'Marketing automation',
-        title: 'Campaigns, email, landing pages, forms',
-        body: 'Build landing pages and lead-capture forms, run email campaigns with open and click tracking, and keep every touch attributed back to its source — first-touch UTMs are captured once and never overwritten.',
+        icon: 'mail',
+        color: 'c-amber',
+        title: 'Campaigns, email, pages, forms',
+        body: 'Landing pages, lead-capture forms, and email campaigns with open and click tracking — every touch attributed to its source, with first-touch UTMs captured once and never overwritten.',
     },
     {
-        tag: 'Funnels',
+        icon: 'funnel',
+        color: 'c-cyan',
         title: 'Funnels built from real assets',
-        body: 'Attach the actual pages, forms, campaigns, and booking links that make up each stage. Conversion is computed cumulatively from real records — a funnel in Piotrack can never show you a number it cannot back up.',
+        body: 'Attach the actual pages, forms, campaigns, and booking links behind each stage. Conversion is computed cumulatively from real records — never a number the platform cannot back up.',
     },
     {
-        tag: 'SEO & rankings',
-        title: 'Daily rank tracking with head-to-head',
-        body: 'Track your keywords daily, compare positions against named competitors keyword by keyword, and get alerted the day a competitor outranks you or a ranking drops.',
+        icon: 'trend',
+        color: 'c-teal',
+        title: 'Daily rank tracking',
+        body: 'Track your keywords every day, compare positions against named competitors keyword by keyword, and get alerted the day a competitor outranks you or a ranking drops.',
     },
     {
-        tag: 'AI visibility',
-        title: 'Are AI assistants recommending you?',
-        body: 'Buyers now ask ChatGPT and Gemini for MSP recommendations. Piotrack checks whether you appear in those answers and stores the answer excerpts as evidence — live results when engine keys are connected, clearly labeled simulation when they are not.',
+        icon: 'sparkle',
+        color: 'c-pink',
+        title: 'AI visibility',
+        body: 'Buyers now ask ChatGPT and Gemini for MSP recommendations. Piotrack checks whether you appear in those answers and stores the excerpts as evidence — live or clearly labeled simulation.',
     },
     {
-        tag: 'Chat & booking',
-        title: 'Capture and book while you sleep',
-        body: 'A visual conversation builder qualifies website visitors and hands off to a real booking flow with availability, so a good-fit prospect can go from first visit to a meeting on your calendar without waiting for office hours.',
+        icon: 'chat',
+        color: 'c-coral',
+        title: 'Chat & booking',
+        body: 'A visual conversation builder qualifies visitors and hands off to a real booking flow with availability — first visit to booked meeting without waiting for office hours.',
     },
     {
-        tag: 'Alerts',
-        title: 'The platform watches for you',
-        body: 'Daily sweeps flag qualified-lead promotions, new bookings, usage limits, ranking drops, and AI-visibility swings — deduplicated so you get one useful notification, not fifty.',
+        icon: 'bell',
+        color: 'c-amber',
+        title: 'Alerts that watch for you',
+        body: 'Daily sweeps flag qualified-lead promotions, new bookings, usage limits, ranking drops, and AI-visibility swings — deduplicated into one useful digest, not fifty pings.',
     },
     {
-        tag: 'Teams & security',
-        title: 'Roles, audit log, tenant isolation',
+        icon: 'shield',
+        color: 'c-navy',
+        title: 'Teams, roles & isolation',
         body: 'Role-based permissions on every endpoint, a full audit log of who did what, and strict per-organization data isolation verified by automated tests on every module.',
     },
 ];
@@ -59,37 +70,74 @@ export default function Features() {
         <MarketingLayout title="MSP Marketing Software Features" path="/features">
             <section className="sub-hero">
                 <div className="wrap">
-                    <span className="eyebrow">Features</span>
-                    <h1>Every growth tool an MSP needs. One platform, one number that matters.</h1>
+                    <span className="eyebrow-chip">Features</span>
+                    <h1>
+                        Every growth tool an MSP needs. <span className="accent">One platform.</span>
+                    </h1>
                     <p className="lead">
                         Piotrack replaces the duct-taped stack of CRM, email tool, form builder, rank tracker, and spreadsheets with one system where
                         every activity is measured to closed revenue.
                     </p>
+                    <div className="sub-chips">
+                        <span>CRM</span>
+                        <span>AUTOMATION</span>
+                        <span>SEO + AI</span>
+                        <span>BOOKING</span>
+                        <span>ATTRIBUTION</span>
+                    </div>
+                </div>
+            </section>
+
+            <section className="sub-section reveal">
+                <div className="wrap">
+                    <div className="sub-band">
+                        <div>
+                            <div className="b-num">10 modules</div>
+                            <div className="b-cap">in one workspace</div>
+                        </div>
+                        <div>
+                            <div className="b-num">1 dashboard</div>
+                            <div className="b-cap">measured to revenue</div>
+                        </div>
+                        <div>
+                            <div className="b-num">14 days</div>
+                            <div className="b-cap">free trial, no credit card</div>
+                        </div>
+                        <div>
+                            <div className="b-num">$49/mo</div>
+                            <div className="b-cap">starting price</div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <section className="sub-section">
                 <div className="wrap">
+                    <div className="sec-head center reveal">
+                        <span className="eyebrow">The platform</span>
+                        <h2>Built end to end for MSP growth</h2>
+                        <p>Ten modules that share one data model — so nothing has to be exported, reconciled, or guessed.</p>
+                    </div>
                     <div className="sub-grid">
                         {CLUSTERS.map((cluster) => (
-                            <div className="sub-card" key={cluster.tag}>
-                                <span className="tag">{cluster.tag}</span>
+                            <div className="card reveal" key={cluster.title}>
+                                <div className={`ico ${cluster.color}`}>
+                                    <Icon name={cluster.icon} />
+                                </div>
                                 <h3>{cluster.title}</h3>
                                 <p>{cluster.body}</p>
                             </div>
                         ))}
                     </div>
-
-                    <div className="sub-cta">
-                        <Link className="btn btn-primary" href={route('register')}>
-                            Start your 14-day free trial
-                        </Link>
-                        <Link className="btn btn-ghost" href="/how-it-works">
-                            See how it works
-                        </Link>
-                    </div>
                 </div>
             </section>
+
+            <CtaBand
+                title="See all of it on your own pipeline."
+                body="Every module above is included in the 14-day Growth trial — no credit card, no sales call required."
+                ghostLabel="How it works"
+                ghostHref="/how-it-works"
+            />
         </MarketingLayout>
     );
 }

@@ -47,7 +47,24 @@ export default function MarketingLayout({ title, path, children }: MarketingLayo
         onScroll();
         window.addEventListener('scroll', onScroll, { passive: true });
 
-        return () => window.removeEventListener('scroll', onScroll);
+        // Same scroll-reveal treatment as the landing page.
+        const revealObserver = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('in');
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            },
+            { threshold: 0.14 },
+        );
+        document.querySelectorAll<HTMLElement>('.lp .reveal').forEach((el) => revealObserver.observe(el));
+
+        return () => {
+            window.removeEventListener('scroll', onScroll);
+            revealObserver.disconnect();
+        };
     }, []);
 
     return (
