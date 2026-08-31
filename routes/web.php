@@ -5,20 +5,38 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\Public\ContactMessageController;
 use App\Http\Controllers\Public\EmailTrackingController;
+use App\Http\Controllers\Public\MarketingSiteController;
 use App\Http\Controllers\Public\NewsletterController;
 use App\Http\Controllers\Public\PublicBookingController;
 use App\Http\Controllers\Public\PublicFormController;
 use App\Http\Controllers\Public\PublicLandingPageController;
 use App\Http\Controllers\Public\PublicSitePageController;
+use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\TrackingController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    return Inertia::render('welcome')->withViewData([
+        'metaTitle' => 'Piotrack — MSP Marketing & Growth Platform',
+        'metaDescription' => 'The growth operating system for managed service providers: CRM, marketing automation, SEO and AI visibility tracking, booking, and revenue attribution in one platform.',
+        'canonical' => url('/'),
+    ]);
 })->name('home');
+
+// Product marketing pages (MSITE) — public, SEO meta rendered server-side.
+Route::get('features', [MarketingSiteController::class, 'features'])->name('site.features');
+Route::get('how-it-works', [MarketingSiteController::class, 'howItWorks'])->name('site.how');
+Route::get('results', [MarketingSiteController::class, 'results'])->name('site.results');
+Route::get('about', [MarketingSiteController::class, 'about'])->name('site.about');
+Route::get('contact', [MarketingSiteController::class, 'contact'])->name('site.contact');
+Route::get('faq', [MarketingSiteController::class, 'faq'])->name('site.faq');
+Route::post('contact', [ContactMessageController::class, 'store'])
+    ->middleware('throttle:10,1')->name('contact.submit');
+Route::get('sitemap.xml', SitemapController::class)->name('sitemap');
 
 Route::get('health', HealthController::class)->name('health');
 

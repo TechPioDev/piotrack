@@ -4,7 +4,19 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ $metaTitle ?? config('app.name', 'Laravel') }}</title>
+
+        {{-- SEO meta for the public marketing pages (MSITE). The app has no SSR,
+             so crawler-facing tags must render server-side via view data. --}}
+        @isset($metaDescription)
+            <meta name="description" content="{{ $metaDescription }}">
+        @endisset
+        @isset($canonical)
+            <link rel="canonical" href="{{ $canonical }}">
+        @endisset
+        @isset($jsonLd)
+            <script type="application/ld+json" nonce="{{ $cspNonce }}">{!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES) !!}</script>
+        @endisset
 
         {{-- Instrument Sans is self-hosted and bundled via resources/css/app.css
              (the app CSP blocks the fonts.bunny.net stylesheet). --}}

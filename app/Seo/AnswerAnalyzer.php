@@ -85,6 +85,6 @@ class AnswerAnalyzer
     {
         preg_match_all('/https?:\/\/[^\s)\]}>"\']+/u', $answer, $matches);
 
-        return array_slice(array_values(array_unique($matches[0] ?? [])), 0, 10);
+        return array_slice(array_values(array_unique($matches[0])), 0, 10);
     }
 }

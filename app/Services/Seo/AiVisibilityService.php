@@ -4,19 +4,17 @@ namespace App\Services\Seo;
 
 use App\Models\AiVisibilityCheck;
 use App\Models\Competitor;
-use App\Seo\Contracts\AiSearchProvider;
 use App\Seo\SeoProviderManager;
 use App\Support\AuditLogger;
 
 /**
- * Records AI-engine visibility for a prompt via the configured AiSearchProvider
+ * Records AI-engine visibility for a prompt via the engine's AiSearchProvider
  * (AEO-018, GEO-001…010). Captures mention/position/cited sources/competitors/
  * share-of-answer as a snapshot for trend + share reporting.
  */
 class AiVisibilityService
 {
     public function __construct(
-        private AiSearchProvider $provider,
         private AuditLogger $audit,
         private SeoProviderManager $providers,
     ) {}

@@ -1,2 +1,7 @@
 User-agent: *
-Disallow:
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://piotrack.com:8443/sitemap.xml

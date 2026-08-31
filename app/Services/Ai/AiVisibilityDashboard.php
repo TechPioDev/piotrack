@@ -26,7 +26,6 @@ class AiVisibilityDashboard
     public const ENGINES = ['chatgpt', 'gemini', 'perplexity', 'copilot', 'google_ai'];
 
     public function __construct(
-        private AiSearchProvider $provider,
         private AuditLogger $audit,
     ) {}
 
