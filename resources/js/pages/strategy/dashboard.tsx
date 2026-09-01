@@ -552,6 +552,250 @@ function KpiTable({ kpis, canManage, metrics }: { kpis: Kpi[]; canManage: boolea
     );
 }
 
+type Insights = {
+    keyword_opportunities: {
+        intent_mix: Record<string, number>;
+        opportunities: {
+            phrase: string;
+            search_volume: number | null;
+            difficulty: number | null;
+            position: number | null;
+            intent: string;
+            location: string | null;
+        }[];
+    };
+    competitor_landscape: {
+        keywords_measured: number;
+        keywords_leading: number;
+        ai_share: { checks: number; share: number };
+    };
+    geo_markets: { market: string; keywords: number; avg_position: number | null; opportunities: number }[];
+    vertical_performance: { industry: string; deals: number; won: number; win_rate: number | null; won_mrr: number }[];
+    conversion_audit: {
+        visitors: number;
+        identified: number;
+        form_submissions: number;
+        bookings: number;
+        won_deals: number;
+        identification_rate: number | null;
+        visitor_to_booking_rate: number | null;
+    };
+    crm_hygiene: Record<string, number>;
+    funnel_audit: { funnel: string; stages: number; stages_without_assets: number }[];
+    ppc_audit: { campaign: string; platform: string; spend: number; conversions: number; revenue: number; flags: string[] }[];
+    lead_gen_gaps: { sources: { source: string; visitors: number; identified: number }[]; pages_without_capture: string[] };
+    revenue_model: {
+        insufficient_data: boolean;
+        closed_deals: number;
+        open_deals: number;
+        open_mrr: number;
+        win_rate: number | null;
+        projected_mrr: number | null;
+    };
+    icp_profile: {
+        insufficient_data: boolean;
+        won_deals: number;
+        top_industries: Record<string, number>;
+        top_sources: Record<string, number>;
+        median_mrr: number | null;
+    };
+    seo_audit_summary: { audits: number; avg_score: number | null; total_issues: number; worst_url: string | null };
+    assessment: { issues: Record<string, number>; strengths: Record<string, number> };
+};
+
+const centsToMoney = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+const label = (key: string) => key.replace(/_/g, ' ');
+
+function InsightCard({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+    return (
+        <div className="rounded-lg border p-4">
+            <h4 className="text-sm font-medium">{title}</h4>
+            {note && <p className="text-muted-foreground mt-0.5 text-xs">{note}</p>}
+            <div className="mt-3 space-y-1 text-sm">{children}</div>
+        </div>
+    );
+}
+
+function StatRow({ name, value }: { name: string; value: React.ReactNode }) {
+    return (
+        <div className="flex items-baseline justify-between gap-2">
+            <span className="text-muted-foreground capitalize">{name}</span>
+            <span className="font-medium tabular-nums">{value}</span>
+        </div>
+    );
+}
+
+function InsightsSection({ insights }: { insights: Insights }) {
+    const conversion = insights.conversion_audit;
+    const model = insights.revenue_model;
+    const icp = insights.icp_profile;
+
+    return (
+        <div>
+            <h3 className="mb-1 text-sm font-medium">Computed insights</h3>
+            <p className="text-muted-foreground mb-3 text-sm">
+                Every number below is computed from this organization&apos;s own records — nothing estimated, nothing imported. Blocks with too little
+                history say so.
+            </p>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <InsightCard title="Marketing assessment" note="Issue and strength counts aggregated from the audits below.">
+                    {Object.entries(insights.assessment.issues).map(([key, value]) => (
+                        <StatRow key={key} name={label(key)} value={<span className={value > 0 ? 'text-destructive' : ''}>{value}</span>} />
+                    ))}
+                    <div className="border-t pt-1" />
+                    {Object.entries(insights.assessment.strengths).map(([key, value]) => (
+                        <StatRow key={key} name={label(key)} value={value} />
+                    ))}
+                </InsightCard>
+
+                <InsightCard title="Keyword opportunities" note="Tracked demand you do not rank for yet (top 10).">
+                    {insights.keyword_opportunities.opportunities.length === 0 ? (
+                        <p className="text-muted-foreground">Every tracked keyword ranks — add more keywords to hunt new demand.</p>
+                    ) : (
+                        insights.keyword_opportunities.opportunities
+                            .slice(0, 6)
+                            .map((opportunity) => (
+                                <StatRow
+                                    key={opportunity.phrase}
+                                    name={opportunity.phrase + (opportunity.location ? ` · ${opportunity.location}` : '')}
+                                    value={`vol ${opportunity.search_volume ?? '—'} · pos ${opportunity.position ?? '—'}`}
+                                />
+                            ))
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Competitive landscape" note="Head-to-head rankings and AI recommendation share.">
+                    <StatRow name="keywords measured" value={insights.competitor_landscape.keywords_measured} />
+                    <StatRow name="keywords leading" value={insights.competitor_landscape.keywords_leading} />
+                    <StatRow name="AI checks recorded" value={insights.competitor_landscape.ai_share.checks} />
+                    <StatRow name="AI recommendation share" value={`${Math.round(insights.competitor_landscape.ai_share.share * 100)}%`} />
+                </InsightCard>
+
+                <InsightCard title="Website conversion audit" note="The real capture chain, end to end.">
+                    <StatRow name="visitors" value={conversion.visitors} />
+                    <StatRow name="identified" value={`${conversion.identified} (${conversion.identification_rate ?? '—'}%)`} />
+                    <StatRow name="form submissions" value={conversion.form_submissions} />
+                    <StatRow name="bookings" value={conversion.bookings} />
+                    <StatRow name="won deals" value={conversion.won_deals} />
+                </InsightCard>
+
+                <InsightCard title="Revenue opportunity model" note="Open pipeline × your own historical win rate.">
+                    {model.insufficient_data ? (
+                        <p className="text-muted-foreground">
+                            Only {model.closed_deals} closed deals — projections start at 5 so the win rate means something.
+                        </p>
+                    ) : (
+                        <>
+                            <StatRow name="win rate" value={`${model.win_rate}%`} />
+                            <StatRow name="open pipeline MRR" value={centsToMoney(model.open_mrr)} />
+                            <StatRow name="projected MRR" value={centsToMoney(model.projected_mrr ?? 0)} />
+                        </>
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Data-driven ICP" note="What your closed-won history says your ideal customer looks like.">
+                    {icp.insufficient_data ? (
+                        <p className="text-muted-foreground">No won deals yet — the ICP profile builds itself from wins.</p>
+                    ) : (
+                        <>
+                            {Object.entries(icp.top_industries).map(([industry, count]) => (
+                                <StatRow key={industry} name={industry} value={`${count} won`} />
+                            ))}
+                            <StatRow name="median won MRR" value={centsToMoney(icp.median_mrr ?? 0)} />
+                        </>
+                    )}
+                </InsightCard>
+
+                <InsightCard title="CRM hygiene" note="What a CRM audit would flag today.">
+                    {Object.entries(insights.crm_hygiene).map(([key, value]) => (
+                        <StatRow key={key} name={label(key)} value={<span className={value > 0 ? 'text-destructive' : ''}>{value}</span>} />
+                    ))}
+                </InsightCard>
+
+                <InsightCard title="Geographic markets" note="Per-market keyword footprint.">
+                    {insights.geo_markets.length === 0 ? (
+                        <p className="text-muted-foreground">No geo-targeted keywords yet — add locations on SEO → Keywords.</p>
+                    ) : (
+                        insights.geo_markets
+                            .slice(0, 6)
+                            .map((market) => (
+                                <StatRow
+                                    key={market.market}
+                                    name={market.market}
+                                    value={`${market.keywords} kw · avg ${market.avg_position ?? '—'} · ${market.opportunities} opp`}
+                                />
+                            ))
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Vertical performance" note="Win rate and won MRR by industry.">
+                    {insights.vertical_performance.length === 0 ? (
+                        <p className="text-muted-foreground">No deals yet.</p>
+                    ) : (
+                        insights.vertical_performance
+                            .slice(0, 6)
+                            .map((vertical) => (
+                                <StatRow
+                                    key={vertical.industry}
+                                    name={vertical.industry}
+                                    value={`${vertical.won}/${vertical.deals} won · ${centsToMoney(vertical.won_mrr)}`}
+                                />
+                            ))
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Funnel & PPC audits" note="Stages without assets; campaigns spending without converting.">
+                    {insights.funnel_audit.map((funnel) => (
+                        <StatRow
+                            key={funnel.funnel}
+                            name={funnel.funnel}
+                            value={
+                                <span className={funnel.stages_without_assets > 0 ? 'text-destructive' : ''}>
+                                    {funnel.stages_without_assets}/{funnel.stages} empty stages
+                                </span>
+                            }
+                        />
+                    ))}
+                    {insights.ppc_audit
+                        .filter((campaign) => campaign.flags.length > 0)
+                        .map((campaign) => (
+                            <StatRow
+                                key={campaign.campaign}
+                                name={campaign.campaign}
+                                value={<span className="text-destructive">{campaign.flags.map(label).join(', ')}</span>}
+                            />
+                        ))}
+                    {insights.funnel_audit.length === 0 && insights.ppc_audit.length === 0 && (
+                        <p className="text-muted-foreground">No funnels or ad campaigns yet.</p>
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Lead-gen gaps" note="Traffic that never becomes a lead.">
+                    {insights.lead_gen_gaps.sources.length === 0 && insights.lead_gen_gaps.pages_without_capture.length === 0 ? (
+                        <p className="text-muted-foreground">No unconverted sources or capture-less pages detected.</p>
+                    ) : (
+                        <>
+                            {insights.lead_gen_gaps.sources.map((source) => (
+                                <StatRow key={source.source} name={source.source} value={`${source.visitors} visitors, 0 identified`} />
+                            ))}
+                            {insights.lead_gen_gaps.pages_without_capture.map((page) => (
+                                <StatRow key={page} name={page} value="no capture form" />
+                            ))}
+                        </>
+                    )}
+                </InsightCard>
+
+                <InsightCard title="SEO audit summary" note="Roll-up of stored technical audits.">
+                    <StatRow name="audits run" value={insights.seo_audit_summary.audits} />
+                    <StatRow name="average score" value={insights.seo_audit_summary.avg_score ?? '—'} />
+                    <StatRow name="total issues" value={insights.seo_audit_summary.total_issues} />
+                    <StatRow name="worst page" value={insights.seo_audit_summary.worst_url ?? '—'} />
+                </InsightCard>
+            </div>
+        </div>
+    );
+}
+
 export default function StrategyDashboard({
     plans,
     items,
@@ -559,6 +803,7 @@ export default function StrategyDashboard({
     methodology,
     types,
     metrics,
+    insights,
 }: {
     plans: Plan[];
     items: StrategyItem[];
@@ -566,6 +811,7 @@ export default function StrategyDashboard({
     methodology: Methodology;
     types: string[];
     metrics: string[];
+    insights: Insights;
 }) {
     const { can } = usePermissions();
     const canManage = can('strategy.manage');
@@ -589,6 +835,8 @@ export default function StrategyDashboard({
                 </div>
 
                 <MethodologyPanel methodology={methodology} />
+
+                <InsightsSection insights={insights} />
 
                 <KpiTable kpis={kpis} canManage={canManage} metrics={metrics} />
 

@@ -11,6 +11,7 @@ use App\Models\StrategyItem;
 use App\Models\StrategyPlan;
 use App\Services\Strategy\KpiTargetService;
 use App\Services\Strategy\MethodologyService;
+use App\Services\Strategy\StrategyInsights;
 use App\Support\AuditLogger;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
@@ -27,9 +28,11 @@ use Inertia\Response;
  */
 class StrategyController extends Controller
 {
-    public function index(MethodologyService $methodology, KpiTargetService $targets): Response
+    public function index(MethodologyService $methodology, KpiTargetService $targets, StrategyInsights $insights): Response
     {
         return Inertia::render('strategy/dashboard', [
+            // Computed analyses from the tenant's own records (STRAT close-out).
+            'insights' => $insights->all(),
             'plans' => StrategyPlan::withCount('items')->latest('id')->get()->map(fn (StrategyPlan $p) => [
                 'id' => $p->id,
                 'name' => $p->name,
