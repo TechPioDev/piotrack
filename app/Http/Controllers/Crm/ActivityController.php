@@ -9,6 +9,7 @@ use App\Models\Contact;
 use App\Models\Contracts\HasActivities;
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Services\Sales\IntentService;
 use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -55,6 +56,12 @@ class ActivityController extends Controller
         ]);
 
         $this->audit->log('crm.activity.created', context: ['type' => $activity->type], resourceType: 'activity', resourceId: (string) $activity->id, organizationId: $activity->organization_id);
+
+        // INTENT-012: real sales touchpoints on a contact (a call, a meeting,
+        // an email exchange) are buyer-intent evidence; notes and tasks are not.
+        if ($subject instanceof Contact && in_array($activity->type, ['call', 'email', 'meeting'], true)) {
+            app(IntentService::class)->record($subject, 'crm_activity', 5);
+        }
 
         return back();
     }

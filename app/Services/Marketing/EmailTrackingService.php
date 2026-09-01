@@ -4,6 +4,7 @@ namespace App\Services\Marketing;
 
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\IntentSignal;
 use App\Models\OutboundMessage;
 use App\Models\Suppression;
 
@@ -48,6 +49,19 @@ class EmailTrackingService
             }
             if ($recipient->clicked_at === null) {
                 Campaign::withoutGlobalScope('tenant')->whereKey($recipient->campaign_id)->increment('stat_clicked');
+
+                // INTENT-010: a first campaign click is buyer-intent, recorded
+                // on the contact (§20 weights email_click at 10). Public route,
+                // no tenant context — the org id comes from the recipient.
+                if ($recipient->contact_id !== null) {
+                    IntentSignal::create([
+                        'organization_id' => $recipient->organization_id,
+                        'contact_id' => $recipient->contact_id,
+                        'type' => 'campaign_click',
+                        'weight' => 10,
+                        'occurred_at' => now(),
+                    ]);
+                }
             }
             $recipient->update($updates);
 

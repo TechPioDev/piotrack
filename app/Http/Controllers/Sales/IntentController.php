@@ -34,6 +34,7 @@ class IntentController extends Controller
                 'name' => $c->fullName(),
                 'intent_score' => $this->intent->intentScore($c),
                 'high_intent' => $this->intent->isHighIntent($c),
+                'buying_window' => $this->intent->inBuyingWindow($c),
                 'next_action' => $this->intent->nextAction($c),
             ])
             ->sortByDesc('intent_score')->take(50)->values();

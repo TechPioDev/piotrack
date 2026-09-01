@@ -94,6 +94,12 @@ class VisitorTracker
             $this->alerts->fire('repeat_visit', $visitor->contact);
         }
 
+        // INTENT-011: a known contact arriving through a paid first touch is
+        // ad engagement — once per session, not per pageview.
+        if ($newSession && $visitor->contact !== null && $visitor->channel() === 'paid') {
+            $this->intent->record($visitor->contact, 'ad_engagement', 8, $visitor->last_path);
+        }
+
         $visitor->events()->create([
             'type' => $event['type'],
             'path' => isset($event['path']) ? mb_substr((string) $event['path'], 0, 300) : null,

@@ -39,6 +39,27 @@ class IntentService
         return $this->intentScore($contact) >= self::HIGH_INTENT;
     }
 
+    /** A buying window needs sustained recent activity, not one hot page. */
+    public const BUYING_WINDOW_DAYS = 14;
+
+    public const BUYING_WINDOW_SIGNALS = 3;
+
+    public const BUYING_WINDOW_SCORE = 20;
+
+    /**
+     * Buying-window detection (INTENT-013): three or more distinct signals
+     * worth 20+ points inside a fortnight — the pattern of someone actively
+     * evaluating, distinct from a single high-intent page hit.
+     */
+    public function inBuyingWindow(Contact $contact): bool
+    {
+        $recent = IntentSignal::where('contact_id', $contact->id)
+            ->where('occurred_at', '>=', now()->subDays(self::BUYING_WINDOW_DAYS))->get();
+
+        return $recent->count() >= self::BUYING_WINDOW_SIGNALS
+            && (int) $recent->sum('weight') >= self::BUYING_WINDOW_SCORE;
+    }
+
     public function nextAction(Contact $contact): string
     {
         $latest = IntentSignal::where('contact_id', $contact->id)->latest('occurred_at')->first();

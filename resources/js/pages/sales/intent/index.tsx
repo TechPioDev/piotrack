@@ -28,6 +28,7 @@ type IntentContact = {
     name: string;
     intent_score: number;
     high_intent: boolean;
+    buying_window: boolean;
     next_action: string | null;
 };
 
@@ -173,7 +174,12 @@ export default function Intent({
                                         <tr key={contact.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{contact.name}</td>
                                             <td className="p-3 text-center">{contact.intent_score}</td>
-                                            <td className="p-3">{contact.high_intent && <Badge>High intent</Badge>}</td>
+                                            <td className="p-3">
+                                                <div className="flex gap-1">
+                                                    {contact.high_intent && <Badge>High intent</Badge>}
+                                                    {contact.buying_window && <Badge variant="secondary">Buying window</Badge>}
+                                                </div>
+                                            </td>
                                             <td className="text-muted-foreground p-3">{contact.next_action ?? '—'}</td>
                                         </tr>
                                     ))}
