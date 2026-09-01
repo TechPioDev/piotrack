@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\ChannelClassifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,6 +25,15 @@ class Visitor extends Model
         'first_seen_at', 'last_seen_at', 'visits', 'page_views', 'intent_score',
         'last_path', 'referrer', 'utm_source', 'utm_medium', 'utm_campaign',
     ];
+
+    /**
+     * The acquisition channel derived from immutable first-touch data
+     * (LEAD-010..014): organic, paid, social, content, referral or direct.
+     */
+    public function channel(): string
+    {
+        return ChannelClassifier::classify($this->utm_source, $this->utm_medium, $this->referrer);
+    }
 
     protected function casts(): array
     {

@@ -24,6 +24,9 @@ class LeadScoringService
 
     public const SQL_THRESHOLD = 50;
 
+    /** Scores from here up promote a plain lead to MQL (LEAD-003). */
+    public const MQL_THRESHOLD = 20;
+
     public function __construct(
         private IntentService $intent,
         private AuditLogger $audit,
@@ -52,6 +55,10 @@ class LeadScoringService
         if ($score >= self::SQL_THRESHOLD && ! in_array($contact->lifecycle_stage, ['sql', 'opportunity', 'customer'], true)) {
             $updates['lifecycle_stage'] = 'sql';
             $promoted = true;
+        } elseif ($score >= self::MQL_THRESHOLD && $contact->lifecycle_stage === 'lead') {
+            // MQL generation (LEAD-003): scoring promotes forward only — never
+            // demotes, never touches stages beyond plain leads.
+            $updates['lifecycle_stage'] = 'mql';
         }
 
         $contact->update($updates);

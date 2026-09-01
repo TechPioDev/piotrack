@@ -584,6 +584,7 @@ type Insights = {
     funnel_audit: { funnel: string; stages: number; stages_without_assets: number }[];
     ppc_audit: { campaign: string; platform: string; spend: number; conversions: number; revenue: number; flags: string[] }[];
     lead_gen_gaps: { sources: { source: string; visitors: number; identified: number }[]; pages_without_capture: string[] };
+    lead_channels: Record<string, { visitors: number; leads: number }>;
     revenue_model: {
         insufficient_data: boolean;
         closed_deals: number;
@@ -782,6 +783,16 @@ function InsightsSection({ insights }: { insights: Insights }) {
                                 <StatRow key={page} name={page} value="no capture form" />
                             ))}
                         </>
+                    )}
+                </InsightCard>
+
+                <InsightCard title="Leads by channel" note="Identified leads by derived first-touch channel.">
+                    {Object.keys(insights.lead_channels).length === 0 ? (
+                        <p className="text-muted-foreground">No visitor traffic recorded yet.</p>
+                    ) : (
+                        Object.entries(insights.lead_channels).map(([channel, row]) => (
+                            <StatRow key={channel} name={channel} value={`${row.leads} leads / ${row.visitors} visitors`} />
+                        ))
                     )}
                 </InsightCard>
 

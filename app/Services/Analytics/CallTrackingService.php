@@ -5,6 +5,7 @@ namespace App\Services\Analytics;
 use App\Analytics\CallProviderManager;
 use App\Models\Call;
 use App\Models\CallTrackingNumber;
+use App\Models\Contact;
 use App\Support\AuditLogger;
 use Illuminate\Support\Carbon;
 
@@ -101,6 +102,23 @@ class CallTrackingService
     public function markConverted(Call $call): Call
     {
         $call->update(['converted' => true, 'score' => min(100, $call->score + 20)]);
+
+        // LEAD-009: a converted call IS a lead. Attach the existing contact by
+        // phone when we have one; otherwise the call becomes a new phone-call
+        // lead so it enters routing, scoring and attribution like every other
+        // capture. Never invents an email.
+        if ($call->contact_id === null) {
+            $contact = Contact::where('phone', $call->from_number)->first()
+                ?? Contact::create([
+                    'first_name' => 'Caller',
+                    'last_name' => $call->from_number,
+                    'phone' => $call->from_number,
+                    'lead_source' => $call->source !== null && $call->source !== '' ? $call->source : 'phone_call',
+                    'lifecycle_stage' => 'lead',
+                ]);
+
+            $call->update(['contact_id' => $contact->id]);
+        }
 
         return $call->refresh();
     }

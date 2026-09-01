@@ -44,6 +44,7 @@ class StrategyInsights
             'funnel_audit' => $this->funnelAudit(),
             'ppc_audit' => $this->ppcAudit(),
             'lead_gen_gaps' => $this->leadGenGaps(),
+            'lead_channels' => $this->leadChannels(),
             'revenue_model' => $this->revenueModel(),
             'icp_profile' => $this->icpProfile(),
             'seo_audit_summary' => $this->seoAuditSummary(),
@@ -253,6 +254,28 @@ class StrategyInsights
             ->pluck('name')->values()->all();
 
         return ['sources' => $sources, 'pages_without_capture' => $pages];
+    }
+
+    /**
+     * LEAD-010..014: identified leads by derived acquisition channel — the
+     * classifier is deterministic over immutable first-touch data.
+     *
+     * @return array<string, array{visitors: int, leads: int}>
+     */
+    public function leadChannels(): array
+    {
+        $result = [];
+        foreach (Visitor::get() as $visitor) {
+            $channel = $visitor->channel();
+            $result[$channel] ??= ['visitors' => 0, 'leads' => 0];
+            $result[$channel]['visitors']++;
+            if ($visitor->contact_id !== null) {
+                $result[$channel]['leads']++;
+            }
+        }
+        ksort($result);
+
+        return $result;
     }
 
     /**
