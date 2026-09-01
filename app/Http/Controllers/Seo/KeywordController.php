@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seo;
 use App\Http\Controllers\Controller;
 use App\Models\Keyword;
 use App\Seo\SeoProviderManager;
+use App\Services\Analytics\CompetitiveService;
 use App\Services\Seo\KeywordService;
 use App\Services\Seo\RankTracker;
 use App\Support\AuditLogger;
@@ -42,11 +43,22 @@ class KeywordController extends Controller
                 'mapped_url' => $k->mapped_url,
                 'cluster' => $k->cluster,
                 'location' => $k->location,
+                'is_tracked' => $k->is_tracked,
                 'current_position' => $k->current_position,
                 'page_one' => RankTracker::isPageOne($k->current_position),
                 'top_three' => RankTracker::isTopThree($k->current_position),
             ]),
             'gap' => $this->keywords->contentGap()->map(fn (Keyword $k) => ['id' => $k->id, 'phrase' => $k->phrase]),
+            // KSEO-008: the steal list — keywords where a tracked competitor
+            // currently outranks us (or we do not rank at all).
+            'steal' => collect(app(CompetitiveService::class)->keywordHeadToHead())
+                ->filter(fn (array $row) => $row['leading'] === false)
+                ->map(fn (array $row) => [
+                    'keyword' => $row['keyword'],
+                    'our_position' => $row['our_position'],
+                    'best_competitor' => collect($row['competitors'])->filter()->sort()->keys()->first(),
+                    'best_position' => collect($row['competitors'])->filter()->min(),
+                ])->values()->all(),
         ]);
     }
 
@@ -69,6 +81,21 @@ class KeywordController extends Controller
         $keyword->update($this->validateData($request, $keyword));
 
         return back()->with('status', __('Keyword updated.'));
+    }
+
+    /**
+     * Seed the curated MSP research library (KSEO-001..012). Idempotent;
+     * everything arrives untracked for review.
+     */
+    public function seed(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['with_geo' => ['sometimes', 'boolean']]);
+
+        $result = $this->keywords->seedMspLibrary((bool) ($data['with_geo'] ?? false));
+
+        $this->audit->log('seo.keywords.library_seeded', context: $result);
+
+        return back()->with('status', __(':created research keywords added (:skipped already present). Review and enable tracking per keyword.', $result));
     }
 
     public function rank(Request $request, Keyword $keyword): RedirectResponse
@@ -115,6 +142,7 @@ class KeywordController extends Controller
             'search_volume' => ['nullable', 'integer', 'min:0'],
             'difficulty' => ['nullable', 'integer', 'min:0', 'max:100'],
             'mapped_url' => ['nullable', 'url', 'max:2048'],
+            'is_tracked' => ['sometimes', 'boolean'],
         ]);
     }
 }

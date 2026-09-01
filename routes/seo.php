@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
             ->defaults('entity', 'keywords')->middleware('can:seo.view')->name('keywords.export');
         Route::get('keywords', [KeywordController::class, 'index'])->middleware('can:seo.view')->name('keywords.index');
         Route::post('keywords', [KeywordController::class, 'store'])->middleware('can:seo.keywords.manage')->name('keywords.store');
+        Route::post('keywords/seed', [KeywordController::class, 'seed'])->middleware('can:seo.keywords.manage')->name('keywords.seed');
         Route::post('keywords/recluster', [KeywordController::class, 'recluster'])->middleware('can:seo.keywords.manage')->name('keywords.recluster');
         Route::patch('keywords/{keyword}', [KeywordController::class, 'update'])->middleware('can:seo.keywords.manage')->name('keywords.update');
         Route::post('keywords/{keyword}/rank', [KeywordController::class, 'rank'])->middleware('can:seo.keywords.manage')->name('keywords.rank');

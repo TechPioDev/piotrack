@@ -25,12 +25,15 @@ type Keyword = {
     mapped_url: string | null;
     cluster: string | null;
     location: string | null;
+    is_tracked: boolean;
     current_position: number | null;
     page_one: boolean;
     top_three: boolean;
 };
 
 type Gap = { id: number; phrase: string };
+
+type Steal = { keyword: string; our_position: number | null; best_competitor: string | null; best_position: number | null };
 
 const INTENTS = ['informational', 'commercial', 'transactional', 'navigational'] as const;
 
@@ -85,10 +88,23 @@ function RankDialog({ keyword }: { keyword: Keyword }) {
     );
 }
 
-export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: Gap[] }) {
+export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]; gap: Gap[]; steal: Steal[] }) {
     const { can } = usePermissions();
     const canManage = can('seo.keywords.manage');
     const [open, setOpen] = useState(false);
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [intentFilter, setIntentFilter] = useState('all');
+
+    const types = [...new Set(keywords.map((keyword) => keyword.type).filter((type): type is string => !!type))].sort();
+    const visible = keywords.filter(
+        (keyword) => (typeFilter === 'all' || keyword.type === typeFilter) && (intentFilter === 'all' || keyword.intent === intentFilter),
+    );
+    const toggleTracked = (keyword: Keyword) =>
+        router.patch(
+            route('seo.keywords.update', keyword.id),
+            { phrase: keyword.phrase, intent: keyword.intent, is_tracked: !keyword.is_tracked },
+            { preserveScroll: true },
+        );
     const form = useForm<{
         phrase: string;
         intent: (typeof INTENTS)[number];
@@ -126,6 +142,12 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                     <Heading title="Keywords" description={`${keywords.length} tracked`} />
                     {canManage && (
                         <div className="flex gap-2">
+                            <Button
+                                variant="secondary"
+                                onClick={() => router.post(route('seo.keywords.seed'), { with_geo: true }, { preserveScroll: true })}
+                            >
+                                Seed MSP library
+                            </Button>
                             <Button variant="secondary" onClick={() => router.post(route('seo.keywords.recluster'), {}, { preserveScroll: true })}>
                                 Recluster
                             </Button>
@@ -222,8 +244,41 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                     )}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Filter:</span>
+                    <select
+                        aria-label="Filter by type"
+                        className="border-input bg-background rounded-md border px-2 py-1"
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                    >
+                        <option value="all">All types</option>
+                        {types.map((type) => (
+                            <option key={type} value={type}>
+                                {type.replace('_', ' ')}
+                            </option>
+                        ))}
+                    </select>
+                    <select
+                        aria-label="Filter by intent"
+                        className="border-input bg-background rounded-md border px-2 py-1"
+                        value={intentFilter}
+                        onChange={(e) => setIntentFilter(e.target.value)}
+                    >
+                        <option value="all">All intents</option>
+                        {INTENTS.map((intent) => (
+                            <option key={intent} value={intent}>
+                                {intent}
+                            </option>
+                        ))}
+                    </select>
+                    <span className="text-muted-foreground">
+                        {visible.length} of {keywords.length}
+                    </span>
+                </div>
+
                 {keywords.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No keywords yet. Add a keyword to start tracking rankings.</p>
+                    <p className="text-muted-foreground text-sm">No keywords yet. Add a keyword or seed the MSP research library.</p>
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">
@@ -231,6 +286,7 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                 <tr>
                                     <th className="p-3 font-medium">Phrase</th>
                                     <th className="p-3 font-medium">Intent</th>
+                                    <th className="p-3 font-medium">Type</th>
                                     <th className="p-3 font-medium">Cluster</th>
                                     <th className="p-3 font-medium">Location</th>
                                     <th className="p-3 font-medium">Position</th>
@@ -239,12 +295,20 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {keywords.map((keyword) => (
+                                {visible.map((keyword) => (
                                     <tr key={keyword.id} className="hover:bg-muted/40">
-                                        <td className="p-3 font-medium">{keyword.phrase}</td>
+                                        <td className="p-3 font-medium">
+                                            {keyword.phrase}
+                                            {!keyword.is_tracked && (
+                                                <Badge variant="outline" className="ml-2">
+                                                    research
+                                                </Badge>
+                                            )}
+                                        </td>
                                         <td className="p-3">
                                             <Badge variant="outline">{keyword.intent}</Badge>
                                         </td>
+                                        <td className="text-muted-foreground p-3">{keyword.type?.replace('_', ' ') ?? '—'}</td>
                                         <td className="text-muted-foreground p-3">{keyword.cluster ?? '—'}</td>
                                         <td className="text-muted-foreground p-3">{keyword.location ?? '—'}</td>
                                         <td className="p-3">
@@ -261,6 +325,9 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                         {canManage && (
                                             <td className="p-3">
                                                 <div className="flex justify-end gap-2">
+                                                    <Button size="sm" variant="ghost" onClick={() => toggleTracked(keyword)}>
+                                                        {keyword.is_tracked ? 'Untrack' : 'Track'}
+                                                    </Button>
                                                     <RankDialog keyword={keyword} />
                                                     <Button
                                                         size="sm"
@@ -295,6 +362,41 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                     </li>
                                 ))}
                             </ul>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent className="space-y-2 p-4">
+                        <h3 className="text-sm font-medium">Competitor steal list</h3>
+                        <p className="text-muted-foreground text-sm">
+                            Keywords where a tracked competitor currently outranks you — measured from recorded rankings, not guesses.
+                        </p>
+                        {steal.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No measured keyword where a competitor leads. Keep tracking.</p>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg border">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-muted/50 text-muted-foreground">
+                                        <tr>
+                                            <th className="p-3 font-medium">Keyword</th>
+                                            <th className="p-3 text-center font-medium">Us</th>
+                                            <th className="p-3 font-medium">Best competitor</th>
+                                            <th className="p-3 text-center font-medium">Them</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {steal.map((row) => (
+                                            <tr key={row.keyword}>
+                                                <td className="p-3 font-medium">{row.keyword}</td>
+                                                <td className="p-3 text-center">{row.our_position ?? '—'}</td>
+                                                <td className="text-muted-foreground p-3">{row.best_competitor ?? '—'}</td>
+                                                <td className="p-3 text-center">{row.best_position ?? '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
