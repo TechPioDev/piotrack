@@ -28,4 +28,9 @@ return [
 
     // How many recipients a single campaign-send job processes per chunk.
     'send_chunk' => (int) env('MARKETING_SEND_CHUNK', 100),
+
+    // Chat-widget public key embedded on the product marketing pages (MSITE).
+    // Per environment — the key belongs to that environment's PioTrack org
+    // widget. Unset (default) renders the pages without a chat widget.
+    'chat_widget_key' => env('MARKETING_CHAT_WIDGET_KEY'),
 ];

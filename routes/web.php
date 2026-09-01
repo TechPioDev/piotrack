@@ -24,6 +24,7 @@ Route::get('/', function () {
         'metaTitle' => 'Piotrack — MSP Marketing & Growth Platform',
         'metaDescription' => 'The growth operating system for managed service providers: CRM, marketing automation, SEO and AI visibility tracking, booking, and revenue attribution in one platform.',
         'canonical' => url('/'),
+        'chatWidgetKey' => config('marketing.chat_widget_key'),
     ]);
 })->name('home');
 

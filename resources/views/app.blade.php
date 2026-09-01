@@ -31,5 +31,11 @@
     </head>
     <body class="font-sans antialiased">
         @inertia
+
+        {{-- Product chat widget, marketing pages only (MSITE): controllers opt in
+             via view data; the key is per-environment config, never hard-coded. --}}
+        @if (!empty($chatWidgetKey))
+            <script src="{{ url('/widget/piotrack-chat.js') }}" data-widget="{{ $chatWidgetKey }}" async></script>
+        @endif
     </body>
 </html>

@@ -94,6 +94,18 @@ it('serves a sitemap listing every public product page', function () {
     }
 });
 
+it('embeds the chat widget on marketing pages only when a key is configured', function () {
+    config()->set('marketing.chat_widget_key', 'wc_testkey123');
+
+    $this->get('/features')->assertOk()
+        ->assertSee('widget/piotrack-chat.js', false)
+        ->assertSee('data-widget="wc_testkey123"', false);
+    $this->get('/')->assertOk()->assertSee('data-widget="wc_testkey123"', false);
+
+    config()->set('marketing.chat_widget_key', null);
+    $this->get('/features')->assertOk()->assertDontSee('piotrack-chat.js', false);
+});
+
 it('serves the homepage with server-rendered SEO meta', function () {
     $this->get('/')
         ->assertOk()

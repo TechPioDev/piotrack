@@ -154,6 +154,7 @@ class MarketingSiteController extends Controller
             'metaDescription' => $meta['description'],
             'canonical' => url($meta['path']),
             'jsonLd' => $meta['jsonLd'] ?? null,
+            'chatWidgetKey' => config('marketing.chat_widget_key'),
         ]);
     }
 }
