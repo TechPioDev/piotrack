@@ -26,14 +26,21 @@ class AccountController extends Controller
     {
         return Inertia::render('sales/accounts/index', [
             'accounts' => TargetAccount::with('company:id,name')->orderBy('tier')->orderByDesc('account_score')->get()
-                ->map(fn (TargetAccount $a) => [
-                    'id' => $a->id,
-                    'company' => $a->company?->name,
-                    'tier' => $a->tier,
-                    'status' => $a->status,
-                    'account_score' => $a->account_score,
-                    'committee' => $this->accounts->buyingCommittee($a)->count(),
-                ]),
+                ->map(function (TargetAccount $a) {
+                    $engagement = $this->accounts->engagement($a);
+
+                    return [
+                        'id' => $a->id,
+                        'company' => $a->company?->name,
+                        'tier' => $a->tier,
+                        'status' => $a->status,
+                        'account_score' => $a->account_score,
+                        'committee' => $engagement['committee_size'],
+                        'engaged' => $engagement['engaged'],
+                        'decision_makers' => $engagement['decision_makers'],
+                        'multi_threaded' => $engagement['multi_threaded'],
+                    ];
+                }),
             'companies' => Company::orderBy('name')->limit(200)->get(['id', 'name'])
                 ->map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name]),
         ]);
@@ -80,5 +87,37 @@ class AccountController extends Controller
         $account->delete();
 
         return back()->with('status', __('Account removed.'));
+    }
+
+    /**
+     * Per-account engagement report (ABM-015): committee, roles, revenue,
+     * meetings and the intent trail — all real records.
+     */
+    public function report(TargetAccount $account): Response
+    {
+        return Inertia::render('sales/accounts/report', $this->accounts->report($account));
+    }
+
+    /**
+     * Sync a tier's buying committees into a marketing list (ABM-009/013) so
+     * campaigns can target it with per-contact merge tags.
+     */
+    public function syncList(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['tier' => ['required', 'integer', 'min:1', 'max:3']]);
+
+        $list = $this->accounts->syncTierList((int) $data['tier']);
+
+        return back()->with('status', __('List ":name" synced with :n contacts.', ['name' => $list->name, 'n' => $list->member_count]));
+    }
+
+    /** Draft a landing page personalized to this account (ABM-010). */
+    public function createPage(Request $request, TargetAccount $account): RedirectResponse
+    {
+        $data = $request->validate(['service' => ['required', 'string', 'max:120']]);
+
+        $page = $this->accounts->createPage($account, trim($data['service']));
+
+        return back()->with('status', __('Draft landing page ":name" created — review it under Marketing → Landing pages.', ['name' => $page->name]));
     }
 }

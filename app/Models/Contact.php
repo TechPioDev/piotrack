@@ -28,9 +28,12 @@ class Contact extends Model implements HasActivities
     /** Funnel order. The single source for validation and stage pickers (CRMT). */
     public const LIFECYCLE_STAGES = ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'];
 
+    /** Buying-committee roles a contact can hold on an account (ABM-005). */
+    public const BUYING_ROLES = ['decision_maker', 'champion', 'influencer', 'blocker', 'user'];
+
     protected $fillable = [
         'organization_id', 'company_id', 'first_name', 'last_name', 'email', 'phone',
-        'title', 'lead_source', 'campaign', 'owner_id',
+        'title', 'buying_role', 'lead_source', 'campaign', 'owner_id',
         'lifecycle_stage', 'lead_score', 'email_opt_in', 'sms_opt_in',
     ];
 

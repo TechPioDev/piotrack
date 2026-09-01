@@ -3,12 +3,13 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Accounts', href: '/sales/accounts' }];
@@ -20,6 +21,9 @@ type Account = {
     status: string;
     account_score: number;
     committee: number;
+    engaged: number;
+    decision_makers: number;
+    multi_threaded: boolean;
 };
 
 type Company = {
@@ -199,6 +203,56 @@ function EditAccountDialog({ account }: { account: Account }) {
     );
 }
 
+function AccountPageDialog({ account }: { account: Account }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({ service: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('sales.accounts.page.create', account.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="secondary">
+                    Landing page
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Personalized landing page</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    Drafts a &quot;[service] built for {account.company ?? 'this account'}&quot; page. Review and publish it under Marketing → Landing
+                    pages.
+                </p>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor={`abm-svc-${account.id}`}>Service</Label>
+                        <Input
+                            id={`abm-svc-${account.id}`}
+                            placeholder="e.g. Managed Cybersecurity"
+                            value={form.data.service}
+                            onChange={(e) => form.setData('service', e.target.value)}
+                        />
+                        <InputError message={form.errors.service} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Create draft
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function Accounts({ accounts, companies }: { accounts: Account[]; companies: Company[] }) {
     const { can } = usePermissions();
     const canManage = can('sales.accounts.manage');
@@ -212,7 +266,20 @@ export default function Accounts({ accounts, companies }: { accounts: Account[];
             <div className="space-y-6 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading title="Target accounts" description="Account-based marketing targets and their buying committees" />
-                    {canManage && <NewAccountDialog companies={companies} />}
+                    <div className="flex flex-wrap gap-2">
+                        {canManage &&
+                            [1, 2, 3].map((tier) => (
+                                <Button
+                                    key={tier}
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => router.post(route('sales.accounts.sync-list'), { tier }, { preserveScroll: true })}
+                                >
+                                    Sync Tier {tier} list
+                                </Button>
+                            ))}
+                        {canManage && <NewAccountDialog companies={companies} />}
+                    </div>
                 </div>
 
                 {accounts.length === 0 ? (
@@ -227,6 +294,8 @@ export default function Accounts({ accounts, companies }: { accounts: Account[];
                                     <th className="p-3 font-medium">Status</th>
                                     <th className="p-3 text-center font-medium">Score</th>
                                     <th className="p-3 text-center font-medium">Committee</th>
+                                    <th className="p-3 text-center font-medium">Engaged</th>
+                                    <th className="p-3 text-center font-medium">Threading</th>
                                     {canManage && <th className="p-3 text-right font-medium">Actions</th>}
                                 </tr>
                             </thead>
@@ -241,10 +310,27 @@ export default function Accounts({ accounts, companies }: { accounts: Account[];
                                             <Badge variant={statusVariant(account.status)}>{account.status}</Badge>
                                         </td>
                                         <td className="p-3 text-center">{account.account_score}</td>
-                                        <td className="p-3 text-center">{account.committee}</td>
+                                        <td className="p-3 text-center">
+                                            {account.committee}
+                                            {account.decision_makers > 0 && (
+                                                <span className="text-muted-foreground ml-1 text-xs">({account.decision_makers} DM)</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-center">{account.engaged}</td>
+                                        <td className="p-3 text-center">
+                                            {account.multi_threaded ? (
+                                                <Badge>Multi-threaded</Badge>
+                                            ) : (
+                                                <Badge variant="secondary">Single thread</Badge>
+                                            )}
+                                        </td>
                                         {canManage && (
                                             <td className="p-3">
                                                 <div className="flex justify-end gap-2">
+                                                    <Button size="sm" variant="ghost" asChild>
+                                                        <Link href={route('sales.accounts.report', account.id)}>Report</Link>
+                                                    </Button>
+                                                    <AccountPageDialog account={account} />
                                                     <EditAccountDialog account={account} />
                                                     <Button size="sm" variant="secondary" onClick={() => rescore(account.id)}>
                                                         Rescore

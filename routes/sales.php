@@ -65,7 +65,10 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
 
         // ABM accounts.
         Route::get('accounts', [AccountController::class, 'index'])->middleware('can:sales.view')->name('accounts.index');
+        Route::get('accounts/{account}/report', [AccountController::class, 'report'])->middleware('can:sales.view')->name('accounts.report');
         Route::middleware('can:sales.accounts.manage')->group(function () {
+            Route::post('accounts/sync-list', [AccountController::class, 'syncList'])->name('accounts.sync-list');
+            Route::post('accounts/{account}/page', [AccountController::class, 'createPage'])->name('accounts.page.create');
             Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
             Route::patch('accounts/{account}', [AccountController::class, 'update'])->name('accounts.update');
             Route::post('accounts/{account}/rescore', [AccountController::class, 'rescore'])->name('accounts.rescore');

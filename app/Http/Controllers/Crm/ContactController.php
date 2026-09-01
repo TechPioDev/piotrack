@@ -234,6 +234,7 @@ class ContactController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'title' => ['nullable', 'string', 'max:120'],
+            'buying_role' => ['nullable', Rule::in(Contact::BUYING_ROLES)],
             'company_id' => ['nullable', Rule::exists('companies', 'id')->where('organization_id', $this->currentOrganization->id())],
             'lead_source' => ['nullable', 'string', 'max:120'],
             'campaign' => ['nullable', 'string', 'max:120'],
