@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
         Route::post('alerts/{alert}/read', [AlertController::class, 'markRead'])->middleware('can:sales.view')->name('alerts.read');
         Route::middleware('can:sales.alerts.manage')->group(function () {
             Route::post('alerts', [AlertController::class, 'store'])->name('alerts.store');
+            Route::put('alerts/channels', [AlertController::class, 'updateChannels'])->name('alerts.channels');
             Route::delete('alerts/{rule}', [AlertController::class, 'destroy'])->name('alerts.destroy');
         });
 

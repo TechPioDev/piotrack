@@ -17,13 +17,20 @@ class SearchController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $term = (string) $request->query('q', '');
+        $user = $request->user();
+        $organization = $this->currentOrganization->get();
+
+        $groups = $this->search->search($user, $organization, $term);
+
+        // SRCH-002: only searches that found something are worth suggesting
+        // again; an empty query returns the recents for the palette to show.
+        if ($groups !== []) {
+            $this->search->rememberTerm($user, $organization, $term);
+        }
 
         return response()->json([
-            'groups' => $this->search->search(
-                $request->user(),
-                $this->currentOrganization->get(),
-                $term,
-            ),
+            'groups' => $groups,
+            'recent' => $this->search->recentTerms($user, $organization),
         ]);
     }
 }

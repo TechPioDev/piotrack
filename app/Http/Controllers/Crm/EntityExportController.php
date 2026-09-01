@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\Competitor;
 use App\Models\Deal;
+use App\Models\Keyword;
 use App\Models\Lead;
 use App\Support\AuditLogger;
 use App\Support\Csv;
@@ -35,6 +37,8 @@ class EntityExportController extends Controller
             match ($entity) {
                 'companies' => $this->companies($out),
                 'leads' => $this->leads($out),
+                'keywords' => $this->keywords($out),
+                'competitors' => $this->competitors($out),
                 default => $this->deals($out),
             };
 
@@ -65,6 +69,34 @@ class EntityExportController extends Controller
                 fputcsv($out, Csv::row([
                     $lead->first_name, $lead->last_name, $lead->email, $lead->phone,
                     $lead->company_name, $lead->source, $lead->status,
+                ]));
+            }
+        });
+    }
+
+    /** @param  resource  $out */
+    private function keywords($out): void
+    {
+        fputcsv($out, ['Phrase', 'Intent', 'Search volume', 'Cluster', 'Mapped URL', 'Tracked', 'Current position']);
+        Keyword::query()->chunk(500, function ($keywords) use ($out) {
+            foreach ($keywords as $keyword) {
+                fputcsv($out, Csv::row([
+                    $keyword->phrase, $keyword->intent, $keyword->search_volume, $keyword->cluster,
+                    $keyword->mapped_url, $keyword->is_tracked ? 'yes' : 'no', $keyword->current_position,
+                ]));
+            }
+        });
+    }
+
+    /** @param  resource  $out */
+    private function competitors($out): void
+    {
+        fputcsv($out, ['Name', 'Domain', 'Notes', 'Tracked']);
+        Competitor::query()->chunk(500, function ($competitors) use ($out) {
+            foreach ($competitors as $competitor) {
+                fputcsv($out, Csv::row([
+                    $competitor->name, $competitor->domain, $competitor->notes,
+                    $competitor->is_tracked ? 'yes' : 'no',
                 ]));
             }
         });

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Crm\EntityExportController;
 use App\Http\Controllers\Seo\AiVisibilityController;
 use App\Http\Controllers\Seo\AuditController;
 use App\Http\Controllers\Seo\KeywordController;
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::get('audits/{audit}', [AuditController::class, 'show'])->middleware('can:seo.view')->name('audits.show');
 
         // Keywords + rank tracking.
+        Route::get('keywords/export-csv', EntityExportController::class)
+            ->defaults('entity', 'keywords')->middleware('can:seo.view')->name('keywords.export');
         Route::get('keywords', [KeywordController::class, 'index'])->middleware('can:seo.view')->name('keywords.index');
         Route::post('keywords', [KeywordController::class, 'store'])->middleware('can:seo.keywords.manage')->name('keywords.store');
         Route::post('keywords/recluster', [KeywordController::class, 'recluster'])->middleware('can:seo.keywords.manage')->name('keywords.recluster');

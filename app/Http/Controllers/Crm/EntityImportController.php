@@ -60,11 +60,21 @@ class EntityImportController extends Controller
             $parsed['rows'],
         );
 
-        return redirect()->route("crm.{$entity}.index")
+        return redirect()->route($this->indexRoute($entity))
             ->with('status', __(':imported imported, :skipped skipped, :failed failed.', [
                 'imported' => $job->imported,
                 'skipped' => $job->skipped,
                 'failed' => $job->failed,
             ]));
+    }
+
+    /** Where each entity's list lives — keywords and competitors sit outside CRM. */
+    private function indexRoute(string $entity): string
+    {
+        return match ($entity) {
+            'keywords' => 'seo.keywords.index',
+            'competitors' => 'analytics.competitors.index',
+            default => "crm.{$entity}.index",
+        };
     }
 }

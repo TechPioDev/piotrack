@@ -40,7 +40,9 @@ class PublicBookingController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $this->booking->book($page, $data);
+        // The tracker cookie (when the tenant's snippet runs on this site) ties
+        // the meeting to the visitor's history and first-touch source (BOOK-010).
+        $this->booking->book($page, $data, $request->cookie('_pt_vid'));
 
         return view('public.message', [
             'title' => __('Booked!'),

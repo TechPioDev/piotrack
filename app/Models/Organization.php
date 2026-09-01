@@ -22,7 +22,16 @@ class Organization extends Model
         'name',
         'slug',
         'owner_id',
+        'alert_channels',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['alert_channels' => 'array'];
+    }
 
     protected static function booted(): void
     {

@@ -28,6 +28,8 @@ class BookingService
         private AuditLogger $audit,
         private MessageDispatcher $messages,
         private NotificationDispatcher $notifier,
+        private AlertService $alerts,
+        private VisitorTracker $visitors,
     ) {}
 
     /**
@@ -57,7 +59,7 @@ class BookingService
     /**
      * @param  array{name: string, email: string, scheduled_at: mixed, source?: ?string, notes?: ?string}  $data
      */
-    public function book(BookingPage $page, array $data): Booking
+    public function book(BookingPage $page, array $data, ?string $visitorKey = null): Booking
     {
         $email = Str::lower(trim($data['email']));
 
@@ -68,6 +70,12 @@ class BookingService
                 'lead_source' => 'booking',
                 'lifecycle_stage' => 'lead',
             ]);
+
+        // BOOK-010: tie the meeting to the visitor's browsing history so the
+        // booking inherits first-touch attribution (UTM/referrer) end to end.
+        if ($visitorKey !== null && $visitorKey !== '') {
+            $this->visitors->linkContact($visitorKey, $contact);
+        }
 
         $ownerId = $this->assignOwner($page);
 
@@ -103,6 +111,9 @@ class BookingService
         } else {
             $this->notifier->toOrganizationOwners($this->currentOrganization->get(), $notification);
         }
+
+        // ALERT-009: a requested meeting is the highest-signal sales event.
+        $this->alerts->fire('meeting_request', $contact);
 
         $this->audit->log('sales.booking.created', context: ['page' => $page->name], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 

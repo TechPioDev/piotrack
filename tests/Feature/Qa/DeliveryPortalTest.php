@@ -16,10 +16,10 @@ declare(strict_types=1);
  *                 endpoint is the general library at /settings/files. Row
  *                 downgraded to Partially Implemented.
  *
- *   Notifications TicketService open/reply/resolve write records and audit
- *                 entries and notify nobody, so a customer is never told their
- *                 ticket was answered and must poll the portal. Registered as
- *                 SUPP-004, Planned.
+ *   Notifications SUPP-004, built in the close-out sprint: reply/assign/resolve
+ *                 notify the requester and assignee (never the actor, never the
+ *                 requester for internal notes) through PlatformNotification's
+ *                 in-app + email channels.
  *
  * What does work - threading, internal-note stripping, reopen-on-reply and the
  * portal boundary - is exercised properly.
@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 use App\Authorization\Role;
 use App\Models\Ticket;
+use App\Notifications\TicketNotification;
 use App\Services\Delivery\TicketService;
 use App\Support\CurrentOrganization;
 use Illuminate\Support\Facades\Notification;
@@ -80,10 +81,10 @@ it('runs a ticket from raised to resolved with the client thread kept clean', fu
         ->and($ticket->fresh()->resolved_at)->toBeNull();
 });
 
-it('notifies nobody when a ticket is raised, answered or resolved', function () {
-    // Pins SUPP-004. §53 requires both "Admin Receives Ticket" and "Customer
-    // Receives Update"; neither happens. When notifications are built this
-    // fails, forcing the row to be revisited rather than going stale.
+it('notifies requester and assignee through the ticket lifecycle, never the actor', function () {
+    // SUPP-004 built: assignment notifies the new assignee; a public reply
+    // notifies everyone on the ticket except its author; resolution notifies
+    // the requester. Internal notes never reach the requester.
     Notification::fake();
 
     $tickets = app(TicketService::class);
@@ -94,10 +95,17 @@ it('notifies nobody when a ticket is raised, answered or resolved', function () 
     ], $this->client);
 
     $tickets->assign($ticket, $this->agent);
-    $tickets->reply($ticket->fresh(), 'Investigating now.', $this->agent);
-    $tickets->resolve($ticket->fresh());
+    Notification::assertSentTo($this->agent, TicketNotification::class, fn ($n) => $n->title() === 'Ticket assigned to you');
 
-    Notification::assertNothingSent();
+    $tickets->reply($ticket->fresh(), 'Investigating now.', $this->agent);
+    Notification::assertSentTo($this->client, TicketNotification::class, fn ($n) => $n->title() === 'New reply on your ticket');
+
+    Notification::fake(); // reset: watch the internal note in isolation
+    $tickets->reply($ticket->fresh(), 'Root cause: full disk on the target.', $this->agent, internal: true);
+    Notification::assertNotSentTo($this->client, TicketNotification::class);
+
+    $tickets->resolve($ticket->fresh());
+    Notification::assertSentTo($this->client, TicketNotification::class, fn ($n) => $n->title() === 'Your ticket was resolved');
 });
 
 it('cannot attach a file to a ticket', function () {

@@ -11,9 +11,11 @@ declare(strict_types=1);
 
 use App\Authorization\Role;
 use App\Models\Company;
+use App\Models\Competitor;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\ImportJob;
+use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\Pipeline;
 use App\Support\CurrentOrganization;
@@ -98,6 +100,35 @@ it('exports companies, leads and deals as guarded CSV', function () {
 
     $deals = $this->actingAs($this->owner)->get(route('crm.deals.export'))->assertOk();
     expect($deals->streamedContent())->toContain('Big Deal')->toContain('1234.00');
+});
+
+it('imports and exports keywords and competitors (IMEX-001/003 breadth)', function () {
+    $csv = "Keyword,Search Volume,Cluster\nmanaged it services,900,services\nManaged IT Services,900,services\nbad volume,notanumber,x";
+    $this->actingAs($this->owner)
+        ->post(route('crm.entity.import.store', 'keywords'), ['file' => csvUpload($csv)])
+        ->assertRedirect(route('seo.keywords.index'));
+
+    app(CurrentOrganization::class)->set($this->org);
+    expect(Keyword::count())->toBe(1) // duplicate + invalid row rejected
+        ->and(Keyword::first()->phrase)->toBe('managed it services')
+        ->and(Keyword::first()->search_volume)->toBe(900);
+
+    $csv = "Competitor,Website\nRival MSP,https://www.rivalmsp.test/\nRival MSP,rivalmsp.test";
+    app(CurrentOrganization::class)->forget();
+    $this->actingAs($this->owner)
+        ->post(route('crm.entity.import.store', 'competitors'), ['file' => csvUpload($csv)])
+        ->assertRedirect(route('analytics.competitors.index'));
+
+    app(CurrentOrganization::class)->set($this->org);
+    expect(Competitor::count())->toBe(1)
+        ->and(Competitor::first()->domain)->toBe('rivalmsp.test'); // scheme + www stripped
+    app(CurrentOrganization::class)->forget();
+
+    $keywords = $this->actingAs($this->owner)->get(route('seo.keywords.export'))->assertOk();
+    expect($keywords->streamedContent())->toContain('managed it services')->toContain('900');
+
+    $competitors = $this->actingAs($this->owner)->get(route('analytics.competitors.export'))->assertOk();
+    expect($competitors->streamedContent())->toContain('Rival MSP')->toContain('rivalmsp.test');
 });
 
 it('keeps imports permission-gated and tenant-scoped', function () {

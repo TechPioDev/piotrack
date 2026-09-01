@@ -32,10 +32,10 @@ type Alert = {
     created_at: string | null;
 };
 
-type Trigger = 'score_threshold' | 'high_intent' | 'meeting_request' | 'repeat_visit' | 'bottom_funnel';
+type Trigger = 'score_threshold' | 'high_intent' | 'meeting_request' | 'repeat_visit' | 'bottom_funnel' | 'content_engagement';
 type Channel = 'in_app' | 'email';
 
-const TRIGGERS: Trigger[] = ['score_threshold', 'high_intent', 'meeting_request', 'repeat_visit', 'bottom_funnel'];
+const TRIGGERS: Trigger[] = ['score_threshold', 'high_intent', 'meeting_request', 'repeat_visit', 'bottom_funnel', 'content_engagement'];
 const CHANNELS: Channel[] = ['in_app', 'email'];
 
 function formatTime(iso: string | null): string {
@@ -132,7 +132,61 @@ function NewRuleDialog() {
     );
 }
 
-export default function Alerts({ rules, alerts }: { rules: Rule[]; alerts: Alert[] }) {
+function DeliveryChannelsCard({ channels }: { channels: { sms_to: string | null; webhook_url: string | null } }) {
+    const form = useForm({ sms_to: channels.sms_to ?? '', webhook_url: channels.webhook_url ?? '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.put(route('sales.alerts.channels'), { preserveScroll: true });
+    };
+
+    return (
+        <div className="rounded-lg border p-4">
+            <h3 className="mb-1 text-sm font-medium">Delivery channels</h3>
+            <p className="text-muted-foreground mb-3 text-sm">
+                Alerts always arrive in-app and by email. Add an SMS number and/or a Slack or Teams incoming-webhook URL to fan them out. Leave a
+                field empty to turn that channel off.
+            </p>
+            <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
+                <div className="grid gap-1.5">
+                    <Label htmlFor="alert-sms">SMS number</Label>
+                    <Input
+                        id="alert-sms"
+                        placeholder="+1 555 010 0000"
+                        value={form.data.sms_to}
+                        onChange={(e) => form.setData('sms_to', e.target.value)}
+                    />
+                    <InputError message={form.errors.sms_to} />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="alert-webhook">Slack / Teams webhook URL</Label>
+                    <Input
+                        id="alert-webhook"
+                        placeholder="https://hooks.slack.com/services/…"
+                        value={form.data.webhook_url}
+                        onChange={(e) => form.setData('webhook_url', e.target.value)}
+                    />
+                    <InputError message={form.errors.webhook_url} />
+                </div>
+                <div className="flex items-end">
+                    <Button type="submit" disabled={form.processing}>
+                        Save
+                    </Button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+export default function Alerts({
+    rules,
+    alerts,
+    channels,
+}: {
+    rules: Rule[];
+    alerts: Alert[];
+    channels: { sms_to: string | null; webhook_url: string | null };
+}) {
     const { can } = usePermissions();
     const canManage = can('sales.alerts.manage');
 
@@ -147,6 +201,8 @@ export default function Alerts({ rules, alerts }: { rules: Rule[]; alerts: Alert
                     <Heading title="Sales alerts" description="Alert rules and the alerts they trigger" />
                     {canManage && <NewRuleDialog />}
                 </div>
+
+                {canManage && <DeliveryChannelsCard channels={channels} />}
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Alert rules</h3>

@@ -45,13 +45,13 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         Route::get('deals/export-csv', EntityExportController::class)
             ->defaults('entity', 'deals')->middleware('can:crm.deal.read')->name('deals.export');
         Route::get('{entity}/import', [EntityImportController::class, 'create'])
-            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->whereIn('entity', ['companies', 'leads', 'deals', 'keywords', 'competitors'])
             ->middleware('can:crm.import')->name('entity.import');
         Route::post('{entity}/import/preview', [EntityImportController::class, 'preview'])
-            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->whereIn('entity', ['companies', 'leads', 'deals', 'keywords', 'competitors'])
             ->middleware('can:crm.import')->name('entity.import.preview');
         Route::post('{entity}/import', [EntityImportController::class, 'store'])
-            ->whereIn('entity', ['companies', 'leads', 'deals'])
+            ->whereIn('entity', ['companies', 'leads', 'deals', 'keywords', 'competitors'])
             ->middleware('can:crm.import')->name('entity.import.store');
 
         // Companies.

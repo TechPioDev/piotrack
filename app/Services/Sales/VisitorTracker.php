@@ -3,6 +3,7 @@
 namespace App\Services\Sales;
 
 use App\Models\Contact;
+use App\Models\IntentSignal;
 use App\Models\Visitor;
 use Illuminate\Support\Carbon;
 
@@ -29,7 +30,13 @@ class VisitorTracker
         ['fragments' => ['blog', 'guide', 'resource', 'case-stud', 'ebook', 'webinar'], 'type' => 'content_view', 'weight' => 2],
     ];
 
-    public function __construct(private IntentService $intent) {}
+    /** Content pageviews by a known contact before the engagement alert fires (ALERT-007). */
+    public const CONTENT_ALERT_THRESHOLD = 3;
+
+    public function __construct(
+        private IntentService $intent,
+        private AlertService $alerts,
+    ) {}
 
     /**
      * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string}  $event
@@ -81,6 +88,12 @@ class VisitorTracker
         $visitor->update($updates);
         $visitor->refresh();
 
+        // ALERT-006: a known contact coming back for another session is the
+        // classic "call them now" signal. Deduped per contact while unread.
+        if ($newSession && $visitor->visits > 1 && $visitor->contact !== null) {
+            $this->alerts->fire('repeat_visit', $visitor->contact);
+        }
+
         $visitor->events()->create([
             'type' => $event['type'],
             'path' => isset($event['path']) ? mb_substr((string) $event['path'], 0, 300) : null,
@@ -107,6 +120,27 @@ class VisitorTracker
         $this->intent->record($contact, 'identified_on_site', 5, $visitor->last_path);
     }
 
+    /**
+     * Event-fired sales alerts from path signals (ALERT-007/008): a known
+     * contact on a bottom-funnel page alerts at once; sustained content
+     * reading alerts at the third content view.
+     */
+    private function alertOnSignal(Contact $contact, string $signalType): void
+    {
+        if ($signalType === 'high_intent_page') {
+            $this->alerts->fire('bottom_funnel', $contact);
+
+            return;
+        }
+
+        if ($signalType === 'content_view') {
+            $reads = IntentSignal::where('contact_id', $contact->id)->where('type', 'content_view')->count();
+            if ($reads >= self::CONTENT_ALERT_THRESHOLD) {
+                $this->alerts->fire('content_engagement', $contact);
+            }
+        }
+    }
+
     private function scorePath(Visitor $visitor, string $path): void
     {
         $path = mb_strtolower($path);
@@ -120,6 +154,7 @@ class VisitorTracker
                     // …and feeds the intent engine once we do (INTENT-007/014/016).
                     if ($visitor->contact_id !== null && $visitor->contact !== null) {
                         $this->intent->record($visitor->contact, $rule['type'], $rule['weight'], $path);
+                        $this->alertOnSignal($visitor->contact, $rule['type']);
                     }
 
                     return; // one signal per pageview, strongest rule first

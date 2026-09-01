@@ -8,6 +8,7 @@ use App\Http\Controllers\Analytics\CompetitorController;
 use App\Http\Controllers\Analytics\ExperimentController;
 use App\Http\Controllers\Analytics\GrowthScoreController;
 use App\Http\Controllers\Analytics\OmnichannelController;
+use App\Http\Controllers\Crm\EntityExportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,6 +52,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
         });
 
         // Competitive intelligence.
+        Route::get('competitors/export-csv', EntityExportController::class)
+            ->defaults('entity', 'competitors')->middleware('can:analytics.view')->name('competitors.export');
         Route::get('competitors', [CompetitorController::class, 'index'])->middleware('can:analytics.view')->name('competitors.index');
         Route::middleware('can:analytics.competitors.manage')->group(function () {
             Route::post('competitors', [CompetitorController::class, 'store'])->name('competitors.store');

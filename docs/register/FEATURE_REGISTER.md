@@ -28,7 +28,7 @@ in the CSV is dropped on the next regeneration, which is the silent disappearanc
 | -------- | ---------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | AUTO-029 | Conditional branching in workflows             | Planned        | `workflow_steps` has no condition or branch column; sequences are strictly linear, so every enrolled contact runs every step                                             |
 | AUTO-030 | Contact tagging                                | Not Applicable | No tag concept exists, and marketing list membership already provides it (AUTO-026); a parallel tag model would duplicate it                                             |
-| SUPP-004 | Ticket notifications to requester and assignee | Planned        | `TicketService` open/reply/resolve notify nobody, so a customer is never told their ticket was answered; NOTIF-006 covers business alerts and does not extend to support |
+| SUPP-004 | Ticket notifications to requester and assignee | Tested         | Built in close-out sprint 1 (2026-09-01): reply/assign/resolve notify requester + assignee via `TicketNotification`, never the actor; pinned by `DeliveryPortalTest`     |
 
 Both are pinned by `tests/Feature/Qa/MarketingAutomationTest.php`, which fails if
 the schema ever gains branching or tagging — forcing these rows to be revisited

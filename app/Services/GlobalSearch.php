@@ -2,24 +2,30 @@
 
 namespace App\Services;
 
+use App\Models\Campaign;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\ContentPiece;
 use App\Models\Deal;
 use App\Models\File;
 use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Tenant-scoped global search (SRCH). Searches the entities that exist today —
- * organizations, members, teams, invoices, files — grouped by type and filtered
- * by the viewer's permissions. Broadens as CRM/marketing modules add searchable
- * records.
+ * Tenant-scoped global search (SRCH-001/002). Searches contacts, companies,
+ * leads, deals, campaigns, content, members, teams, invoices and files —
+ * grouped by type, filtered by the viewer's permissions — and keeps a short
+ * per-user list of recent search terms for the palette to suggest.
  */
 class GlobalSearch
 {
+    /** How many recent terms are remembered per user+org (SRCH-002). */
+    public const RECENT_LIMIT = 5;
+
     /**
      * @return array<int, array{type: string, label: string, items: list<array{title: string, subtitle: ?string, url: string}>}>
      */
@@ -65,6 +71,44 @@ class GlobalSearch
                     'title' => $c->name,
                     'subtitle' => $c->domain,
                     'url' => route('crm.companies.show', $c->id),
+                ])->all());
+            }
+        }
+
+        // Leads are contacts still in the lead stages — surfaced as their own
+        // group so a rep can jump straight to the working queue (SRCH-001).
+        if (Gate::forUser($user)->allows('crm.contact.read')) {
+            $leads = Contact::query()
+                ->whereIn('lifecycle_stage', ['lead', 'mql', 'sql'])
+                ->where(fn ($q) => $q->whereLike('first_name', $like)->orWhereLike('last_name', $like)->orWhereLike('email', $like))
+                ->limit(5)->get();
+            if ($leads->isNotEmpty()) {
+                $groups[] = $this->group('Leads', $leads->map(fn (Contact $c) => [
+                    'title' => $c->fullName(),
+                    'subtitle' => strtoupper($c->lifecycle_stage),
+                    'url' => route('crm.contacts.show', $c->id),
+                ])->all());
+            }
+        }
+
+        if (Gate::forUser($user)->allows('marketing.view')) {
+            $campaigns = Campaign::whereLike('name', $like)->limit(5)->get();
+            if ($campaigns->isNotEmpty()) {
+                $groups[] = $this->group('Campaigns', $campaigns->map(fn (Campaign $c) => [
+                    'title' => $c->name,
+                    'subtitle' => ucfirst((string) $c->status),
+                    'url' => route('marketing.campaigns.show', $c->id),
+                ])->all());
+            }
+        }
+
+        if (Gate::forUser($user)->allows('content.view')) {
+            $pieces = ContentPiece::whereLike('title', $like)->limit(5)->get();
+            if ($pieces->isNotEmpty()) {
+                $groups[] = $this->group('Content', $pieces->map(fn (ContentPiece $p) => [
+                    'title' => $p->title,
+                    'subtitle' => ucfirst((string) $p->status),
+                    'url' => route('content.pieces.show', $p->id),
                 ])->all());
             }
         }
@@ -128,6 +172,39 @@ class GlobalSearch
         }
 
         return $groups;
+    }
+
+    /**
+     * Remember a term the user actually searched (SRCH-002), newest first.
+     */
+    public function rememberTerm(User $user, Organization $organization, string $term): void
+    {
+        $term = trim($term);
+        if (mb_strlen($term) < 2) {
+            return;
+        }
+
+        $key = $this->recentKey($user, $organization);
+        $recent = array_values(array_filter(
+            (array) Cache::get($key, []),
+            fn ($t) => is_string($t) && mb_strtolower($t) !== mb_strtolower($term),
+        ));
+        array_unshift($recent, $term);
+
+        Cache::put($key, array_slice($recent, 0, self::RECENT_LIMIT), now()->addDays(30));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function recentTerms(User $user, Organization $organization): array
+    {
+        return array_values(array_filter((array) Cache::get($this->recentKey($user, $organization), []), 'is_string'));
+    }
+
+    private function recentKey(User $user, Organization $organization): string
+    {
+        return "search.recent.{$organization->id}.{$user->id}";
     }
 
     /**

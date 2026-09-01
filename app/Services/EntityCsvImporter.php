@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\Competitor;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\ImportJob;
+use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\Pipeline;
@@ -45,9 +47,21 @@ class EntityCsvImporter
             'contact_email' => ['contact email', 'contact', 'email'],
             'stage' => ['stage', 'pipeline stage'],
         ],
+        'keywords' => [
+            'phrase' => ['phrase', 'keyword', 'term', 'query', 'search term'],
+            'intent' => ['intent', 'search intent'],
+            'search_volume' => ['search volume', 'volume', 'monthly searches'],
+            'cluster' => ['cluster', 'topic', 'group'],
+            'mapped_url' => ['url', 'mapped url', 'target url', 'page'],
+        ],
+        'competitors' => [
+            'name' => ['name', 'competitor', 'company', 'company name'],
+            'domain' => ['domain', 'website', 'url', 'site'],
+            'notes' => ['notes', 'note', 'comments'],
+        ],
     ];
 
-    public const ENTITIES = ['companies', 'leads', 'deals'];
+    public const ENTITIES = ['companies', 'leads', 'deals', 'keywords', 'competitors'];
 
     /**
      * @return array{headers: list<string>, mapping: array<string,string>, rows: list<array<string,string>>}
@@ -182,6 +196,34 @@ class EntityCsvImporter
             return;
         }
 
+        if ($entity === 'keywords') {
+            $intent = Str::lower($row['intent'] ?? '');
+            Keyword::create([
+                'organization_id' => $organization->id,
+                'phrase' => Str::lower($row['phrase']),
+                'intent' => in_array($intent, ['informational', 'commercial', 'transactional', 'navigational'], true)
+                    ? $intent : 'informational',
+                'search_volume' => isset($row['search_volume']) && is_numeric($row['search_volume']) ? (int) $row['search_volume'] : null,
+                'cluster' => $row['cluster'] ?? null,
+                'mapped_url' => $row['mapped_url'] ?? null,
+                'is_tracked' => true,
+            ]);
+
+            return;
+        }
+
+        if ($entity === 'competitors') {
+            Competitor::create([
+                'organization_id' => $organization->id,
+                'name' => $row['name'],
+                'domain' => isset($row['domain']) ? Str::lower(preg_replace('#^https?://(www\.)?#', '', rtrim($row['domain'], '/')) ?? $row['domain']) : null,
+                'notes' => $row['notes'] ?? null,
+                'is_tracked' => true,
+            ]);
+
+            return;
+        }
+
         // Deals: money arrives in dollars and is stored in minor units, the
         // same convention as the deal forms. Stage resolves by name inside the
         // default pipeline, falling back to its first stage.
@@ -221,6 +263,10 @@ class EntityCsvImporter
                 ->pluck('name')->mapWithKeys(fn ($n) => [Str::lower((string) $n) => true])->all(),
             'leads' => Lead::where('organization_id', $organization->id)
                 ->whereNotNull('email')->pluck('email')->mapWithKeys(fn ($e) => [Str::lower((string) $e) => true])->all(),
+            'keywords' => Keyword::where('organization_id', $organization->id)
+                ->pluck('phrase')->mapWithKeys(fn ($p) => [Str::lower((string) $p) => true])->all(),
+            'competitors' => Competitor::where('organization_id', $organization->id)
+                ->pluck('name')->mapWithKeys(fn ($n) => [Str::lower((string) $n) => true])->all(),
             default => [],
         };
     }
@@ -265,6 +311,35 @@ class EntityCsvImporter
             return ['valid', null];
         }
 
+        if ($entity === 'keywords') {
+            if (empty($row['phrase'])) {
+                return ['invalid', 'Missing keyword phrase'];
+            }
+            if (isset($row['search_volume']) && $row['search_volume'] !== '' && ! is_numeric($row['search_volume'])) {
+                return ['invalid', 'Search volume is not a number'];
+            }
+            $key = Str::lower($row['phrase']);
+            if (isset($existing[$key]) || isset($seen[$key])) {
+                return ['duplicate', 'Keyword already tracked'];
+            }
+            $seen[$key] = true;
+
+            return ['valid', null];
+        }
+
+        if ($entity === 'competitors') {
+            if (empty($row['name'])) {
+                return ['invalid', 'Missing competitor name'];
+            }
+            $key = Str::lower($row['name']);
+            if (isset($existing[$key]) || isset($seen[$key])) {
+                return ['duplicate', 'Competitor already exists'];
+            }
+            $seen[$key] = true;
+
+            return ['valid', null];
+        }
+
         if (empty($row['name'])) {
             return ['invalid', 'Missing deal name'];
         }
@@ -284,8 +359,9 @@ class EntityCsvImporter
     private function label(string $entity, array $row): string
     {
         return match ($entity) {
-            'companies' => $row['name'] ?? '',
+            'companies', 'competitors' => $row['name'] ?? '',
             'leads' => trim(($row['first_name'] ?? '').' '.($row['last_name'] ?? '')),
+            'keywords' => $row['phrase'] ?? '',
             default => $row['name'] ?? '',
         };
     }
