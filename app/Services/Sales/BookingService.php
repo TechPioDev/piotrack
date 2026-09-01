@@ -8,6 +8,7 @@ use App\Models\BookingPage;
 use App\Models\Contact;
 use App\Models\User;
 use App\Notifications\BookingCreatedNotification;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Marketing\MessageDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -30,6 +31,7 @@ class BookingService
         private NotificationDispatcher $notifier,
         private AlertService $alerts,
         private VisitorTracker $visitors,
+        private WebhookDispatcher $webhooks,
     ) {}
 
     /**
@@ -114,6 +116,15 @@ class BookingService
 
         // ALERT-009: a requested meeting is the highest-signal sales event.
         $this->alerts->fire('meeting_request', $contact);
+
+        // INTG-009: outbound webhook fan-out.
+        $this->webhooks->dispatch('booking.created', [
+            'booking_id' => $booking->id,
+            'name' => $booking->name,
+            'email' => $booking->email,
+            'scheduled_at' => $booking->scheduled_at->toIso8601String(),
+            'source' => $booking->source,
+        ]);
 
         $this->audit->log('sales.booking.created', context: ['page' => $page->name], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 

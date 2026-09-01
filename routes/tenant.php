@@ -94,6 +94,18 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
             ->name('integrations.sync');
         Route::post('settings/integrations/{integration}/queue-sync', [IntegrationController::class, 'queueSync'])
             ->name('integrations.queue-sync');
+
+        // Outbound webhooks (INTG-009) + generic OAuth2 connect (INTG-001).
+        Route::post('settings/integrations/webhooks', [IntegrationController::class, 'storeWebhook'])
+            ->name('integrations.webhooks.store');
+        Route::delete('settings/integrations/webhooks/{webhook}', [IntegrationController::class, 'destroyWebhook'])
+            ->name('integrations.webhooks.destroy');
+        Route::post('settings/integrations/webhooks/{webhook}/test', [IntegrationController::class, 'testWebhook'])
+            ->name('integrations.webhooks.test');
+        Route::get('settings/integrations/oauth/{provider}', [IntegrationController::class, 'oauthRedirect'])
+            ->name('integrations.oauth.redirect');
+        Route::get('settings/integrations/oauth/{provider}/callback', [IntegrationController::class, 'oauthCallback'])
+            ->name('integrations.oauth.callback');
     });
 
     // Billing & subscriptions.

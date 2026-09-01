@@ -7,6 +7,7 @@ use App\Models\Form;
 use App\Models\FormSubmission;
 use App\Models\MarketingList;
 use App\Notifications\LeadCapturedNotification;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Sales\VisitorTracker;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -30,6 +31,7 @@ class LeadCaptureService
         private ListService $lists,
         private NotificationDispatcher $notifications,
         private MarketingTrigger $trigger,
+        private WebhookDispatcher $webhooks,
     ) {}
 
     /**
@@ -76,6 +78,15 @@ class LeadCaptureService
             resourceType: 'contact',
             resourceId: (string) $contact->id,
         );
+
+        // INTG-009: the generic integration surface hears about every capture.
+        $this->webhooks->dispatch('lead.captured', [
+            'contact_id' => $contact->id,
+            'name' => $contact->fullName(),
+            'email' => $contact->email,
+            'form' => $form->name,
+            'lifecycle_stage' => $contact->lifecycle_stage,
+        ]);
 
         $organization = $this->currentOrganization->get();
         if ($organization !== null) {

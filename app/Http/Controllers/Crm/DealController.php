@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use App\Models\Pipeline;
 use App\Models\PipelineStage;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use App\Validation\TenantExists;
@@ -120,6 +121,7 @@ class DealController extends Controller
         ]);
 
         $stage = PipelineStage::findOrFail($validated['stage_id']);
+        $wasWon = $deal->status === 'won';
         $deal->update([
             'stage_id' => $stage->id,
             'status' => $stage->is_won ? 'won' : ($stage->is_lost ? 'lost' : 'open'),
@@ -127,6 +129,18 @@ class DealController extends Controller
         ]);
 
         $this->audit->log('crm.deal.stage_changed', context: ['stage' => $stage->name], resourceType: 'deal', resourceId: (string) $deal->id, organizationId: $deal->organization_id);
+
+        // INTG-009: a deal crossing into won fans out to webhook subscribers
+        // exactly once per transition.
+        if ($stage->is_won && ! $wasWon) {
+            app(WebhookDispatcher::class)->dispatch('deal.won', [
+                'deal_id' => $deal->id,
+                'name' => $deal->name,
+                'value' => $deal->value,
+                'mrr' => $deal->mrr,
+                'contact_id' => $deal->contact_id,
+            ]);
+        }
 
         return back();
     }

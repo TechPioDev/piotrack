@@ -9,6 +9,7 @@ use App\Models\AlertRule;
 use App\Models\Contact;
 use App\Models\SalesAlert;
 use App\Notifications\SalesAlertNotification;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use App\Support\NotificationDispatcher;
@@ -32,6 +33,7 @@ class AlertService
         private CurrentOrganization $currentOrganization,
         private AuditLogger $audit,
         private MessagingProviderManager $messaging,
+        private WebhookDispatcher $webhooks,
     ) {}
 
     /**
@@ -84,6 +86,14 @@ class AlertService
             $this->notifications->toOrganizationOwners($organization, new SalesAlertNotification($alert->message));
             $this->deliverExtraChannels((array) ($organization->alert_channels ?? []), $alert->message);
         }
+
+        // INTG-009: outbound webhook fan-out.
+        $this->webhooks->dispatch('alert.fired', [
+            'type' => $type,
+            'message' => $alert->message,
+            'contact_id' => $contact->id,
+            'contact_name' => $contact->fullName(),
+        ]);
 
         $this->audit->log('sales.alert.created', context: ['type' => $type], resourceType: 'contact', resourceId: (string) $contact->id, organizationId: $contact->organization_id);
 

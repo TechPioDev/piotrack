@@ -103,7 +103,12 @@ function ConnectorCard({ connector, canManage }: { connector: Connector; canMana
             {canManage && connector.connectable && (
                 <div className="mt-4 space-y-3">
                     {connector.status === 'disconnected' ? (
-                        showKey ? (
+                        connector.auth_type === 'oauth' ? (
+                            /* OAuth leaves the SPA for the provider's consent screen. */
+                            <Button size="sm" asChild>
+                                <a href={route('integrations.oauth.redirect', connector.key)}>Connect with OAuth</a>
+                            </Button>
+                        ) : showKey ? (
                             <div className="space-y-2">
                                 <Label htmlFor={`key-${connector.key}`} className="text-xs">
                                     API key
@@ -152,7 +157,139 @@ function ConnectorCard({ connector, canManage }: { connector: Connector; canMana
     );
 }
 
-export default function Integrations({ connectors, recentRuns }: { connectors: Connector[]; recentRuns: SyncRun[] }) {
+type Webhook = {
+    id: number;
+    url: string;
+    events: string[];
+    is_active: boolean;
+    failure_count: number;
+    last_delivered_at: string | null;
+    last_error: string | null;
+};
+
+function WebhooksSection({ webhooks, events, canManage }: { webhooks: Webhook[]; events: string[]; canManage: boolean }) {
+    const form = useForm<{ url: string; events: string[] }>({ url: '', events: [] });
+
+    const toggleEvent = (event: string) => {
+        form.setData('events', form.data.events.includes(event) ? form.data.events.filter((e) => e !== event) : [...form.data.events, event]);
+    };
+
+    return (
+        <div>
+            <h3 className="mb-1 text-sm font-medium">Outbound webhooks</h3>
+            <p className="text-muted-foreground mb-3 text-sm">
+                POST signed JSON to any endpoint when things happen — the generic integration for Zapier and custom receivers. Deliveries carry an
+                X-Piotrack-Signature (HMAC-SHA256 of the body with your signing secret). No events selected means all events.
+            </p>
+
+            {canManage && (
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        form.post(route('integrations.webhooks.store'), { preserveScroll: true, onSuccess: () => form.reset() });
+                    }}
+                    className="mb-4 space-y-2 rounded-lg border p-3"
+                >
+                    <div className="grid gap-1">
+                        <Label htmlFor="wh-url">Endpoint URL (https)</Label>
+                        <Input
+                            id="wh-url"
+                            placeholder="https://hooks.zapier.com/hooks/catch/…"
+                            value={form.data.url}
+                            onChange={(e) => form.setData('url', e.target.value)}
+                        />
+                        <InputError message={form.errors.url} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        {events.map((event) => (
+                            <label key={event} className="flex items-center gap-1.5 text-sm">
+                                <input type="checkbox" checked={form.data.events.includes(event)} onChange={() => toggleEvent(event)} />
+                                <span className="font-mono text-xs">{event}</span>
+                            </label>
+                        ))}
+                        <Button size="sm" type="submit" disabled={form.processing}>
+                            Add webhook
+                        </Button>
+                    </div>
+                </form>
+            )}
+
+            {webhooks.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No webhooks yet.</p>
+            ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                            <tr>
+                                <th className="p-3 font-medium">URL</th>
+                                <th className="p-3 font-medium">Events</th>
+                                <th className="p-3 font-medium">Last delivery</th>
+                                <th className="p-3 font-medium">Failures</th>
+                                {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {webhooks.map((webhook) => (
+                                <tr key={webhook.id}>
+                                    <td className="p-3 font-medium break-all">{webhook.url}</td>
+                                    <td className="p-3">
+                                        {webhook.events.length === 0 ? (
+                                            <Badge variant="secondary">all</Badge>
+                                        ) : (
+                                            <span className="font-mono text-xs">{webhook.events.join(', ')}</span>
+                                        )}
+                                    </td>
+                                    <td className="text-muted-foreground p-3">
+                                        {formatTime(webhook.last_delivered_at)}
+                                        {webhook.last_error && <span className="text-destructive block text-xs">{webhook.last_error}</span>}
+                                    </td>
+                                    <td className="text-muted-foreground p-3">{webhook.failure_count}</td>
+                                    {canManage && (
+                                        <td className="p-3">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    onClick={() =>
+                                                        router.post(route('integrations.webhooks.test', webhook.id), {}, { preserveScroll: true })
+                                                    }
+                                                >
+                                                    Test
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-destructive"
+                                                    onClick={() =>
+                                                        router.delete(route('integrations.webhooks.destroy', webhook.id), { preserveScroll: true })
+                                                    }
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function Integrations({
+    connectors,
+    recentRuns,
+    webhooks,
+    webhookEvents,
+}: {
+    connectors: Connector[];
+    recentRuns: SyncRun[];
+    webhooks: Webhook[];
+    webhookEvents: string[];
+}) {
     const { can } = usePermissions();
     const canManage = can('integrations.manage');
 
@@ -169,6 +306,8 @@ export default function Integrations({ connectors, recentRuns }: { connectors: C
                             <ConnectorCard key={connector.key} connector={connector} canManage={canManage} />
                         ))}
                     </div>
+
+                    <WebhooksSection webhooks={webhooks} events={webhookEvents} canManage={canManage} />
 
                     <div>
                         <h3 className="mb-2 text-sm font-medium">Recent syncs</h3>
