@@ -41,6 +41,7 @@ class KeywordController extends Controller
                 'difficulty' => $k->difficulty,
                 'mapped_url' => $k->mapped_url,
                 'cluster' => $k->cluster,
+                'location' => $k->location,
                 'current_position' => $k->current_position,
                 'page_one' => RankTracker::isPageOne($k->current_position),
                 'top_three' => RankTracker::isTopThree($k->current_position),
@@ -107,6 +108,10 @@ class KeywordController extends Controller
             'phrase' => ['required', 'string', 'max:200'],
             'intent' => ['required', Rule::in(['informational', 'commercial', 'transactional', 'navigational'])],
             'type' => ['nullable', 'string', 'max:40'],
+            // Geo targeting (LSEO-002..005): any granularity — city, state,
+            // service area or neighborhood — stored on the keyword and passed
+            // to every rank check for that keyword.
+            'location' => ['nullable', 'string', 'max:120'],
             'search_volume' => ['nullable', 'integer', 'min:0'],
             'difficulty' => ['nullable', 'integer', 'min:0', 'max:100'],
             'mapped_url' => ['nullable', 'url', 'max:2048'],

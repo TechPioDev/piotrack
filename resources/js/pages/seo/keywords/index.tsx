@@ -24,6 +24,7 @@ type Keyword = {
     difficulty: number | null;
     mapped_url: string | null;
     cluster: string | null;
+    location: string | null;
     current_position: number | null;
     page_one: boolean;
     top_three: boolean;
@@ -92,6 +93,7 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
         phrase: string;
         intent: (typeof INTENTS)[number];
         type: string;
+        location: string;
         search_volume: string;
         difficulty: string;
         mapped_url: string;
@@ -99,6 +101,7 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
         phrase: '',
         intent: 'informational',
         type: '',
+        location: '',
         search_volume: '',
         difficulty: '',
         mapped_url: '',
@@ -164,6 +167,16 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                                 <InputError message={form.errors.type} />
                                             </div>
                                         </div>
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="kw_location">Location (for local keywords)</Label>
+                                            <Input
+                                                id="kw_location"
+                                                placeholder="e.g. Philadelphia, PA — or a state, service area or neighborhood"
+                                                value={form.data.location}
+                                                onChange={(e) => form.setData('location', e.target.value)}
+                                            />
+                                            <InputError message={form.errors.location} />
+                                        </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="grid gap-1">
                                                 <Label htmlFor="search_volume">Search volume</Label>
@@ -219,6 +232,7 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                     <th className="p-3 font-medium">Phrase</th>
                                     <th className="p-3 font-medium">Intent</th>
                                     <th className="p-3 font-medium">Cluster</th>
+                                    <th className="p-3 font-medium">Location</th>
                                     <th className="p-3 font-medium">Position</th>
                                     <th className="p-3 font-medium">Mapped URL</th>
                                     {canManage && <th className="p-3 text-right font-medium">Actions</th>}
@@ -232,6 +246,7 @@ export default function Keywords({ keywords, gap }: { keywords: Keyword[]; gap: 
                                             <Badge variant="outline">{keyword.intent}</Badge>
                                         </td>
                                         <td className="text-muted-foreground p-3">{keyword.cluster ?? '—'}</td>
+                                        <td className="text-muted-foreground p-3">{keyword.location ?? '—'}</td>
                                         <td className="p-3">
                                             <div className="flex items-center gap-2">
                                                 <span>{keyword.current_position ?? '—'}</span>

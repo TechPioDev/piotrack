@@ -20,7 +20,7 @@ class Keyword extends Model
 
     protected $fillable = [
         'organization_id', 'phrase', 'intent', 'type', 'search_volume', 'difficulty',
-        'mapped_url', 'cluster', 'is_tracked', 'current_position',
+        'mapped_url', 'cluster', 'is_tracked', 'current_position', 'location',
     ];
 
     protected function casts(): array

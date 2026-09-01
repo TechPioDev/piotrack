@@ -129,6 +129,56 @@ function AddCitationDialog({ location }: { location: Location }) {
     );
 }
 
+function CreatePageDialog({ location }: { location: Location }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({ service: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('seo.local.page.create', location.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="secondary">
+                    Create landing page
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Location landing page</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    Generates a draft &quot;[service] in {location.name}&quot; page with this branch&apos;s address and phone baked in. Review and
+                    publish it under Marketing → Landing pages.
+                </p>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor={`svc-${location.id}`}>Service</Label>
+                        <Input
+                            id={`svc-${location.id}`}
+                            placeholder="e.g. Managed IT Services"
+                            value={form.data.service}
+                            onChange={(e) => form.setData('service', e.target.value)}
+                        />
+                        <InputError message={form.errors.service} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Create draft
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function LocationCard({ location, canManage }: { location: Location; canManage: boolean }) {
     return (
         <Card>
@@ -141,6 +191,7 @@ function LocationCard({ location, canManage }: { location: Location; canManage: 
                     </div>
                     {canManage && (
                         <div className="flex gap-2">
+                            <CreatePageDialog location={location} />
                             <AddCitationDialog location={location} />
                             <Button
                                 size="sm"

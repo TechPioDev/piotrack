@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::get('local', [LocalController::class, 'index'])->middleware('can:seo.view')->name('local.index');
         Route::post('local', [LocalController::class, 'storeLocation'])->middleware('can:seo.local.manage')->name('local.store');
         Route::delete('local/{location}', [LocalController::class, 'destroyLocation'])->middleware('can:seo.local.manage')->name('local.destroy');
+        Route::post('local/{location}/page', [LocalController::class, 'createPage'])->middleware('can:seo.local.manage')->name('local.page.create');
         Route::post('local/{location}/citations', [LocalController::class, 'storeCitation'])->middleware('can:seo.local.manage')->name('local.citations.store');
         Route::post('local/{location}/citations/{citation}/check', [LocalController::class, 'checkCitation'])->middleware('can:seo.local.manage')->name('local.citations.check');
         Route::delete('local/{location}/citations/{citation}', [LocalController::class, 'destroyCitation'])->middleware('can:seo.local.manage')->name('local.citations.destroy');

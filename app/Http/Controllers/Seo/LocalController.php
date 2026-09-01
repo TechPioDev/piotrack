@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Seo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Citation;
+use App\Models\LandingPage;
 use App\Models\SeoLocation;
 use App\Services\Seo\NapConsistencyChecker;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -64,6 +66,53 @@ class LocalController extends Controller
         $location->delete();
 
         return back()->with('status', __('Location removed.'));
+    }
+
+    /**
+     * Generate a draft location landing page from a branch's NAP data
+     * (LSEO-006/007/008/014): "{Service} in {City}" with the address, phone
+     * and service area baked into the body. Draft, so copy is reviewed before
+     * publishing at /p/{slug}.
+     */
+    public function createPage(Request $request, SeoLocation $location): RedirectResponse
+    {
+        $data = $request->validate([
+            'service' => ['required', 'string', 'max:120'],
+        ]);
+
+        $service = trim($data['service']);
+        $city = trim((string) $location->city) !== '' ? trim((string) $location->city) : $location->name;
+        $region = trim((string) $location->region);
+        $where = $region !== '' ? "{$city}, {$region}" : $city;
+
+        $base = Str::slug("{$service} {$city}");
+        $slug = $base;
+        $i = 1;
+        while (LandingPage::withoutGlobalScope('tenant')->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.(++$i);
+        }
+
+        $nap = e(trim(implode(', ', array_filter([$location->street, $location->city, $region, $location->postal_code]))));
+        $phone = e((string) $location->phone);
+
+        $page = LandingPage::create([
+            'name' => "{$service} — {$city}",
+            'slug' => $slug,
+            'headline' => "{$service} in {$where}",
+            'subheadline' => "Local {$service} for businesses in and around {$city}.",
+            'body_html' => '<h2>'.e($service).' in '.e($where).'</h2>'
+                .'<p>Our '.e($city).' team delivers '.e(Str::lower($service)).' with local, on-site response.</p>'
+                .'<h3>Visit or call</h3>'
+                .'<p>'.$nap.($phone !== '' ? '<br>Phone: '.$phone : '').'</p>'
+                .'<h3>Service area</h3>'
+                .'<p>Serving '.e($where).' and the surrounding area.</p>',
+            'status' => 'draft',
+        ]);
+
+        $this->audit->log('seo.local.page_created', context: ['location' => $location->name, 'slug' => $page->slug],
+            resourceType: 'landing_page', resourceId: (string) $page->id, organizationId: $page->organization_id);
+
+        return back()->with('status', __('Draft landing page ":name" created — review it under Marketing → Landing pages.', ['name' => $page->name]));
     }
 
     public function storeCitation(Request $request, SeoLocation $location): RedirectResponse

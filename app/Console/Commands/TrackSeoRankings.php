@@ -35,14 +35,17 @@ class TrackSeoRankings extends Command
             Keyword::where('is_tracked', true)->each(function (Keyword $keyword) use ($ranks, $competitors, &$recorded) {
                 $host = $keyword->mapped_url !== null ? parse_url((string) $keyword->mapped_url, PHP_URL_HOST) : null;
 
+                // Local keywords rank in their own market: the keyword's stored
+                // location rides along so geo-SERP results are tracked per
+                // market, not blended into national positions (LSEO-022).
                 if (is_string($host) && $host !== '' && ! $this->checkedToday($keyword, null)) {
-                    $ranks->check($keyword, $host);
+                    $ranks->check($keyword, $host, $keyword->location);
                     $recorded++;
                 }
 
                 foreach ($competitors as $competitor) {
                     if (! $this->checkedToday($keyword, (string) $competitor->domain)) {
-                        $ranks->checkCompetitor($keyword, (string) $competitor->domain);
+                        $ranks->checkCompetitor($keyword, (string) $competitor->domain, $keyword->location);
                         $recorded++;
                     }
                 }
