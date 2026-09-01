@@ -8,6 +8,7 @@ use App\Models\FormSubmission;
 use App\Models\MarketingList;
 use App\Notifications\LeadCapturedNotification;
 use App\Services\Integrations\WebhookDispatcher;
+use App\Services\Sales\IntentService;
 use App\Services\Sales\VisitorTracker;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -32,7 +33,37 @@ class LeadCaptureService
         private NotificationDispatcher $notifications,
         private MarketingTrigger $trigger,
         private WebhookDispatcher $webhooks,
+        private IntentService $intent,
     ) {}
+
+    /**
+     * Round-robin routing (LSCR-019): the active member currently owning the
+     * fewest contacts gets the next lead. Null when the org has no members
+     * resolvable (public route without context).
+     */
+    private function routeToOwner(): ?int
+    {
+        $organization = $this->currentOrganization->get();
+        if ($organization === null) {
+            return null;
+        }
+
+        /** @var list<int> $members */
+        $members = $organization->members()->wherePivot('status', 'active')->pluck('users.id')->all();
+        if ($members === []) {
+            return null;
+        }
+
+        $counts = array_fill_keys($members, 0);
+        foreach (Contact::whereIn('owner_id', $members)->pluck('owner_id') as $ownerId) {
+            if (isset($counts[$ownerId])) {
+                $counts[$ownerId]++;
+            }
+        }
+        asort($counts);
+
+        return (int) array_key_first($counts);
+    }
 
     /**
      * @param  array<string, mixed>  $payload
@@ -53,6 +84,20 @@ class LeadCaptureService
                 'lifecycle_stage' => $form->lifecycle_stage ?: 'lead',
             ]);
         }
+
+        // LSCR-019: automatic routing — an unowned captured lead is assigned
+        // round-robin to the least-loaded active member, so every new lead has
+        // a responsible rep the moment it exists.
+        if ($contact->owner_id === null) {
+            $ownerId = $this->routeToOwner();
+            if ($ownerId !== null) {
+                $contact->update(['owner_id' => $ownerId]);
+            }
+        }
+
+        // LSCR-008/009: submitting a form (a download, an assessment request,
+        // a contact form) is scored engagement in its own right (§20: 10).
+        $this->intent->record($contact, 'form_submission', 10);
 
         FormSubmission::create([
             'form_id' => $form->id,

@@ -21,6 +21,7 @@ declare(strict_types=1);
  */
 
 use App\Models\AlertRule;
+use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Form;
 use App\Models\MarketingList;
@@ -215,19 +216,26 @@ it('fires a sales alert once the score crosses the threshold', function () {
     app(CurrentOrganization::class)->forget();
 });
 
-it('confirms firmographic attributes are unavailable to scoring', function () {
-    // Documents the §20 gap as an executable fact: if a firmographic attribute
-    // is ever added, this fails and the gap note above must be revisited.
-    $supported = ['lifecycle_stage', 'lead_source', 'title', 'email_opt_in', 'has_company', 'intent_score'];
+it('scores firmographic attributes from the contact company record', function () {
+    // The old §20 gap pin inverted: company size/city/region/industry are now
+    // scoreable, sourced from first-party CRM data (LSCR-011/012). §20's
+    // "+15 for company size 100-250" is finally expressible — and 95 reachable.
+    app(CurrentOrganization::class)->set($this->org);
 
-    $reflection = new ReflectionClass(LeadScoringService::class);
-    $source = file_get_contents((string) $reflection->getFileName());
+    $company = Company::create(['name' => 'Sized Co', 'size' => '100-250', 'city' => 'Philadelphia', 'region' => 'PA', 'industry' => 'Manufacturing']);
+    $contact = Contact::create(['first_name' => 'Firm', 'email' => 'firm@x.test', 'company_id' => $company->id, 'lifecycle_stage' => 'lead']);
 
-    foreach (['company_size', 'employee_count', 'industry', 'region'] as $firmographic) {
-        expect($source)->not->toContain("'{$firmographic}' =>");
-    }
+    ScoringRule::create(['name' => 'Mid-market', 'category' => 'firmographic', 'attribute' => 'company_size', 'operator' => 'equals', 'value' => '100-250', 'points' => 15, 'is_active' => true]);
+    ScoringRule::create(['name' => 'Home market', 'category' => 'firmographic', 'attribute' => 'company_city', 'operator' => 'contains', 'value' => 'philadelphia', 'points' => 10, 'is_active' => true]);
+    ScoringRule::create(['name' => 'Target vertical', 'category' => 'firmographic', 'attribute' => 'company_industry', 'operator' => 'equals', 'value' => 'Manufacturing', 'points' => 5, 'is_active' => true]);
 
-    foreach ($supported as $attribute) {
-        expect($source)->toContain("'{$attribute}' =>");
-    }
+    $scored = app(LeadScoringService::class)->apply($contact);
+    expect($scored->lead_score)->toBe(30)
+        ->and($scored->lifecycle_stage)->toBe('mql'); // 30 >= MQL, < SQL
+
+    // A contact with no company matches none of them.
+    $solo = Contact::create(['first_name' => 'Solo', 'email' => 'solo@x.test', 'lifecycle_stage' => 'lead']);
+    expect(app(LeadScoringService::class)->apply($solo)->lead_score)->toBe(0);
+
+    app(CurrentOrganization::class)->forget();
 });

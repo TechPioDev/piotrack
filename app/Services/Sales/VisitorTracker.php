@@ -88,10 +88,12 @@ class VisitorTracker
         $visitor->update($updates);
         $visitor->refresh();
 
-        // ALERT-006: a known contact coming back for another session is the
-        // classic "call them now" signal. Deduped per contact while unread.
+        // ALERT-006 + LSCR-010: a known contact coming back for another session
+        // is the classic "call them now" signal — it alerts (deduped while
+        // unread) AND scores (§20 weights repeat_visit at 10).
         if ($newSession && $visitor->visits > 1 && $visitor->contact !== null) {
             $this->alerts->fire('repeat_visit', $visitor->contact);
+            $this->intent->record($visitor->contact, 'repeat_visit', 10, $visitor->last_path);
         }
 
         // INTENT-011: a known contact arriving through a paid first touch is

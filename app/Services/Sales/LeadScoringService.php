@@ -120,9 +120,17 @@ class LeadScoringService
             'lifecycle_stage' => $contact->lifecycle_stage,
             'lead_source' => $contact->lead_source,
             'title' => $contact->title,
+            'buying_role' => $contact->buying_role,
             'email_opt_in' => $contact->email_opt_in,
             'has_company' => $contact->company_id !== null,
             'intent_score' => $this->intent->intentScore($contact),
+            // Firmographics from the contact's own CRM company record
+            // (LSCR-011/012) — first-party data, no enrichment provider needed
+            // once the company profile is filled in.
+            'company_size' => $contact->company?->size,
+            'company_city' => $contact->company?->city,
+            'company_region' => $contact->company?->region,
+            'company_industry' => $contact->company?->industry,
             default => null,
         };
     }
