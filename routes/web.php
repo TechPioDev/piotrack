@@ -69,6 +69,8 @@ Route::post('e/u/{token}', [EmailTrackingController::class, 'unsubscribe'])->mid
 // Published website pages (Stage 15). Draft pages 404.
 Route::get('s/{slug}', [PublicSitePageController::class, 'show'])->name('public.page.show');
 
+Route::get('b/ics/{token}.ics', [PublicBookingController::class, 'ics'])->name('public.booking.ics');
+Route::get('b/feed/{token}.ics', [PublicBookingController::class, 'feed'])->name('public.booking.feed');
 Route::get('b/{slug}', [PublicBookingController::class, 'show'])->name('public.booking.show');
 Route::post('b/{slug}', [PublicBookingController::class, 'book'])->middleware('throttle:20,1')->name('public.booking.book');
 

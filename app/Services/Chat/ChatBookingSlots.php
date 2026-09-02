@@ -22,10 +22,10 @@ use Carbon\CarbonImmutable;
 class ChatBookingSlots
 {
     /** Chat shows at most this many choices; more is a wall of buttons. */
-    private const MAX_SLOTS = 6;
+    public const MAX_SLOTS = 6;
 
     /** How far ahead to look. Chat leads cool fast; next week is far enough. */
-    private const DAYS_AHEAD = 7;
+    public const DAYS_AHEAD = 7;
 
     /** Working hours when the page has none configured. */
     private const DEFAULT_START = '09:00';
@@ -38,7 +38,7 @@ class ChatBookingSlots
     /**
      * @return list<array{id: string, label: string, at: CarbonImmutable}>
      */
-    public function available(BookingPage $page): array
+    public function available(BookingPage $page, int $max = self::MAX_SLOTS, int $daysAhead = self::DAYS_AHEAD): array
     {
         $availability = $page->availability ?? [];
         $days = array_map(intval(...), (array) ($availability['days'] ?? self::DEFAULT_DAYS));
@@ -60,7 +60,7 @@ class ChatBookingSlots
         $slots = [];
         $day = CarbonImmutable::now()->startOfDay();
 
-        for ($offset = 0; $offset < self::DAYS_AHEAD && count($slots) < self::MAX_SLOTS; $offset++) {
+        for ($offset = 0; $offset < $daysAhead && count($slots) < $max; $offset++) {
             $date = $day->addDays($offset);
             if (! in_array($date->isoWeekday(), $days, true)) {
                 continue;
@@ -69,7 +69,7 @@ class ChatBookingSlots
             $cursor = $date->setTimeFromTimeString($start);
             $close = $date->setTimeFromTimeString($end);
 
-            while ($cursor->addMinutes($duration) <= $close && count($slots) < self::MAX_SLOTS) {
+            while ($cursor->addMinutes($duration) <= $close && count($slots) < $max) {
                 // Nothing in the past, and nothing so soon nobody could join it.
                 if ($cursor > now()->addMinutes(30) && ! in_array($cursor->format('Y-m-d H:i'), $taken, true)) {
                     $slots[] = [
@@ -89,9 +89,9 @@ class ChatBookingSlots
      * The slot a visitor picked, revalidated — the option list they saw may be
      * minutes old, and the server is the authority on what is still free.
      */
-    public function resolve(BookingPage $page, string $slotId): ?CarbonImmutable
+    public function resolve(BookingPage $page, string $slotId, int $max = self::MAX_SLOTS, int $daysAhead = self::DAYS_AHEAD): ?CarbonImmutable
     {
-        foreach ($this->available($page) as $slot) {
+        foreach ($this->available($page, $max, $daysAhead) as $slot) {
             if ($slot['id'] === $slotId) {
                 return $slot['at'];
             }

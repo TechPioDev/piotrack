@@ -15,7 +15,7 @@ use Inertia\Response;
 
 class WorkflowController extends Controller
 {
-    private const TRIGGERS = ['form_submission', 'lead_stage', 'deal_stage', 'email_engagement', 'list_added'];
+    private const TRIGGERS = ['form_submission', 'lead_stage', 'deal_stage', 'email_engagement', 'list_added', 'booking_no_show', 'booking_completed'];
 
     private const ACTIONS = [
         'send_email', 'send_sms', 'assign', 'create_task', 'update_crm', 'change_score',

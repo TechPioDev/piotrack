@@ -18,12 +18,12 @@ class Booking extends Model
 
     protected $fillable = [
         'organization_id', 'booking_page_id', 'contact_id', 'owner_id', 'name', 'email',
-        'scheduled_at', 'status', 'source', 'notes',
+        'scheduled_at', 'status', 'source', 'notes', 'ics_token', 'answers', 'utm',
     ];
 
     protected function casts(): array
     {
-        return ['scheduled_at' => 'datetime'];
+        return ['scheduled_at' => 'datetime', 'answers' => 'array', 'utm' => 'array'];
     }
 
     /**

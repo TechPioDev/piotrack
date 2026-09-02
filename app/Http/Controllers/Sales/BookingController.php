@@ -34,6 +34,7 @@ class BookingController extends Controller
                 'is_active' => $p->is_active,
                 'owner' => $p->owner?->name,
                 'public_url' => url("/b/{$p->slug}"),
+                'feed_url' => $p->ics_feed_token !== null ? url('/b/feed/'.$p->ics_feed_token.'.ics') : null,
             ]),
             'bookings' => Booking::with('page:id,name')->latest('id')->limit(100)->get()->map(fn (Booking $b) => [
                 'id' => $b->id,
@@ -53,10 +54,23 @@ class BookingController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'meeting_type' => ['required', 'string', 'max:60'],
             'duration_minutes' => ['required', 'integer', 'min:5', 'max:480'],
-            'assignment' => ['required', Rule::in(['fixed', 'round_robin'])],
+            // BOOK-005: territory routes to the matching branch rep.
+            'assignment' => ['required', Rule::in(['fixed', 'round_robin', 'territory'])],
             'user_id' => ['nullable', Rule::exists('organization_user', 'user_id')->where('organization_id', $this->currentOrganization->id())],
+            // BOOK-003: the page's own working hours drive the offered slots.
+            'availability' => ['nullable', 'array'],
+            'availability.days' => ['nullable', 'array', 'max:7'],
+            'availability.days.*' => ['integer', 'between:1,7'],
+            'availability.start' => ['nullable', 'date_format:H:i'],
+            'availability.end' => ['nullable', 'date_format:H:i', 'after:availability.start'],
+            // BOOK-006: custom qualification questions.
+            'questions' => ['nullable', 'array', 'max:10'],
+            'questions.*.label' => ['required', 'string', 'max:200'],
+            'questions.*.required' => ['boolean'],
         ]);
         $data['slug'] = $this->uniqueSlug($data['name']);
+        // BOOK-001: every page gets its secret calendar-feed URL.
+        $data['ics_feed_token'] = Str::random(48);
 
         BookingPage::create($data);
 

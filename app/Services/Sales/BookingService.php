@@ -6,9 +6,11 @@ use App\Models\Activity;
 use App\Models\Booking;
 use App\Models\BookingPage;
 use App\Models\Contact;
+use App\Models\SeoLocation;
 use App\Models\User;
 use App\Notifications\BookingCreatedNotification;
 use App\Services\Integrations\WebhookDispatcher;
+use App\Services\Marketing\MarketingTrigger;
 use App\Services\Marketing\MessageDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -32,6 +34,7 @@ class BookingService
         private AlertService $alerts,
         private VisitorTracker $visitors,
         private WebhookDispatcher $webhooks,
+        private MarketingTrigger $trigger,
     ) {}
 
     /**
@@ -50,16 +53,17 @@ class BookingService
         $this->messages->sendEmail(
             $contact,
             __(':type confirmed for :when', ['type' => ucfirst((string) $page->meeting_type), 'when' => $when]),
-            __('Your :type is confirmed for :when (UTC). Reply to this email if you need to reschedule.', [
+            __('Your :type is confirmed for :when (UTC). Add it to your calendar: :ics — or reply to this email if you need to reschedule.', [
                 'type' => $page->meeting_type,
                 'when' => $when,
+                'ics' => url('/b/ics/'.$booking->ics_token.'.ics'),
             ]),
             'booking',
         );
     }
 
     /**
-     * @param  array{name: string, email: string, scheduled_at: mixed, source?: ?string, notes?: ?string}  $data
+     * @param  array{name: string, email: string, scheduled_at: mixed, source?: ?string, notes?: ?string, city?: ?string, answers?: ?array<string, string>, utm?: ?array<string, string>}  $data
      */
     public function book(BookingPage $page, array $data, ?string $visitorKey = null): Booking
     {
@@ -79,7 +83,7 @@ class BookingService
             $this->visitors->linkContact($visitorKey, $contact);
         }
 
-        $ownerId = $this->assignOwner($page);
+        $ownerId = $this->assignOwner($page, isset($data['city']) ? (string) $data['city'] : null);
 
         $booking = Booking::create([
             'booking_page_id' => $page->id,
@@ -91,6 +95,9 @@ class BookingService
             'status' => 'booked',
             'source' => $data['source'] ?? 'booking_page',
             'notes' => $data['notes'] ?? null,
+            'ics_token' => Str::random(48),
+            'answers' => $data['answers'] ?? null,
+            'utm' => $data['utm'] ?? null,
         ]);
 
         Activity::create([
@@ -136,6 +143,42 @@ class BookingService
         $booking->update(['status' => $status]);
         $this->audit->log('sales.booking.status_changed', context: ['status' => $status], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 
+        $contact = $booking->contact()->first();
+        $page = $booking->page()->first();
+
+        // BOOK-011: a no-show starts the recovery, not the shrug — automation
+        // workflows can enroll, and the prospect gets a one-click way back in.
+        if ($status === 'no_show' && $contact !== null) {
+            $this->trigger->fire('booking_no_show', $contact, ['booking_id' => $booking->id]);
+
+            if ($page !== null) {
+                $this->messages->sendEmail(
+                    $contact,
+                    __('Sorry we missed each other'),
+                    __('We missed you for the :type. Grab a new time that works: :url', [
+                        'type' => $page->meeting_type,
+                        'url' => url('/b/'.$page->slug),
+                    ]),
+                    'booking',
+                );
+            }
+        }
+
+        // BOOK-012: a finished meeting queues the follow-up — automation plus
+        // a dated task for the owner, so nobody relies on memory.
+        if ($status === 'completed' && $contact !== null) {
+            $this->trigger->fire('booking_completed', $contact, ['booking_id' => $booking->id]);
+
+            Activity::create([
+                'subject_type' => 'contact',
+                'subject_id' => $contact->id,
+                'type' => 'task',
+                'user_id' => $booking->owner_id,
+                'title' => 'Follow up after '.($page->meeting_type ?? 'meeting'),
+                'due_at' => now()->addDay(),
+            ]);
+        }
+
         return $booking;
     }
 
@@ -150,12 +193,42 @@ class BookingService
      * Choose the owner for a booking: the page owner for fixed assignment, or
      * the least-loaded active member for round-robin.
      */
-    private function assignOwner(BookingPage $page): ?int
+    private function assignOwner(BookingPage $page, ?string $city = null): ?int
     {
+        // BOOK-005: a territory page routes to the matching branch's rep; an
+        // unmatched city falls back to round-robin rather than guessing.
+        if ($page->assignment === 'territory') {
+            $ownerId = $city !== null ? $this->territoryOwner($city) : null;
+
+            return $ownerId ?? $this->roundRobin($page);
+        }
+
         if ($page->assignment !== 'round_robin') {
             return $page->user_id;
         }
 
+        return $this->roundRobin($page);
+    }
+
+    /** The branch rep whose city/region/territory matches what they typed. */
+    private function territoryOwner(string $city): ?int
+    {
+        $needle = mb_strtolower(trim($city));
+        if ($needle === '') {
+            return null;
+        }
+
+        $location = SeoLocation::where('is_active', true)->whereNotNull('owner_id')->get()
+            ->first(fn (SeoLocation $l) => in_array($needle, array_map(
+                fn ($v) => mb_strtolower(trim((string) $v)),
+                array_filter([$l->city, $l->region, $l->territory]),
+            ), true));
+
+        return $location?->owner_id;
+    }
+
+    private function roundRobin(BookingPage $page): ?int
+    {
         $organization = $this->currentOrganization->get() ?? $page->organization()->first();
         if ($organization === null) {
             return $page->user_id;

@@ -24,6 +24,7 @@ type BookingPage = {
     is_active: boolean;
     owner: string | null;
     public_url: string;
+    feed_url: string | null;
 };
 
 type Booking = {
@@ -40,10 +41,10 @@ type Member = {
     name: string;
 };
 
-type Assignment = 'fixed' | 'round_robin';
+type Assignment = 'fixed' | 'round_robin' | 'territory';
 type BookingStatus = 'booked' | 'completed' | 'canceled' | 'no_show';
 
-const ASSIGNMENTS: Assignment[] = ['fixed', 'round_robin'];
+const ASSIGNMENTS: Assignment[] = ['fixed', 'round_robin', 'territory'];
 const BOOKING_STATUSES: BookingStatus[] = ['booked', 'completed', 'canceled', 'no_show'];
 
 function formatTime(iso: string): string {
@@ -216,6 +217,11 @@ export default function Booking({ pages, bookings, members }: { pages: BookingPa
                                                 <a href={page.public_url} target="_blank" rel="noreferrer" className="break-all hover:underline">
                                                     {page.public_url}
                                                 </a>
+                                                {page.feed_url && (
+                                                    <p className="text-muted-foreground mt-1 text-xs break-all">
+                                                        Calendar feed (subscribe in Google/Outlook/Apple): {page.feed_url}
+                                                    </p>
+                                                )}
                                             </td>
                                             {canManage && (
                                                 <td className="p-3">

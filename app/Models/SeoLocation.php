@@ -16,6 +16,8 @@ class SeoLocation extends Model
         // Multi-location (MLOC): a branch belongs to a sales territory, may map
         // to its own Google Business Profile, and can be deactivated.
         'territory', 'gbp_place_id', 'is_active',
+        // BOOK-005: the branch rep who takes territory-matched bookings.
+        'owner_id',
     ];
 
     /**

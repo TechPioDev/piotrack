@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property array<string, mixed>|null $availability
+ * @property list<array{label: string, required?: bool}>|null $questions
+ * @property string|null $ics_feed_token
  * @property string $slug
  * @property string $assignment
  * @property int $duration_minutes
@@ -20,13 +22,14 @@ class BookingPage extends Model
 
     protected $fillable = [
         'organization_id', 'user_id', 'name', 'slug', 'meeting_type', 'duration_minutes',
-        'availability', 'assignment', 'is_active',
+        'availability', 'assignment', 'is_active', 'questions', 'ics_feed_token',
     ];
 
     protected function casts(): array
     {
         return [
             'availability' => 'array',
+            'questions' => 'array',
             'is_active' => 'boolean',
         ];
     }

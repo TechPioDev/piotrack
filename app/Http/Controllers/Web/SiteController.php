@@ -14,6 +14,7 @@ use App\Services\Web\LocationService;
 use App\Services\Web\SiteBuilderService;
 use App\Services\Web\SiteHealthService;
 use App\Services\Web\TaxonomyService;
+use App\Support\CurrentOrganization;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -248,6 +249,8 @@ class SiteController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'territory' => ['nullable', 'string', 'max:100'],
             'gbp_place_id' => ['nullable', 'string', 'max:255'],
+            // BOOK-005: the branch rep who takes territory-matched bookings.
+            'owner_id' => ['nullable', 'integer', Rule::exists('organization_user', 'user_id')->where('organization_id', app(CurrentOrganization::class)->id())],
         ]));
 
         return back()->with('status', __('Location added.'));
