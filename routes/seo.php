@@ -21,9 +21,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
 
         Route::get('/', SeoDashboardController::class)->middleware('can:seo.view')->name('dashboard');
 
-        // Technical audits.
+        // Technical audits + bounded site crawls.
         Route::get('audits', [AuditController::class, 'index'])->middleware('can:seo.view')->name('audits.index');
         Route::post('audits', [AuditController::class, 'store'])->middleware('can:seo.audits.manage')->name('audits.store');
+        Route::post('audits/crawl', [AuditController::class, 'storeCrawl'])->middleware('can:seo.audits.manage')->name('audits.crawl');
+        Route::get('audits/crawl/{crawl}', [AuditController::class, 'showCrawl'])->middleware('can:seo.view')->name('audits.crawl.show');
         Route::get('audits/{audit}', [AuditController::class, 'show'])->middleware('can:seo.view')->name('audits.show');
 
         // Keywords + rank tracking.
