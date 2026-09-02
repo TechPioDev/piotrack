@@ -220,6 +220,9 @@ class SiteController extends Controller
             'service_lines' => $taxonomy->serviceGaps(),
             'verticals' => $taxonomy->verticalGaps(),
             'locations' => $locations->report(),
+            // MLOC-008/010/011: the regional programme and brand posture.
+            'calendar' => $locations->regionalCalendar(),
+            'compliance' => $locations->brandCompliance(),
         ]);
     }
 

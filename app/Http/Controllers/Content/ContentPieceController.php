@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Content;
 use App\Http\Controllers\Controller;
 use App\Models\ContentPiece;
 use App\Services\Content\ContentService;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -102,6 +103,8 @@ class ContentPieceController extends Controller
             'url' => ['nullable', 'url', 'max:2048'],
             'cta' => ['nullable', 'string', 'max:200'],
             'is_lead_magnet' => ['boolean'],
+            // MLOC-008: region-specific content targets one branch; null = central.
+            'seo_location_id' => ['nullable', 'integer', TenantExists::in('seo_locations')],
         ]);
     }
 }

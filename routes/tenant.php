@@ -7,6 +7,7 @@ use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\SubscriptionController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\FileController;
+use App\Http\Controllers\Settings\FranchiseController;
 use App\Http\Controllers\Settings\IntegrationController;
 use App\Http\Controllers\Settings\InvitationController;
 use App\Http\Controllers\Settings\MemberController;
@@ -28,6 +29,16 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
         ->middleware('can:organization.update')->name('organization.update');
     Route::delete('settings/organization', [OrganizationSettingsController::class, 'destroy'])
         ->middleware('can:organization.delete')->name('organization.destroy');
+
+    // Franchise hierarchy (MLOC-009).
+    Route::get('settings/franchise', [FranchiseController::class, 'index'])
+        ->middleware('can:organization.view')->name('franchise.index');
+    Route::post('settings/franchise/link', [FranchiseController::class, 'link'])
+        ->middleware('can:organization.update')->name('franchise.link');
+    Route::delete('settings/franchise/{child}', [FranchiseController::class, 'unlink'])
+        ->middleware('can:organization.update')->name('franchise.unlink');
+    Route::post('settings/franchise/{child}/push-brand', [FranchiseController::class, 'pushBrand'])
+        ->middleware('can:organization.update')->name('franchise.push');
 
     // Members.
     Route::get('settings/members', [MemberController::class, 'index'])

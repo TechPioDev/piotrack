@@ -64,6 +64,26 @@ class Organization extends Model
     }
 
     /**
+     * Franchisor, when this organization is a linked franchisee (MLOC-009).
+     *
+     * @return BelongsTo<Organization, $this>
+     */
+    public function parentOrganization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'parent_organization_id');
+    }
+
+    /**
+     * Linked franchisees (MLOC-009).
+     *
+     * @return HasMany<Organization, $this>
+     */
+    public function childOrganizations(): HasMany
+    {
+        return $this->hasMany(Organization::class, 'parent_organization_id');
+    }
+
+    /**
      * @return BelongsToMany<User, $this, OrganizationUser>
      */
     public function members(): BelongsToMany

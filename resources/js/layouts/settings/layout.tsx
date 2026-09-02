@@ -21,6 +21,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     // Organization settings are permission-gated (RBAC-005).
     const organizationNavItems: NavItem[] = [
         can('organization.view') && { title: 'Organization', url: '/settings/organization', icon: null },
+        can('organization.view') && { title: 'Franchise', url: '/settings/franchise', icon: null },
         can('members.view') && { title: 'Members', url: '/settings/members', icon: null },
         can('teams.view') && { title: 'Teams', url: '/settings/teams', icon: null },
         can('billing.view') && { title: 'Billing', url: '/billing', icon: null },

@@ -10,6 +10,7 @@ use App\Models\AdKeyword;
 use App\Models\AdMetric;
 use App\Services\Advertising\AdCampaignService;
 use App\Services\Advertising\AdMetricsService;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -128,6 +129,8 @@ class CampaignController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'targeting' => ['nullable', 'array'],
+            // MLOC-006: a local campaign is bound to its branch; null = central.
+            'seo_location_id' => ['nullable', 'integer', TenantExists::in('seo_locations')],
         ]);
     }
 }

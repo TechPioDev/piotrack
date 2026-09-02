@@ -44,6 +44,23 @@ type Location = {
     leads: number;
     sqls: number;
     won_value: number;
+    citations: number;
+    consistent_citations: number;
+    geo_keywords: number;
+    campaigns: number;
+    active_campaigns: number;
+    content_pieces: number;
+};
+
+type CalendarGroup = {
+    location: string;
+    entries: { month: string; kind: string; title: string; status: string }[];
+};
+
+type ComplianceRow = {
+    location: string;
+    ok: boolean;
+    checks: { key: string; label: string; ok: boolean; detail: string }[];
 };
 
 function money(cents: number): string {
@@ -202,10 +219,14 @@ export default function WebTaxonomy({
     service_lines,
     verticals,
     locations,
+    calendar,
+    compliance,
 }: {
     service_lines: ServiceLine[];
     verticals: Vertical[];
     locations: Location[];
+    calendar: CalendarGroup[];
+    compliance: ComplianceRow[];
 }) {
     const { can } = usePermissions();
     const canManage = can('web.taxonomy.manage');
@@ -400,6 +421,10 @@ export default function WebTaxonomy({
                                             <th className="p-3 font-medium">Location</th>
                                             <th className="p-3 font-medium">Territory</th>
                                             <th className="p-3 font-medium">Location page</th>
+                                            <th className="p-3 text-center font-medium">Citations</th>
+                                            <th className="p-3 text-center font-medium">Geo keywords</th>
+                                            <th className="p-3 text-center font-medium">Campaigns</th>
+                                            <th className="p-3 text-center font-medium">Content</th>
                                             <th className="p-3 text-center font-medium">Leads</th>
                                             <th className="p-3 text-center font-medium">SQLs</th>
                                             <th className="p-3 text-center font-medium">Won value</th>
@@ -428,6 +453,22 @@ export default function WebTaxonomy({
                                                     )}
                                                 </td>
                                                 <td className="p-3 text-center">
+                                                    <span className="text-muted-foreground">
+                                                        {location.consistent_citations}/{location.citations}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <CoverageCell value={location.geo_keywords} />
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="text-muted-foreground">
+                                                        {location.active_campaigns}/{location.campaigns}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <CoverageCell value={location.content_pieces} />
+                                                </td>
+                                                <td className="p-3 text-center">
                                                     <CoverageCell value={location.leads} />
                                                 </td>
                                                 <td className="p-3 text-center">
@@ -439,6 +480,64 @@ export default function WebTaxonomy({
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">Regional marketing calendar</h3>
+                    {calendar.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No campaigns or content yet. Bind a campaign or content piece to a branch to see the regional programme; unbound work
+                            shows under Central.
+                        </p>
+                    ) : (
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {calendar.map((group) => (
+                                <Card key={group.location}>
+                                    <CardContent className="p-4">
+                                        <h4 className="mb-2 text-sm font-medium">{group.location}</h4>
+                                        <ul className="space-y-1 text-sm">
+                                            {group.entries.map((entry, i) => (
+                                                <li key={`${entry.title}-${i}`} className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-muted-foreground w-16 shrink-0 text-xs">{entry.month}</span>
+                                                    <Badge variant="outline">{entry.kind}</Badge>
+                                                    <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+                                                    <Badge variant="secondary">{entry.status}</Badge>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">Brand consistency by branch</h3>
+                    {compliance.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">No active branches to check.</p>
+                    ) : (
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {compliance.map((row) => (
+                                <Card key={row.location}>
+                                    <CardContent className="p-4">
+                                        <div className="mb-2 flex items-center gap-2">
+                                            <h4 className="text-sm font-medium">{row.location}</h4>
+                                            <Badge variant={row.ok ? 'default' : 'secondary'}>{row.ok ? 'Consistent' : 'Needs work'}</Badge>
+                                        </div>
+                                        <ul className="space-y-1 text-sm">
+                                            {row.checks.map((check) => (
+                                                <li key={check.key} className="text-muted-foreground">
+                                                    <span className={check.ok ? 'text-green-600' : 'text-destructive'}>{check.ok ? '✓' : '✗'}</span>{' '}
+                                                    <span className="text-foreground font-medium">{check.label}</span> — {check.detail}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
                     )}
                 </div>
