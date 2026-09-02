@@ -15,12 +15,21 @@ import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Competitors', href: '/analytics/competitors' }];
 
+type ContentSnapshot = {
+    pages: number;
+    new: string[];
+    changed: string[];
+    removed: string[];
+    checked_at: string | null;
+};
+
 type Competitor = {
     id: number;
     name: string;
     domain: string | null;
     notes: string | null;
     is_tracked: boolean;
+    content: ContentSnapshot | null;
 };
 
 type ShareRow = {
@@ -361,6 +370,7 @@ export default function Competitors({
                                         <th className="p-3 font-medium">Domain</th>
                                         <th className="p-3 font-medium">Notes</th>
                                         <th className="p-3 font-medium">Tracked</th>
+                                        <th className="p-3 font-medium">Content</th>
                                         {canManage && <th className="p-3 text-right font-medium">Actions</th>}
                                     </tr>
                                 </thead>
@@ -375,9 +385,53 @@ export default function Competitors({
                                                     {competitor.is_tracked ? 'Tracked' : 'Paused'}
                                                 </Badge>
                                             </td>
+                                            <td className="p-3">
+                                                {competitor.content === null ? (
+                                                    <span className="text-muted-foreground text-xs">Not checked yet</span>
+                                                ) : (
+                                                    <div className="space-y-1 text-xs">
+                                                        <span className="text-muted-foreground">
+                                                            {competitor.content.pages} pages · checked{' '}
+                                                            {competitor.content.checked_at
+                                                                ? new Date(competitor.content.checked_at).toLocaleDateString()
+                                                                : '—'}
+                                                        </span>
+                                                        {(competitor.content.new.length > 0 ||
+                                                            competitor.content.changed.length > 0 ||
+                                                            competitor.content.removed.length > 0) && (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {competitor.content.new.length > 0 && (
+                                                                    <Badge variant="default">{competitor.content.new.length} new</Badge>
+                                                                )}
+                                                                {competitor.content.changed.length > 0 && (
+                                                                    <Badge variant="secondary">{competitor.content.changed.length} changed</Badge>
+                                                                )}
+                                                                {competitor.content.removed.length > 0 && (
+                                                                    <Badge variant="outline">{competitor.content.removed.length} removed</Badge>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
                                             {canManage && (
                                                 <td className="p-3">
                                                     <div className="flex justify-end gap-2">
+                                                        {competitor.domain && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        route('analytics.competitors.check', competitor.id),
+                                                                        {},
+                                                                        { preserveScroll: true },
+                                                                    )
+                                                                }
+                                                            >
+                                                                Check content
+                                                            </Button>
+                                                        )}
                                                         <EditCompetitorDialog competitor={competitor} />
                                                         <Button
                                                             size="sm"

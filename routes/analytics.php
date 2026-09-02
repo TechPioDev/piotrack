@@ -57,6 +57,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
         Route::get('competitors', [CompetitorController::class, 'index'])->middleware('can:analytics.view')->name('competitors.index');
         Route::middleware('can:analytics.competitors.manage')->group(function () {
             Route::post('competitors', [CompetitorController::class, 'store'])->name('competitors.store');
+            Route::post('competitors/{competitor}/check-content', [CompetitorController::class, 'checkContent'])->name('competitors.check');
             Route::patch('competitors/{competitor}', [CompetitorController::class, 'update'])->name('competitors.update');
             Route::delete('competitors/{competitor}', [CompetitorController::class, 'destroy'])->name('competitors.destroy');
         });
