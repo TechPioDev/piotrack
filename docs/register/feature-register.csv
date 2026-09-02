@@ -1008,13 +1008,13 @@ ONBD-002,ONBD,Customer Onboarding,Flow,Company/organization creation step,Master
 ONBD-003,ONBD,Customer Onboarding,Flow,Payment and subscription activation step,Master Prompt,§6,Tested,Done,Pending,Done,Pending,,Payment + subscription activation (Stage 3)
 ONBD-004,ONBD,Customer Onboarding,Flow,Trial signup support,Master Prompt,§6,Tested,Done,Pending,Done,Pending,,Trial signup (14-day Growth trial on org creation)
 ONBD-005,ONBD,Customer Onboarding,Setup wizard,Team invitation step,Master Prompt,§6,Tested,Done,Done,Done,Pending,,Team invitation step (Stage 2)
-ONBD-006,ONBD,Customer Onboarding,Setup wizard,"Business profile (industry, services, geography)",Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-007,ONBD,Customer Onboarding,Setup wizard,Website details capture,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-008,ONBD,Customer Onboarding,Setup wizard,Marketing goals capture,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-009,ONBD,Customer Onboarding,Setup wizard,ICP setup,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-010,ONBD,Customer Onboarding,Setup wizard,Competitor setup,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-011,ONBD,Customer Onboarding,Setup wizard,Integration connection wizard,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
-ONBD-012,ONBD,Customer Onboarding,Setup wizard,Initial audit trigger on completion,Master Prompt,§6,Planned,Pending,Pending,Pending,Pending,,
+ONBD-006,ONBD,Customer Onboarding,Setup wizard,"Business profile (industry, services, geography)",Master Prompt,§6,Tested,Done,Done,Done,Pending,,"Business profile: wizard step activates the chosen ServiceLines/Verticals (others deactivated) and creates the home-market SeoLocation - taxonomy records, no silo. OnboardingSetupTest. Phase 19."
+ONBD-007,ONBD,Customer Onboarding,Setup wizard,Website details capture,Master Prompt,§6,Tested,Done,Done,Done,Pending,,Website capture: brand_profiles.website_url via the wizard (the Phase 10 entity field the audits and knowledge graph anchor on). Phase 19.
+ONBD-008,ONBD,Customer Onboarding,Setup wizard,Marketing goals capture,Master Prompt,§6,Tested,Done,Done,Done,Pending,,"Marketing goals: leads/sqls/mrr targets stored as KpiTarget rows (90-day window) - tracked on the strategy dashboard, updateOrCreate idempotent. Phase 19."
+ONBD-009,ONBD,Customer Onboarding,Setup wizard,ICP setup,Master Prompt,§6,Tested,Done,Done,Done,Pending,,"ICP setup: becomes LIVE firmographic ScoringRules (size 15 / region 10 / industry 5, idempotent by name) - a matching lead scores 30 immediately through LeadScoringService (test-pinned). Phase 19."
+ONBD-010,ONBD,Customer Onboarding,Setup wizard,Competitor setup,Master Prompt,§6,Tested,Done,Done,Done,Pending,,"Competitor setup: Competitor records created from the wizard, deduped by domain, tracked. Phase 19."
+ONBD-011,ONBD,Customer Onboarding,Setup wizard,Integration connection wizard,Master Prompt,§6,Tested,Done,Done,Done,Pending,,"Integration wizard step: the 24-connector registry with real connected/connectable state, linking to settings/integrations; actual connections wait on vendor OAuth apps and the step says so. Phase 19."
+ONBD-012,ONBD,Customer Onboarding,Setup wizard,Initial audit trigger on completion,Master Prompt,§6,Tested,Done,Done,Done,Pending,,"Initial audit on completion: finishing setup runs the technical auditor against the captured website URL (SSRF-guarded); no URL means quiet completion, never an error. Phase 19."
 ONBD-013,ONBD,Customer Onboarding,UX,Progress indicator and setup checklist,Master Prompt,§6,Tested,Done,Done,Done,Pending,,Setup checklist with progress on dashboard
 ONBD-014,ONBD,Customer Onboarding,UX,Leave and resume onboarding later,Master Prompt,§6,Tested,Done,Pending,Done,Pending,,Leave/resume: checklist derived from real state (inherently resumable)
 BILL-001,BILL,Billing & Subscriptions,Plans,"Configurable plan catalog (Starter, Growth, Professional, Agency, Enterprise)",Master Prompt,§7,Tested,Done,Done,Done,Pending,,5-plan catalog (code->DB via PlanSeeder/billing:sync-plans); pricing page

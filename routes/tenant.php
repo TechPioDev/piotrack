@@ -5,6 +5,7 @@ use App\Http\Controllers\Billing\BillingProfileController;
 use App\Http\Controllers\Billing\CheckoutController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\SubscriptionController;
+use App\Http\Controllers\OnboardingSetupController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\FileController;
 use App\Http\Controllers\Settings\FranchiseController;
@@ -29,6 +30,18 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
         ->middleware('can:organization.update')->name('organization.update');
     Route::delete('settings/organization', [OrganizationSettingsController::class, 'destroy'])
         ->middleware('can:organization.delete')->name('organization.destroy');
+
+    // Guided setup wizard (ONBD-006..012). Setup decides taxonomy, goals,
+    // scoring and competitors for the whole tenant, so it is an admin act.
+    Route::prefix('onboarding')->middleware('can:organization.update')->group(function () {
+        Route::get('setup', [OnboardingSetupController::class, 'show'])->name('onboarding.setup');
+        Route::post('setup/business-profile', [OnboardingSetupController::class, 'businessProfile'])->name('onboarding.business');
+        Route::post('setup/website', [OnboardingSetupController::class, 'website'])->name('onboarding.website');
+        Route::post('setup/goals', [OnboardingSetupController::class, 'goals'])->name('onboarding.goals');
+        Route::post('setup/icp', [OnboardingSetupController::class, 'icp'])->name('onboarding.icp');
+        Route::post('setup/competitors', [OnboardingSetupController::class, 'competitors'])->name('onboarding.competitors');
+        Route::post('setup/complete', [OnboardingSetupController::class, 'complete'])->name('onboarding.complete');
+    });
 
     // Franchise hierarchy (MLOC-009).
     Route::get('settings/franchise', [FranchiseController::class, 'index'])
