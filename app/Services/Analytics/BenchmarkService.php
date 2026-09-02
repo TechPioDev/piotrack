@@ -18,7 +18,7 @@ use App\Support\CurrentOrganization;
 class BenchmarkService
 {
     /** Metrics with a real cross-tenant computation today. */
-    public const METRICS = ['cpl', 'conversion_rate', 'lead_to_sql', 'sql_to_meeting', 'avg_mrr', 'cac', 'time_to_close'];
+    public const METRICS = ['cpl', 'conversion_rate', 'lead_to_sql', 'sql_to_meeting', 'meeting_to_proposal', 'proposal_to_win', 'avg_mrr', 'cac', 'time_to_close'];
 
     public function __construct(private CurrentOrganization $current) {}
 
@@ -87,6 +87,10 @@ class BenchmarkService
             'conversion_rate' => $this->ratio($this->wonCountByOrg(), $this->leadsByOrg(), asPercent: true),
             'lead_to_sql' => $this->ratio($this->sqlsByOrg(), $this->leadsByOrg(), asPercent: true),
             'sql_to_meeting' => $this->ratio($this->meetingsByOrg(), $this->sqlsByOrg(), asPercent: true),
+            // BENCH-008/009: the proposal-stage convention (is_proposal stage,
+            // first-entry proposal_sent_at stamp) makes these honest.
+            'meeting_to_proposal' => $this->ratio($this->proposalsByOrg(), $this->meetingsByOrg(), asPercent: true),
+            'proposal_to_win' => $this->ratio($this->wonWithProposalByOrg(), $this->proposalsByOrg(), asPercent: true),
             'avg_mrr' => $this->wonMrrByOrg(),
             'cac' => $this->ratio($this->spendByOrg(), $this->wonCountByOrg()),
             'time_to_close' => $this->timeToCloseByOrg(),
@@ -142,6 +146,23 @@ class BenchmarkService
     private function meetingsByOrg(): array
     {
         return Booking::withoutGlobalScope('tenant')
+            ->selectRaw('organization_id, COUNT(*) AS v')->groupBy('organization_id')
+            ->pluck('v', 'organization_id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    /** @return array<int, int> */
+    private function proposalsByOrg(): array
+    {
+        return Deal::withoutGlobalScope('tenant')->whereNotNull('proposal_sent_at')
+            ->selectRaw('organization_id, COUNT(*) AS v')->groupBy('organization_id')
+            ->pluck('v', 'organization_id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    /** @return array<int, int> */
+    private function wonWithProposalByOrg(): array
+    {
+        return Deal::withoutGlobalScope('tenant')->whereNotNull('proposal_sent_at')
+            ->whereHas('stage', fn ($q) => $q->where('is_won', true))
             ->selectRaw('organization_id, COUNT(*) AS v')->groupBy('organization_id')
             ->pluck('v', 'organization_id')->map(fn ($v) => (int) $v)->all();
     }

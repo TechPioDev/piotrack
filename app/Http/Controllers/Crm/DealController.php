@@ -126,6 +126,9 @@ class DealController extends Controller
             'stage_id' => $stage->id,
             'status' => $stage->is_won ? 'won' : ($stage->is_lost ? 'lost' : 'open'),
             'closed_at' => ($stage->is_won || $stage->is_lost) ? now() : null,
+            // BENCH-008/009: first entry into a proposal stage stamps the deal
+            // for the funnel benchmarks; re-entry never rewrites the date.
+            'proposal_sent_at' => $deal->proposal_sent_at ?? ($stage->is_proposal ? now() : null),
         ]);
 
         $this->audit->log('crm.deal.stage_changed', context: ['stage' => $stage->name], resourceType: 'deal', resourceId: (string) $deal->id, organizationId: $deal->organization_id);

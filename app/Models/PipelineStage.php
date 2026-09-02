@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PipelineStage extends Model
 {
-    protected $fillable = ['pipeline_id', 'name', 'sort_order', 'is_won', 'is_lost'];
+    protected $fillable = ['pipeline_id', 'name', 'sort_order', 'is_won', 'is_lost', 'is_proposal'];
 
     protected function casts(): array
     {
@@ -20,6 +20,7 @@ class PipelineStage extends Model
             'sort_order' => 'integer',
             'is_won' => 'boolean',
             'is_lost' => 'boolean',
+            'is_proposal' => 'boolean',
         ];
     }
 

@@ -21,13 +21,15 @@ const METRIC_LABELS: Record<string, string> = {
     conversion_rate: 'Lead to customer rate',
     lead_to_sql: 'Lead to SQL rate',
     sql_to_meeting: 'SQL to meeting rate',
+    meeting_to_proposal: 'Meeting to proposal rate',
+    proposal_to_win: 'Proposal to win rate',
     avg_mrr: 'Average MRR',
     cac: 'Customer acquisition cost',
     time_to_close: 'Time to close',
 };
 
 const MONEY_METRICS = ['cpl', 'cac', 'avg_mrr'];
-const PERCENT_METRICS = ['conversion_rate', 'lead_to_sql', 'sql_to_meeting'];
+const PERCENT_METRICS = ['conversion_rate', 'lead_to_sql', 'sql_to_meeting', 'meeting_to_proposal', 'proposal_to_win'];
 
 function label(metric: string): string {
     return METRIC_LABELS[metric] ?? metric.replace(/_/g, ' ');

@@ -43,7 +43,7 @@ class Deal extends Model implements HasActivities
     protected $fillable = [
         'organization_id', 'pipeline_id', 'stage_id', 'name', 'contact_id', 'company_id',
         'value', 'mrr', 'arr', 'contract_term_months', 'ltv', 'currency', 'status',
-        'lead_source', 'campaign', 'owner_id', 'marketing_owner_id', 'expected_close_date', 'closed_at',
+        'lead_source', 'campaign', 'owner_id', 'marketing_owner_id', 'expected_close_date', 'closed_at', 'proposal_sent_at',
     ];
 
     protected function casts(): array
@@ -56,6 +56,7 @@ class Deal extends Model implements HasActivities
             'contract_term_months' => 'integer',
             'expected_close_date' => 'date',
             'closed_at' => 'datetime',
+            'proposal_sent_at' => 'datetime',
         ];
     }
 
