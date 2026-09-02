@@ -51,17 +51,16 @@ class EmailTrackingService
                 Campaign::withoutGlobalScope('tenant')->whereKey($recipient->campaign_id)->increment('stat_clicked');
 
                 // INTENT-010: a first campaign click is buyer-intent, recorded
-                // on the contact (§20 weights email_click at 10). Public route,
-                // no tenant context — the org id comes from the recipient.
-                if ($recipient->contact_id !== null) {
-                    IntentSignal::create([
-                        'organization_id' => $recipient->organization_id,
-                        'contact_id' => $recipient->contact_id,
-                        'type' => 'campaign_click',
-                        'weight' => 10,
-                        'occurred_at' => now(),
-                    ]);
-                }
+                // on the contact (§20 weights email_click at 10; every
+                // recipient row references a contact). Public route, no tenant
+                // context — the org id comes from the recipient.
+                IntentSignal::create([
+                    'organization_id' => $recipient->organization_id,
+                    'contact_id' => $recipient->contact_id,
+                    'type' => 'campaign_click',
+                    'weight' => 10,
+                    'occurred_at' => now(),
+                ]);
             }
             $recipient->update($updates);
 

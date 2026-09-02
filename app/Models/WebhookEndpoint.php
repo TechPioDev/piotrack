@@ -4,10 +4,19 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * An outbound webhook subscription (INTG-009): where to POST signed event
  * payloads, and which events the receiver asked for (empty = all).
+ *
+ * @property string $url
+ * @property string $secret
+ * @property list<string>|null $events
+ * @property bool $is_active
+ * @property int $failure_count
+ * @property Carbon|null $last_delivered_at
+ * @property string|null $last_error
  */
 class WebhookEndpoint extends Model
 {

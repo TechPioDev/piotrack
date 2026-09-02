@@ -136,7 +136,7 @@ class AccountService
      */
     public function createPage(TargetAccount $account, string $service): LandingPage
     {
-        $company = (string) ($account->company?->name ?? 'your company');
+        $company = (string) ($account->company->name ?? 'your company');
 
         $base = Str::slug("{$service} for {$company}");
         $slug = $base;
@@ -196,7 +196,7 @@ class AccountService
             'deals' => Deal::where('company_id', $account->company_id)->get()
                 ->map(fn (Deal $d) => ['id' => $d->id, 'name' => $d->name, 'status' => $d->status, 'value' => $d->value, 'mrr' => $d->mrr])->all(),
             'bookings' => Booking::whereIn('contact_id', $contactIds)->latest('scheduled_at')->limit(10)->get()
-                ->map(fn (Booking $b) => ['id' => $b->id, 'name' => $b->name, 'status' => $b->status, 'scheduled_at' => $b->scheduled_at?->toIso8601String()])->all(),
+                ->map(fn (Booking $b) => ['id' => $b->id, 'name' => $b->name, 'status' => $b->status, 'scheduled_at' => $b->scheduled_at->toIso8601String()])->all(),
             'signals' => IntentSignal::whereIn('contact_id', $contactIds)->latest('occurred_at')->limit(20)->get()
                 ->map(fn (IntentSignal $s) => ['type' => $s->type, 'weight' => $s->weight, 'url' => $s->url, 'occurred_at' => $s->occurred_at?->toIso8601String()])->all(),
         ];

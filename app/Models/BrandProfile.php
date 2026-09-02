@@ -22,6 +22,9 @@ class BrandProfile extends Model
         'organization_id', 'positioning_statement', 'usp', 'value_proposition', 'differentiators',
         'narrative', 'story', 'tone_of_voice', 'messaging_hierarchy', 'elevator_pitch', 'tagline',
         'palette', 'typography', 'imagery_direction', 'guidelines_url',
+        // Organization-entity facts for the knowledge graph (LLMO-005/010).
+        'legal_name', 'alternate_names', 'website_url', 'logo_url',
+        'founded_year', 'same_as', 'disambiguation',
     ];
 
     protected function casts(): array
@@ -31,6 +34,9 @@ class BrandProfile extends Model
             'messaging_hierarchy' => 'array',
             'palette' => 'array',
             'typography' => 'array',
+            'alternate_names' => 'array',
+            'same_as' => 'array',
+            'founded_year' => 'integer',
         ];
     }
 }

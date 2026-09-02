@@ -127,7 +127,7 @@ class StrategyInsights
     public function verticalPerformance(): array
     {
         return Deal::with('company:id,industry')->get()
-            ->groupBy(fn (Deal $d) => $d->company?->industry ?? 'Unclassified')
+            ->groupBy(fn (Deal $d) => $d->company->industry ?? 'Unclassified')
             ->map(function ($deals, $industry) {
                 $closed = $deals->whereIn('status', ['won', 'lost']);
                 $won = $deals->where('status', 'won');
@@ -338,7 +338,7 @@ class StrategyInsights
         return [
             'insufficient_data' => false,
             'won_deals' => $wonDeals->count(),
-            'top_industries' => $wonDeals->groupBy(fn (Deal $d) => $d->company?->industry ?? 'Unclassified')
+            'top_industries' => $wonDeals->groupBy(fn (Deal $d) => $d->company->industry ?? 'Unclassified')
                 ->map->count()->sortDesc()->take(3)->all(),
             'top_sources' => $wonDeals->groupBy(fn (Deal $d) => $d->lead_source ?? 'unknown')
                 ->map->count()->sortDesc()->take(3)->all(),

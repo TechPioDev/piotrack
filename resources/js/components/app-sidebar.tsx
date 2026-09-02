@@ -36,6 +36,7 @@ import {
     MapPin,
     Megaphone,
     MessagesSquare,
+    Network,
     Palette,
     PenLine,
     Phone,
@@ -90,6 +91,7 @@ export function AppSidebar() {
         can('seo.view') && { title: 'Keywords', url: '/seo/keywords', icon: KeyRound },
         can('seo.view') && { title: 'Local', url: '/seo/local', icon: MapPin },
         can('seo.view') && { title: 'AI Visibility', url: '/seo/ai-visibility', icon: Sparkles },
+        can('seo.view') && { title: 'LLMO', url: '/seo/llmo', icon: Network },
         can('seo.view') && { title: 'Schema', url: '/seo/schema', icon: Code },
     ].filter(Boolean) as NavItem[];
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\Crm\EntityExportController;
 use App\Http\Controllers\Seo\AiVisibilityController;
 use App\Http\Controllers\Seo\AuditController;
 use App\Http\Controllers\Seo\KeywordController;
+use App\Http\Controllers\Seo\LlmoController;
 use App\Http\Controllers\Seo\LocalController;
 use App\Http\Controllers\Seo\SchemaController;
 use App\Http\Controllers\Seo\SeoDashboardController;
@@ -54,5 +55,13 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::middleware('entitlement:ai_visibility')->group(function () {
             Route::get('ai-visibility', [AiVisibilityController::class, 'index'])->middleware('can:seo.view')->name('ai.index');
             Route::post('ai-visibility', [AiVisibilityController::class, 'check'])->middleware('can:seo.ai.manage')->name('ai.check');
+
+            // LLMO: knowledge graph + retrieval readiness + content scoring.
+            Route::get('llmo', [LlmoController::class, 'index'])->middleware('can:seo.view')->name('llmo.index');
+            Route::post('llmo/entity', [LlmoController::class, 'updateEntity'])->middleware('can:seo.ai.manage')->name('llmo.entity');
+            Route::post('llmo/experts', [LlmoController::class, 'storeExpert'])->middleware('can:seo.ai.manage')->name('llmo.experts.store');
+            Route::delete('llmo/experts/{expert}', [LlmoController::class, 'destroyExpert'])->middleware('can:seo.ai.manage')->name('llmo.experts.destroy');
+            Route::post('llmo/graph', [LlmoController::class, 'publishGraph'])->middleware('can:seo.ai.manage')->name('llmo.graph');
+            Route::post('llmo/score', [LlmoController::class, 'scoreContent'])->middleware('can:seo.ai.manage')->name('llmo.score');
         });
     });
