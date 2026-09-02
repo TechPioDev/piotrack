@@ -39,5 +39,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
         Route::get('retargeting', [RetargetingController::class, 'index'])->middleware('can:ads.view')->name('retargeting.index');
         Route::post('retargeting', [RetargetingController::class, 'store'])->middleware('can:ads.retargeting.manage')->name('retargeting.store');
         Route::post('retargeting/{audience}/rebuild', [RetargetingController::class, 'rebuild'])->middleware('can:ads.retargeting.manage')->name('retargeting.rebuild');
+        Route::get('retargeting/{audience}/export', [RetargetingController::class, 'export'])->middleware('can:ads.retargeting.manage')->name('retargeting.export');
+        Route::post('retargeting/{audience}/sms', [RetargetingController::class, 'sms'])->middleware('can:ads.retargeting.manage')->name('retargeting.sms');
         Route::delete('retargeting/{audience}', [RetargetingController::class, 'destroy'])->middleware('can:ads.retargeting.manage')->name('retargeting.destroy');
     });

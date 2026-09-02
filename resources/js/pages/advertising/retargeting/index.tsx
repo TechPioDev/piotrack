@@ -15,6 +15,60 @@ import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Retargeting', href: '/ads/retargeting' }];
 
+const textareaClass =
+    'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-24 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
+
+function SmsDialog({ audienceId, audienceName }: { audienceId: number; audienceName: string }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ message: string }>({ message: '' });
+
+    const send: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('ads.retargeting.sms', audienceId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    SMS
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>SMS re-engagement — {audienceName}</DialogTitle>
+                <form onSubmit={send} className="space-y-3">
+                    <p className="text-muted-foreground text-sm">
+                        Sends through the SMS engine: only opted-in, non-suppressed members with a phone number receive it, and the result reports
+                        exactly what happened.
+                    </p>
+                    <div className="grid gap-1">
+                        <Label htmlFor={`sms-${audienceId}`}>Message</Label>
+                        <textarea
+                            id={`sms-${audienceId}`}
+                            className={textareaClass}
+                            maxLength={480}
+                            value={form.data.message}
+                            onChange={(e) => form.setData('message', e.target.value)}
+                        />
+                        <InputError message={form.errors.message} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing || form.data.message.trim() === ''}>
+                            Send to audience
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 type Audience = {
     id: number;
     name: string;
@@ -232,10 +286,22 @@ export default function Retargeting({ audiences, lists }: { audiences: Audience[
                                         <td className="p-3 text-center">{audience.exclude_converted ? 'Yes' : 'No'}</td>
                                         {canManage && (
                                             <td className="p-3">
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     <Button size="sm" variant="secondary" onClick={() => rebuild(audience.id)}>
                                                         Rebuild
                                                     </Button>
+                                                    {(['google', 'meta', 'linkedin'] as const).map((platform) => (
+                                                        <Button key={platform} size="sm" variant="outline" asChild>
+                                                            <a href={route('ads.retargeting.export', audience.id) + `?platform=${platform}`}>
+                                                                {platform === 'google'
+                                                                    ? 'Google CSV'
+                                                                    : platform === 'meta'
+                                                                      ? 'Meta CSV'
+                                                                      : 'LinkedIn CSV'}
+                                                            </a>
+                                                        </Button>
+                                                    ))}
+                                                    <SmsDialog audienceId={audience.id} audienceName={audience.name} />
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
