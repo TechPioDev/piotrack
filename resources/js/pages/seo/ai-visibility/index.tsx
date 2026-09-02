@@ -1,3 +1,4 @@
+import { PartialFailure } from '@/components/async-states';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,8 @@ type Check = {
     checked_at: string | null;
 };
 
+type AiSource = { name: string; live: boolean };
+
 type Summary = {
     total: number;
     mentioned: number;
@@ -38,7 +41,17 @@ function formatTime(iso: string | null): string {
     return new Date(iso).toLocaleString();
 }
 
-export default function AiVisibility({ engines, checks, summary }: { engines: string[]; checks: Check[]; summary: Summary }) {
+export default function AiVisibility({
+    engines,
+    checks,
+    summary,
+    aiSource,
+}: {
+    engines: string[];
+    checks: Check[];
+    summary: Summary;
+    aiSource?: AiSource;
+}) {
     const { can } = usePermissions();
     const canManage = can('seo.ai.manage');
     const form = useForm<{ prompt: string; brand: string; engine: string }>({
@@ -57,6 +70,13 @@ export default function AiVisibility({ engines, checks, summary }: { engines: st
             <Head title="AI Visibility" />
             <div className="space-y-6 p-4">
                 <Heading title="AI Visibility" description="Track how AI answer engines mention your brand" />
+
+                {aiSource && !aiSource.live && (
+                    <PartialFailure
+                        failed={['Live AI engine data']}
+                        detail={`Results below come from the built-in ${aiSource.name} provider until engine API keys are configured.`}
+                    />
+                )}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <Card>

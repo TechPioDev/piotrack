@@ -138,10 +138,10 @@ export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Keywords" />
             <div className="space-y-4 p-4">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading title="Keywords" description={`${keywords.length} tracked`} />
                     {canManage && (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <Button
                                 variant="secondary"
                                 onClick={() => router.post(route('seo.keywords.seed'), { with_geo: true }, { preserveScroll: true })}

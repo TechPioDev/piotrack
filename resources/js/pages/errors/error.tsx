@@ -25,6 +25,15 @@ export default function ErrorPage({ status }: { status: number }) {
                 <h1 className="text-foreground mt-3 text-2xl font-semibold tracking-tight">{title}</h1>
                 <p className="text-muted-foreground mt-2 max-w-md text-sm">{body}</p>
                 <div className="mt-6 flex gap-3">
+                    {(status === 500 || status === 503) && (
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="border-border hover:border-brand hover:text-brand-strong rounded-lg border px-4 py-2 text-sm font-semibold transition-colors"
+                        >
+                            Try again
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => window.history.back()}

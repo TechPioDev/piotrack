@@ -494,7 +494,7 @@ export default function WebTaxonomy({
                     ) : (
                         <div className="grid gap-4 lg:grid-cols-2">
                             {calendar.map((group) => (
-                                <Card key={group.location}>
+                                <Card key={group.location} className="min-w-0">
                                     <CardContent className="p-4">
                                         <h4 className="mb-2 text-sm font-medium">{group.location}</h4>
                                         <ul className="space-y-1 text-sm">

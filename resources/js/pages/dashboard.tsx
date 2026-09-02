@@ -4,9 +4,10 @@ import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AlertTriangle, CalendarCheck, DollarSign, Flame, Handshake, MessagesSquare, PieChart, TrendingUp, UserPlus, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -72,6 +73,8 @@ export default function Dashboard({
     attention,
     topDeals,
     sources,
+    range,
+    ranges,
 }: {
     onboarding?: Onboarding;
     kpis?: Partial<Kpis>;
@@ -83,7 +86,10 @@ export default function Dashboard({
     attention?: Attention;
     topDeals?: TopDeal[];
     sources?: Record<string, number>;
+    range?: number;
+    ranges?: number[];
 }) {
+    const windowDays = range ?? 30;
     // Never assume the payload is complete: an older backend or an empty tenant
     // can omit fields. Normalise to zeros so the page always renders rather
     // than crashing to a blank screen.
@@ -114,7 +120,24 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="space-y-6 p-4">
-                <PageHeader title="Dashboard" description="Your growth command center — the last 30 days against the 30 before." />
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                    <PageHeader
+                        title="Dashboard"
+                        description={`Your growth command center — the last ${windowDays} days against the ${windowDays} before.`}
+                    />
+                    <Select value={String(windowDays)} onValueChange={(v) => router.get('/dashboard', { range: v }, { preserveScroll: true })}>
+                        <SelectTrigger className="w-36" aria-label="Comparison window">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(ranges ?? [30, 60, 90]).map((days) => (
+                                <SelectItem key={days} value={String(days)}>
+                                    Last {days} days
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
                 {onboarding && !onboarding.complete && <OnboardingChecklist onboarding={onboarding} />}
 
@@ -148,12 +171,12 @@ export default function Dashboard({
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card>
                         <CardContent className="p-4">
-                            <h2 className="text-sm font-semibold">New leads — last 30 days</h2>
+                            <h2 className="text-sm font-semibold">New leads — last {windowDays} days</h2>
                             <LineChart
                                 className="mt-3"
                                 data={leadTrend ?? []}
-                                ariaLabel="New leads per day over the last 30 days"
-                                emptyText="No new leads in the last 30 days yet."
+                                ariaLabel={`New leads per day over the last ${windowDays} days`}
+                                emptyText={`No new leads in the last ${windowDays} days yet.`}
                             />
                         </CardContent>
                     </Card>
@@ -165,8 +188,8 @@ export default function Dashboard({
                                 data={mrrTrend ?? []}
                                 color="var(--chart-2)"
                                 formatValue={money}
-                                ariaLabel="Cumulative MRR won across the last 30 days"
-                                emptyText="No deals won in the last 30 days yet."
+                                ariaLabel={`Cumulative MRR won across the last ${windowDays} days`}
+                                emptyText={`No deals won in the last ${windowDays} days yet.`}
                             />
                         </CardContent>
                     </Card>

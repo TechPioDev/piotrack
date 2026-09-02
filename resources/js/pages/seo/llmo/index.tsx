@@ -1,3 +1,4 @@
+import { ConfirmAction } from '@/components/confirm-action';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -253,14 +254,18 @@ export default function Llmo({ completeness, entity, experts, graphJson, nodeCou
                                             </div>
                                         </div>
                                         {canManage && (
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="text-destructive"
-                                                onClick={() => router.delete(route('seo.llmo.experts.destroy', expert.id), { preserveScroll: true })}
+                                            <ConfirmAction
+                                                title={`Remove ${expert.name}?`}
+                                                description="The expert profile leaves the knowledge graph on the next publish."
+                                                confirmLabel="Remove"
+                                                onConfirm={() =>
+                                                    router.delete(route('seo.llmo.experts.destroy', expert.id), { preserveScroll: true })
+                                                }
                                             >
-                                                Remove
-                                            </Button>
+                                                <Button size="sm" variant="ghost" className="text-destructive">
+                                                    Remove
+                                                </Button>
+                                            </ConfirmAction>
                                         )}
                                     </div>
                                 ))}

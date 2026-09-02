@@ -1,3 +1,4 @@
+import { ConfirmAction } from '@/components/confirm-action';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -166,14 +167,16 @@ export default function Schema({ types, items }: { types: string[]; items: Schem
                                                 <span className="text-muted-foreground text-sm break-all">{item.url ?? '—'}</span>
                                             </div>
                                             {canManage && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-destructive"
-                                                    onClick={() => router.delete(route('seo.schema.destroy', item.id), { preserveScroll: true })}
+                                                <ConfirmAction
+                                                    title={`Delete this ${item.schema_type} schema?`}
+                                                    description="Pages embedding this JSON-LD block lose it. This cannot be undone."
+                                                    confirmLabel="Delete"
+                                                    onConfirm={() => router.delete(route('seo.schema.destroy', item.id), { preserveScroll: true })}
                                                 >
-                                                    Delete
-                                                </Button>
+                                                    <Button size="sm" variant="ghost" className="text-destructive">
+                                                        Delete
+                                                    </Button>
+                                                </ConfirmAction>
                                             )}
                                         </div>
                                         <pre className="bg-muted/50 overflow-x-auto rounded-md border p-3 text-xs">{item.jsonld}</pre>

@@ -213,7 +213,9 @@
     --secondary: hsl(0, 0%, 96.1%);
     --secondary-foreground: hsl(0, 0%, 9%);
     --muted: hsl(0, 0%, 96.1%);
-    --muted-foreground: hsl(0, 0%, 45.1%);
+    /* 42% not 45.1%: measured live at 4.48:1 against the page ground, a hair
+       under WCAG AA's 4.5:1 for normal text (DSGN-004). */
+    --muted-foreground: hsl(0, 0%, 42%);
     --accent: hsl(0, 0%, 96.1%);
     --accent-foreground: hsl(0, 0%, 9%);
     --destructive: hsl(0, 84.2%, 60.2%);

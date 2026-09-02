@@ -22,9 +22,26 @@ use Illuminate\Support\Carbon;
  */
 class CommandCenterService
 {
-    private const WINDOW_DAYS = 30;
+    public const DEFAULT_WINDOW_DAYS = 30;
+
+    /** User-selectable comparison windows (DSGN-006). */
+    public const WINDOWS = [30, 60, 90];
+
+    private int $windowDays = self::DEFAULT_WINDOW_DAYS;
 
     public function __construct(private LeadScoringService $scoring) {}
+
+    /**
+     * Scope every windowed number to this many days (DSGN-006): the KPIs
+     * compare the selected window against the one before it, and the trends
+     * span exactly the same days.
+     */
+    public function forWindow(int $days): static
+    {
+        $this->windowDays = in_array($days, self::WINDOWS, true) ? $days : self::DEFAULT_WINDOW_DAYS;
+
+        return $this;
+    }
 
     /**
      * @return array{
@@ -169,7 +186,7 @@ class CommandCenterService
      */
     private function windowStart(int $windowsBack): Carbon
     {
-        return now()->subDays(self::WINDOW_DAYS * $windowsBack - 1)->startOfDay();
+        return now()->subDays($this->windowDays * $windowsBack - 1)->startOfDay();
     }
 
     /**
@@ -178,7 +195,7 @@ class CommandCenterService
      */
     private function days(Carbon $since, callable $value): array
     {
-        return collect(range(0, self::WINDOW_DAYS - 1))
+        return collect(range(0, $this->windowDays - 1))
             ->map(function (int $offset) use ($since, $value) {
                 $day = $since->copy()->addDays($offset);
 

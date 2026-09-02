@@ -222,3 +222,49 @@ and theming described here are **implemented and in use across every shipped
 module** (Auth, Tenancy, Billing, Core Platform, CRM, Integrations). This
 document is the living reference; extend it (don't fork conventions) as new
 patterns are introduced.
+
+---
+
+## 8. UX standards closed in Phase 13 (2 Sep 2026)
+
+### Confirmation flows (DSGN-008)
+
+Destructive actions never fire from a single click. Wrap the trigger in
+`components/confirm-action.tsx` — the dialog names exactly what is about to
+happen, only the explicit confirm runs the action (`confirm-action.test.tsx`
+pins this). Wired: franchise unlink, LLMO expert removal, schema delete; adopt
+it for every new destructive control.
+
+### Async states (DSGN-009)
+
+`components/async-states.tsx` is the standard voice for waiting and failure:
+`LoadingState` (live-region skeleton), `ErrorState` (explains + a retry that
+retries), `PartialFailure` (names what is missing, keeps the rest visible —
+adopted on AI Visibility for fixture-provider provenance). The shared Inertia
+error page offers **Try again** on 500/503. Tests: `async-states.test.tsx`.
+
+### Automated accessibility checks (DSGN-004)
+
+`components/a11y.test.tsx` runs **axe-core** on the core composites (labeled
+form field, data table, open confirmation dialog, async states) on every
+`npm run test`. jsdom cannot paint, so color-contrast was measured against the
+live app instead: body text **18.7:1**, muted text **5.03:1** (raised from a
+measured 4.48:1 by darkening `--muted-foreground` to 42%). A formal external
+WCAG audit remains on the production-hardening list.
+
+### Responsive verification matrix (DSGN-003)
+
+Measured live (document scrollWidth vs clientWidth) on 2 Sep 2026 at 375,
+768, 1280 and 1920px across: /dashboard, /crm/deals, /crm/contacts,
+/seo/keywords, /website/taxonomy, /settings/franchise, /seo/llmo, /seo/audits.
+**All 8 pages contained at all 4 widths** after two fixes this pass: the
+keywords toolbar wrapped (`flex-wrap`) and regional-calendar cards got
+`min-w-0` in their grid. Standard: wide content scrolls inside its own
+`overflow-x-auto` container; grid/flex children that hold tables or long text
+carry `min-w-0`; toolbars wrap.
+
+### Dashboard date ranges (DSGN-006)
+
+The Command Center compares a user-selected window (30/60/90 days) against the
+window before it — KPIs and trends always describe the same days
+(`CommandCenterService::forWindow`, pinned in CommandCenterTest).

@@ -8,12 +8,14 @@ use App\Services\Analytics\CommandCenterService;
 use App\Services\Analytics\GrowthScoreService;
 use App\Services\OnboardingChecklist;
 use App\Support\CurrentOrganization;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
     public function __invoke(
+        Request $request,
         CurrentOrganization $currentOrganization,
         OnboardingChecklist $checklist,
         AnalyticsService $analytics,
@@ -27,8 +29,15 @@ class DashboardController extends Controller
         $funnel = $analytics->funnel();
         $score = $growthScore->compute();
 
+        // DSGN-006: user-selectable comparison window; anything else falls
+        // back to the default rather than erroring.
+        $range = (int) $request->query('range', (string) CommandCenterService::DEFAULT_WINDOW_DAYS);
+        $commandCenter->forWindow($range);
+
         return Inertia::render('dashboard', [
             'onboarding' => $checklist->for($currentOrganization->get()),
+            'range' => in_array($range, CommandCenterService::WINDOWS, true) ? $range : CommandCenterService::DEFAULT_WINDOW_DAYS,
+            'ranges' => CommandCenterService::WINDOWS,
             'kpis' => $commandCenter->kpis(),
             'leadTrend' => $commandCenter->leadTrend(),
             'mrrTrend' => $commandCenter->mrrTrend(),

@@ -59,6 +59,27 @@ it('windows lead and win KPIs against the previous 30 days', function () {
         ->and($kpis['qualified_pipeline'])->toBe(250000);
 });
 
+it('rescopes every windowed number to the selected range (DSGN-006)', function () {
+    app(CurrentOrganization::class)->set($this->org);
+    // Inside 30d, inside 60d only, and in the 60d previous window (61–120d ago).
+    Contact::create(['first_name' => 'Recent', 'email' => 'r@w.test']);
+    Contact::create(['first_name' => 'Sixty', 'email' => 's@w.test'])->forceFill(['created_at' => now()->subDays(45)])->save();
+    Contact::create(['first_name' => 'PrevSixty', 'email' => 'p@w.test'])->forceFill(['created_at' => now()->subDays(90)])->save();
+    app(CurrentOrganization::class)->forget();
+
+    $props = $this->actingAs($this->owner)->get(route('dashboard', ['range' => 60]))->assertOk()->viewData('page')['props'];
+
+    expect($props['range'])->toBe(60)
+        ->and($props['ranges'])->toBe([30, 60, 90])
+        ->and($props['kpis']['new_leads']['value'])->toBe(2)   // 45d-old lead now counts
+        ->and($props['kpis']['new_leads']['previous'])->toBe(1) // the 90d-old lead is the previous window
+        ->and($props['leadTrend'])->toHaveCount(60);
+
+    // A nonsense range falls back to the default instead of erroring.
+    $fallback = $this->actingAs($this->owner)->get(route('dashboard', ['range' => 7]))->assertOk()->viewData('page')['props'];
+    expect($fallback['range'])->toBe(30)->and($fallback['leadTrend'])->toHaveCount(30);
+});
+
 it('reports null delta when the previous window is empty', function () {
     app(CurrentOrganization::class)->set($this->org);
     Contact::create(['first_name' => 'Only', 'email' => 'only@w.test']);
