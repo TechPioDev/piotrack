@@ -200,7 +200,8 @@ function AddProspectDialog({ campaignId }: { campaignId: number }) {
 
 function MarkPlacementDialog({ prospectId }: { prospectId: number }) {
     const [open, setOpen] = useState(false);
-    const form = useForm<{ placement_url: string; domain_authority: string; anchor_text: string; link_type: string }>({
+    const form = useForm<{ placement_url: string; domain_authority: string; anchor_text: string; link_type: string; placement_kind: string }>({
+        placement_kind: 'backlink',
         placement_url: '',
         domain_authority: '',
         anchor_text: '',
@@ -278,6 +279,22 @@ function MarkPlacementDialog({ prospectId }: { prospectId: number }) {
                             value={form.data.anchor_text}
                             onChange={(e) => form.setData('anchor_text', e.target.value)}
                         />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor={`placement_kind_${prospectId}`}>Placement kind</Label>
+                        <Select value={form.data.placement_kind} onValueChange={(v) => form.setData('placement_kind', v)}>
+                            <SelectTrigger id={`placement_kind_${prospectId}`}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {['backlink', 'article', 'press', 'expert_quote'].map((kind) => (
+                                    <SelectItem key={kind} value={kind}>
+                                        {kind.replace('_', ' ')}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-muted-foreground text-xs">The won placement is recorded as this kind of authority asset.</p>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={form.processing}>

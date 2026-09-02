@@ -22,12 +22,21 @@ type Aggregate = {
     by_source: Record<string, number>;
 };
 
+type DirectoryChecklist = {
+    id: number;
+    directory: string | null;
+    name: string;
+    ok: boolean;
+    checks: { key: string; label: string; ok: boolean; detail: string }[];
+};
+
 type Review = {
     id: number;
     source: string;
     author_name: string | null;
     rating: number;
     body: string | null;
+    video_url: string | null;
     sentiment: string;
     responded: boolean;
     response: string | null;
@@ -52,7 +61,20 @@ const REVIEW_SOURCES = ['google', 'clutch', 'g2', 'facebook', 'manual'];
 const IMPORT_SOURCES = ['google', 'clutch'];
 const RATINGS = ['1', '2', '3', '4', '5'];
 const REQUEST_CHANNELS = ['email', 'sms'];
-const ASSET_TYPES = ['award', 'certification', 'logo', 'mention', 'proof'];
+const ASSET_TYPES = [
+    'award',
+    'certification',
+    'logo',
+    'mention',
+    'proof',
+    'video_testimonial',
+    'directory_profile',
+    'article',
+    'press',
+    'expert_quote',
+    'thought_leadership',
+    'backlink',
+];
 
 const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-28 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
@@ -65,12 +87,13 @@ function sentimentVariant(sentiment: string): 'default' | 'secondary' | 'destruc
 
 function RecordReviewDialog() {
     const [open, setOpen] = useState(false);
-    const form = useForm<{ source: string; author_name: string; rating: string; body: string; url: string }>({
+    const form = useForm<{ source: string; author_name: string; rating: string; body: string; url: string; video_url: string }>({
         source: 'google',
         author_name: '',
         rating: '5',
         body: '',
         url: '',
+        video_url: '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -142,6 +165,11 @@ function RecordReviewDialog() {
                         <Label htmlFor="review_url">URL</Label>
                         <Input id="review_url" type="url" value={form.data.url} onChange={(e) => form.setData('url', e.target.value)} />
                         <InputError message={form.errors.url} />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor="review_video">Video testimonial URL (optional)</Label>
+                        <Input id="review_video" type="url" value={form.data.video_url} onChange={(e) => form.setData('video_url', e.target.value)} />
+                        <InputError message={form.errors.video_url} />
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={form.processing}>
@@ -388,11 +416,13 @@ export default function Reputation({
     reviews,
     requests,
     assets,
+    directoryChecklists,
 }: {
     aggregate: Aggregate;
     reviews: Review[];
     requests: ReviewRequest[];
     assets: AuthorityAsset[];
+    directoryChecklists?: DirectoryChecklist[];
 }) {
     const { can } = usePermissions();
     const canManage = can('content.reputation.manage');
@@ -410,6 +440,12 @@ export default function Reputation({
                         <div className="flex flex-wrap gap-2">
                             <RecordReviewDialog />
                             <ImportReviewsDialog />
+                            <Button
+                                variant="outline"
+                                onClick={() => router.post(route('content.reputation.proof-page'), {}, { preserveScroll: true })}
+                            >
+                                Draft proof page
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -467,6 +503,16 @@ export default function Reputation({
                                             </td>
                                             <td className="p-3">
                                                 <p className="max-w-xs truncate">{review.body ?? '—'}</p>
+                                                {review.video_url && (
+                                                    <a
+                                                        href={review.video_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-primary text-xs underline"
+                                                    >
+                                                        Video testimonial
+                                                    </a>
+                                                )}
                                             </td>
                                             <td className="p-3 text-right">
                                                 {review.responded ? (
@@ -538,6 +584,32 @@ export default function Reputation({
                         </div>
                     )}
                 </div>
+
+                {(directoryChecklists ?? []).length > 0 && (
+                    <div>
+                        <h3 className="mb-2 text-sm font-medium">Directory profile optimization</h3>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            {(directoryChecklists ?? []).map((profile) => (
+                                <Card key={profile.id} className="min-w-0">
+                                    <CardContent className="p-4">
+                                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                                            <h4 className="text-sm font-medium">{profile.directory ?? profile.name}</h4>
+                                            <Badge variant={profile.ok ? 'default' : 'secondary'}>{profile.ok ? 'Optimized' : 'Needs work'}</Badge>
+                                        </div>
+                                        <ul className="space-y-1 text-sm">
+                                            {profile.checks.map((check) => (
+                                                <li key={check.key} className="text-muted-foreground">
+                                                    <span className={check.ok ? 'text-green-600' : 'text-destructive'}>{check.ok ? '✓' : '✗'}</span>{' '}
+                                                    <span className="text-foreground font-medium">{check.label}</span> — {check.detail}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

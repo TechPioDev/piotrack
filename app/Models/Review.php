@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
  * @property string $source
  * @property string $sentiment
  * @property bool $responded
+ * @property string|null $video_url
  */
 class Review extends Model
 {
@@ -19,7 +20,7 @@ class Review extends Model
 
     protected $fillable = [
         'organization_id', 'source', 'provider', 'author_name', 'rating', 'body', 'url',
-        'sentiment', 'responded', 'response', 'response_published_at', 'reviewed_at',
+        'video_url', 'sentiment', 'responded', 'response', 'response_published_at', 'reviewed_at',
     ];
 
     protected function casts(): array

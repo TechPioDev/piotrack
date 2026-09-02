@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:content'])
             Route::post('reputation/requests', [ReputationController::class, 'storeRequest'])->name('reputation.requests.store');
             Route::post('reputation/requests/{reviewRequest}/send', [ReputationController::class, 'sendRequest'])->name('reputation.requests.send');
             Route::post('reputation/assets', [ReputationController::class, 'storeAsset'])->name('reputation.assets.store');
+            Route::post('reputation/proof-page', [ReputationController::class, 'createProofPage'])->name('reputation.proof-page');
             Route::delete('reputation/assets/{asset}', [ReputationController::class, 'destroyAsset'])->name('reputation.assets.destroy');
         });
 

@@ -3,9 +3,13 @@
 namespace App\Services\Content;
 
 use App\Content\Contracts\ReviewProvider;
+use App\Models\AuthorityAsset;
+use App\Models\ContentPiece;
+use App\Models\LandingPage;
 use App\Models\Review;
 use App\Models\ReviewRequest;
 use App\Support\AuditLogger;
+use RuntimeException;
 
 /**
  * Reputation management (REP): reviews, review-acquisition requests, and rating
@@ -14,10 +18,104 @@ use App\Support\AuditLogger;
  */
 class ReputationService
 {
+    /**
+     * Every kind of authority the platform records (REP-005..017): manual
+     * proof plus the typed placements the outreach pipeline creates.
+     */
+    public const ASSET_TYPES = [
+        'award', 'certification', 'logo', 'mention', 'proof',
+        'video_testimonial', 'directory_profile', 'article', 'press',
+        'expert_quote', 'thought_leadership', 'backlink',
+    ];
+
     public function __construct(
         private ReviewProvider $provider,
         private AuditLogger $audit,
     ) {}
+
+    /**
+     * Per-profile optimization checklist for industry directories
+     * (REP-006/007): deterministic checks on tenant-entered fields. Live
+     * directory metrics need vendor APIs and are never invented.
+     *
+     * @return list<array{id: int, directory: string|null, name: string, ok: bool, checks: list<array{key: string, label: string, ok: bool, detail: string}>}>
+     */
+    public function directoryChecklists(): array
+    {
+        return AuthorityAsset::where('type', 'directory_profile')->orderBy('issuer')->get()
+            ->map(function (AuthorityAsset $asset) {
+                $details = $asset->details ?? [];
+
+                $checks = [
+                    ['key' => 'url', 'label' => 'Profile URL', 'ok' => ($asset->url ?? '') !== '',
+                        'detail' => ($asset->url ?? '') !== '' ? 'Profile link on record.' : 'Add the live profile URL.'],
+                    ['key' => 'description', 'label' => 'Description', 'ok' => ($details['description'] ?? '') !== '',
+                        'detail' => ($details['description'] ?? '') !== '' ? 'Description recorded.' : 'Write the profile description — empty profiles rank last in directory search.'],
+                    ['key' => 'services', 'label' => 'Service lines listed', 'ok' => ($details['services'] ?? []) !== [],
+                        'detail' => ($details['services'] ?? []) !== [] ? count((array) $details['services']).' services listed.' : 'List your service lines so the directory categorizes you.'],
+                    ['key' => 'reviews', 'label' => 'Reviews on profile', 'ok' => (int) ($details['review_count'] ?? 0) > 0,
+                        'detail' => (int) ($details['review_count'] ?? 0) > 0 ? $details['review_count'].' reviews recorded.' : 'Drive review requests at this directory — profiles without reviews convert nobody.'],
+                ];
+
+                return [
+                    'id' => $asset->id,
+                    'directory' => $asset->issuer,
+                    'name' => $asset->name,
+                    'ok' => ! in_array(false, array_column($checks, 'ok'), true),
+                    'checks' => $checks,
+                ];
+            })->all();
+    }
+
+    /**
+     * Proof-first landing page (REP-019): a draft assembled from real records
+     * only — 4-star-plus reviews with text, client logos, published case
+     * studies. With nothing on file it refuses: a proof page with invented
+     * proof would be worse than none.
+     */
+    public function createProofPage(): LandingPage
+    {
+        $reviews = Review::where('rating', '>=', 4)->whereNotNull('body')->where('body', '!=', '')
+            ->latest('id')->limit(3)->get();
+        $logos = AuthorityAsset::where('type', 'logo')->limit(8)->get();
+        $caseStudies = ContentPiece::where('content_type', 'case_study')->where('status', 'published')->limit(2)->get();
+
+        if ($reviews->isEmpty() && $logos->isEmpty() && $caseStudies->isEmpty()) {
+            throw new RuntimeException('No proof on file yet — collect reviews, client logos or case studies first.');
+        }
+
+        $sections = [];
+        foreach ($reviews as $review) {
+            $author = e((string) ($review->author_name ?: 'A client'));
+            $sections[] = '<blockquote>“'.e((string) $review->body).'” — '.$author.' ('.str_repeat('★', (int) $review->rating).')</blockquote>';
+        }
+        if ($logos->isNotEmpty()) {
+            $sections[] = '<p>Trusted by '.e($logos->pluck('name')->implode(', ')).'.</p>';
+        }
+        foreach ($caseStudies as $study) {
+            $sections[] = '<p>Case study: '.e($study->title).($study->excerpt ? ' — '.e((string) $study->excerpt) : '').'</p>';
+        }
+
+        $base = 'proof';
+        $slug = $base;
+        $n = 1;
+        while (LandingPage::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.(++$n);
+        }
+
+        $page = LandingPage::create([
+            'name' => 'Proof — what clients say',
+            'slug' => $slug,
+            'headline' => 'The results speak for themselves',
+            'subheadline' => 'Real reviews, real clients, real outcomes.',
+            'body_html' => implode("\n", $sections),
+            'status' => 'draft',
+        ]);
+
+        $this->audit->log('content.reputation.proof_page', context: ['reviews' => $reviews->count(), 'logos' => $logos->count(), 'case_studies' => $caseStudies->count()], resourceType: 'landing_page', resourceId: (string) $page->id, organizationId: $page->organization_id);
+
+        return $page;
+    }
 
     public function sentiment(int $rating): string
     {

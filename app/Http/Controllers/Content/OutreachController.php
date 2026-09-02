@@ -86,9 +86,10 @@ class OutreachController extends Controller
             'domain_authority' => ['nullable', 'integer', 'min:0', 'max:100'],
             'anchor_text' => ['nullable', 'string', 'max:200'],
             'link_type' => ['nullable', Rule::in(['dofollow', 'nofollow'])],
+            'placement_kind' => ['nullable', Rule::in(OutreachService::PLACEMENT_KINDS)],
         ]);
 
-        $this->outreach->markPlacement($prospect, $data['placement_url'], $data['domain_authority'] ?? null, $data['anchor_text'] ?? null, $data['link_type'] ?? null);
+        $this->outreach->markPlacement($prospect, $data['placement_url'], $data['domain_authority'] ?? null, $data['anchor_text'] ?? null, $data['link_type'] ?? null, $data['placement_kind'] ?? 'backlink');
 
         return back()->with('status', __('Placement recorded.'));
     }
