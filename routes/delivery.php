@@ -5,6 +5,7 @@ use App\Http\Controllers\Delivery\ProjectController;
 use App\Http\Controllers\Delivery\SupportController;
 use App\Http\Controllers\Strategy\PerformanceController;
 use App\Http\Controllers\Strategy\StrategyController;
+use App\Http\Controllers\Strategy\TrainingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -53,9 +54,23 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
             Route::get('/', [StrategyController::class, 'index'])->name('index');
             Route::get('brand', [StrategyController::class, 'brand'])->name('brand');
             Route::get('performance', [PerformanceController::class, 'index'])->name('performance');
+
+            // Training courses (TRAIN): reading and personal completion.
+            Route::get('training', [TrainingController::class, 'index'])->name('training.index');
+            Route::get('training/{course}', [TrainingController::class, 'show'])->name('training.show');
+            Route::post('training/lessons/{lesson}/complete', [TrainingController::class, 'complete'])->name('training.complete');
+            Route::delete('training/lessons/{lesson}/complete', [TrainingController::class, 'uncomplete'])->name('training.uncomplete');
         });
 
         Route::middleware('can:strategy.manage')->group(function () {
+            // Training authoring (TRAIN).
+            Route::post('training', [TrainingController::class, 'store'])->name('training.store');
+            Route::post('training/seed', [TrainingController::class, 'seed'])->name('training.seed');
+            Route::patch('training/{course}', [TrainingController::class, 'update'])->name('training.update');
+            Route::delete('training/{course}', [TrainingController::class, 'destroy'])->name('training.destroy');
+            Route::post('training/{course}/lessons', [TrainingController::class, 'storeLesson'])->name('training.lessons.store');
+            Route::delete('training/lessons/{lesson}', [TrainingController::class, 'destroyLesson'])->name('training.lessons.destroy');
+
             Route::post('plans', [StrategyController::class, 'storePlan'])->name('plans.store');
             Route::post('items', [StrategyController::class, 'storeItem'])->name('items.store');
             Route::patch('items/{item}', [StrategyController::class, 'updateItem'])->name('items.update');

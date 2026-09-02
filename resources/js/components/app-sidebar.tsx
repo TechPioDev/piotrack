@@ -24,6 +24,7 @@ import {
     Gauge,
     GitBranch,
     Globe,
+    GraduationCap,
     Handshake,
     KeyRound,
     Layers,
@@ -156,6 +157,7 @@ export function AppSidebar() {
         can('support.view') && { title: 'Support', url: '/support', icon: LifeBuoy },
         can('strategy.view') && { title: 'Strategy', url: '/strategy', icon: Compass },
         can('strategy.view') && { title: 'Brand', url: '/strategy/brand', icon: Palette },
+        can('strategy.view') && { title: 'Training', url: '/strategy/training', icon: GraduationCap },
         can('strategy.view') && { title: 'Performance', url: '/strategy/performance', icon: Trophy },
     ].filter(Boolean) as NavItem[];
 
