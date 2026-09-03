@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Analytics;
 use App\Http\Controllers\Controller;
 use App\Models\Experiment;
 use App\Models\ExperimentVariant;
+use App\Models\SitePage;
 use App\Services\Analytics\ExperimentService;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,6 +33,9 @@ class ExperimentController extends Controller
                 'results' => $this->experiments->results($e),
             ]),
             'types' => self::TYPES,
+            // WEB-033: bindable published pages for live traffic splitting.
+            'pages' => SitePage::where('status', SitePage::STATUS_PUBLISHED)
+                ->orderBy('title')->get(['id', 'title', 'slug']),
         ]);
     }
 
@@ -42,9 +47,14 @@ class ExperimentController extends Controller
             'hypothesis' => ['nullable', 'string', 'max:1000'],
             'variants' => ['required', 'array', 'min:2'],
             'variants.*.name' => ['required', 'string', 'max:100'],
+            // WEB-033: bind the experiment to a page so traffic splits live.
+            'site_page_id' => ['nullable', 'integer', TenantExists::in('site_pages')],
+            'variants.*.content' => ['nullable', 'array'],
+            'variants.*.content.headline' => ['nullable', 'string', 'max:200'],
+            'variants.*.content.subheadline' => ['nullable', 'string', 'max:255'],
         ]);
 
-        /** @var list<array{name: string, is_control?: bool}> $variants */
+        /** @var list<array{name: string, is_control?: bool, content?: array<string, string>|null}> $variants */
         $variants = $data['variants'];
         $this->experiments->create($data, $variants);
 

@@ -67,7 +67,10 @@
     {{-- Structured data. Carries the CSP nonce: the app allows no un-nonced
          inline script, and ld+json is still a script element to the browser. --}}
     @foreach ($schema as $block)
-        <script type="application/ld+json" @if (! empty($cspNonce)) nonce="{{ $cspNonce }}" @endif>{!! json_encode($block, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+        {{-- No CSP nonce here: ld+json is a data block, never executed, so
+             script-src does not apply — and a per-request nonce in the markup
+             would change the ETag on every render, killing 304 revalidation. --}}
+        <script type="application/ld+json">{!! json_encode($block, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     @endforeach
 
     <style>

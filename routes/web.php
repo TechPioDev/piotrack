@@ -49,6 +49,7 @@ Route::post('webhooks/{provider}', [WebhookController::class, 'handle'])->name('
  * the form/page slug or the recipient token. POST endpoints are CSRF-exempt
  * (see bootstrap/app.php) and throttled.
  */
+Route::get('f/download/{file}', [PublicFormController::class, 'magnet'])->name('public.magnet');
 Route::get('f/{slug}', [PublicFormController::class, 'show'])->name('public.form.show');
 Route::post('f/{slug}', [PublicFormController::class, 'submit'])->middleware('throttle:20,1')->name('public.form.submit');
 Route::get('p/{slug}', [PublicLandingPageController::class, 'show'])->name('public.landing.show');

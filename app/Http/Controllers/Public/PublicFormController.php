@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\File;
 use App\Models\Form;
 use App\Services\Marketing\LeadCaptureService;
+use App\Services\Web\PageExperiments;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Public, unauthenticated form rendering + submission. The tenant is resolved
@@ -43,7 +48,30 @@ class PublicFormController extends Controller
 
         $this->capture->capture($form, $data, $request->ip(), $request->userAgent(), $request->cookie('_pt_vid'));
 
+        // WEB-037: an experiment cookie riding the submission converts the
+        // variant the visitor was exposed to.
+        app(PageExperiments::class)->convertFromCookies(array_filter(
+            $request->cookies->all(),
+            fn ($name) => str_starts_with((string) $name, PageExperiments::COOKIE_PREFIX),
+            ARRAY_FILTER_USE_KEY,
+        ));
+
         $settings = $form->settings ?? [];
+
+        // WEB-022: a lead-magnet form answers with a signed, expiring download
+        // link — the asset is gated behind the submission, never a public URL.
+        if (! empty($settings['lead_magnet_file_id'])) {
+            $file = File::find((int) $settings['lead_magnet_file_id']);
+            if ($file !== null) {
+                return view('public.message', [
+                    'title' => __('Thank you'),
+                    'message' => __('Your download is ready.'),
+                    'downloadUrl' => URL::temporarySignedRoute('public.magnet', now()->addDays(7), ['file' => $file->id]),
+                    'downloadName' => $file->name,
+                ]);
+            }
+        }
+
         if (! empty($settings['redirect_url'])) {
             return redirect()->away((string) $settings['redirect_url']);
         }
@@ -69,6 +97,22 @@ class PublicFormController extends Controller
         }
 
         return $rules;
+    }
+
+    /**
+     * WEB-022: gated lead-magnet delivery. Only a signed URL (minted after a
+     * form submission) reaches the file; every download is counted.
+     */
+    public function magnet(Request $request, int $file): StreamedResponse
+    {
+        abort_unless($request->hasValidSignature(), 403);
+
+        $record = File::withoutGlobalScope('tenant')->find($file);
+        abort_if($record === null, 404);
+
+        $record->increment('download_count');
+
+        return Storage::disk($record->disk)->download($record->path, $record->name);
     }
 
     private function resolve(string $slug): Form

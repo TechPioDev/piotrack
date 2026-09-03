@@ -18,6 +18,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:marketing'])
 
         Route::middleware('can:web.pages.manage')->group(function () {
             Route::post('pages', [SiteController::class, 'store'])->name('pages.store');
+            Route::post('pages/from-template', [SiteController::class, 'storeFromTemplate'])->name('pages.template');
             Route::patch('pages/{page}', [SiteController::class, 'update'])->name('pages.update');
             Route::delete('pages/{page}', [SiteController::class, 'destroy'])->name('pages.destroy');
             Route::post('pages/{page}/sections', [SiteController::class, 'storeSection'])->name('sections.store');

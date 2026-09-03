@@ -35,7 +35,9 @@ type Experiment = {
     results: VariantResult[];
 };
 
-type VariantRow = { name: string };
+type VariantRow = { name: string; content?: { headline?: string } };
+
+type PageOption = { id: number; title: string; slug: string };
 
 const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-28 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
@@ -50,19 +52,20 @@ function formatLift(lift: number): string {
     return `${lift > 0 ? '+' : ''}${lift}%`;
 }
 
-function NewExperimentDialog({ types }: { types: string[] }) {
+function NewExperimentDialog({ types, pages }: { types: string[]; pages: PageOption[] }) {
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; type: string; hypothesis: string; variants: VariantRow[] }>({
+    const form = useForm<{ name: string; type: string; hypothesis: string; site_page_id: string; variants: VariantRow[] }>({
         name: '',
         type: types[0] ?? 'landing_page',
         hypothesis: '',
+        site_page_id: '',
         variants: [{ name: 'Control' }, { name: 'Variant B' }],
     });
 
-    const updateVariant = (index: number, name: string) =>
+    const updateVariant = (index: number, patch: Partial<VariantRow>) =>
         form.setData(
             'variants',
-            form.data.variants.map((variant, i) => (i === index ? { name } : variant)),
+            form.data.variants.map((variant, i) => (i === index ? { ...variant, ...patch } : variant)),
         );
 
     const addVariant = () => form.setData('variants', [...form.data.variants, { name: '' }]);
@@ -75,6 +78,7 @@ function NewExperimentDialog({ types }: { types: string[] }) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        form.transform((data) => ({ ...data, site_page_id: data.site_page_id === '' ? null : Number(data.site_page_id) }));
         form.post(route('analytics.experiments.store'), {
             preserveScroll: true,
             onSuccess: () => {
@@ -113,6 +117,26 @@ function NewExperimentDialog({ types }: { types: string[] }) {
                         </Select>
                         <InputError message={form.errors.type} />
                     </div>
+                    {pages.length > 0 && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="experiment_page">Serve on page (optional)</Label>
+                            <Select value={form.data.site_page_id} onValueChange={(v) => form.setData('site_page_id', v)}>
+                                <SelectTrigger id="experiment_page">
+                                    <SelectValue placeholder="Not bound - record results manually" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {pages.map((page) => (
+                                        <SelectItem key={page.id} value={String(page.id)}>
+                                            {page.title} (/s/{page.slug})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-muted-foreground text-xs">
+                                Bound + running: visitors are split automatically, variant headlines override the page, and form submissions convert.
+                            </p>
+                        </div>
+                    )}
                     <div className="grid gap-1">
                         <Label htmlFor="experiment_hypothesis">Hypothesis</Label>
                         <textarea
@@ -135,8 +159,15 @@ function NewExperimentDialog({ types }: { types: string[] }) {
                                 <Input
                                     placeholder={index === 0 ? 'Control' : 'Variant name'}
                                     value={variant.name}
-                                    onChange={(e) => updateVariant(index, e.target.value)}
+                                    onChange={(e) => updateVariant(index, { name: e.target.value })}
                                 />
+                                {form.data.site_page_id !== '' && index > 0 && (
+                                    <Input
+                                        placeholder="Headline override"
+                                        value={variant.content?.headline ?? ''}
+                                        onChange={(e) => updateVariant(index, { content: { headline: e.target.value } })}
+                                    />
+                                )}
                                 {index === 0 && <Badge variant="outline">Control</Badge>}
                                 {form.data.variants.length > 2 && (
                                     <Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => removeVariant(index)}>
@@ -223,7 +254,7 @@ function RecordResultsDialog({ variant }: { variant: VariantResult }) {
     );
 }
 
-export default function Experiments({ experiments, types }: { experiments: Experiment[]; types: string[] }) {
+export default function Experiments({ experiments, types, pages }: { experiments: Experiment[]; types: string[]; pages: PageOption[] }) {
     const { can } = usePermissions();
     const canManage = can('analytics.experiments.manage');
 
@@ -237,7 +268,7 @@ export default function Experiments({ experiments, types }: { experiments: Exper
             <div className="space-y-6 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading title="Experiments" description="A/B tests across landing pages, copy, offers and layouts" />
-                    {canManage && <NewExperimentDialog types={types} />}
+                    {canManage && <NewExperimentDialog types={types} pages={pages ?? []} />}
                 </div>
 
                 {experiments.length === 0 ? (

@@ -13,18 +13,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_control
  * @property int $impressions
  * @property int $conversions
+ * @property array<string, string>|null $content
  */
 class ExperimentVariant extends Model
 {
     use BelongsToTenant;
 
     protected $fillable = [
-        'organization_id', 'experiment_id', 'name', 'is_control', 'impressions', 'conversions',
+        'organization_id', 'experiment_id', 'name', 'is_control', 'impressions', 'conversions', 'content',
     ];
 
     protected function casts(): array
     {
         return [
+            'content' => 'array',
             'is_control' => 'boolean',
             'impressions' => 'integer',
             'conversions' => 'integer',

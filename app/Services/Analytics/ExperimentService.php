@@ -20,7 +20,7 @@ class ExperimentService
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  list<array{name: string, is_control?: bool}>  $variants
+     * @param  list<array{name: string, is_control?: bool, content?: array<string, string>|null}>  $variants
      */
     public function create(array $data, array $variants): Experiment
     {
@@ -29,6 +29,8 @@ class ExperimentService
             'type' => $data['type'] ?? 'landing_page',
             'hypothesis' => $data['hypothesis'] ?? null,
             'primary_metric' => $data['primary_metric'] ?? 'conversion_rate',
+            // WEB-033: bound to a page, the experiment serves itself on live traffic.
+            'site_page_id' => $data['site_page_id'] ?? null,
             'status' => 'draft',
         ]);
 
@@ -37,6 +39,7 @@ class ExperimentService
                 'organization_id' => $experiment->organization_id,
                 'name' => $variant['name'],
                 'is_control' => $variant['is_control'] ?? ($i === 0),
+                'content' => $variant['content'] ?? null,
             ]);
         }
 
@@ -57,7 +60,9 @@ class ExperimentService
      */
     public function record(ExperimentVariant $variant, int $impressions, int $conversions): ExperimentVariant
     {
-        if ($conversions > $impressions) {
+        // Guard the resulting totals, not the increment: live serving records
+        // an impression (1, 0) at exposure and the conversion (0, 1) later.
+        if ($variant->conversions + $conversions > $variant->impressions + $impressions) {
             throw new RuntimeException('Conversions cannot exceed impressions.');
         }
 

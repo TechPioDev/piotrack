@@ -42,3 +42,5 @@ Schedule::command('ai:run-visibility-checks')->dailyAt('03:00')->withoutOverlapp
 
 // CINT-001: our and tracked competitors' keyword positions, daily.
 Schedule::command('seo:track-rankings')->dailyAt('04:00')->withoutOverlapping();
+// WEB-052: the published pages themselves are re-audited daily, after ranks.
+Schedule::command('web:audit-published')->dailyAt('04:30')->withoutOverlapping();

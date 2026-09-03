@@ -59,6 +59,14 @@ type SitePage = {
     sections: Section[];
 };
 
+type TemplateOption = {
+    key: string;
+    name: string;
+    type: string;
+    description: string;
+    sections: number;
+};
+
 type SiteReport = {
     pages: number;
     published: number;
@@ -212,6 +220,57 @@ function PageHealth({ health }: { health: Health }) {
                 </details>
             )}
         </div>
+    );
+}
+
+function TemplateGalleryDialog({ templates }: { templates: TemplateOption[] }) {
+    const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState<string | null>(null);
+
+    const apply = (key: string) =>
+        router.post(
+            route('web.pages.template'),
+            { template: key },
+            {
+                preserveScroll: true,
+                onStart: () => setBusy(key),
+                onFinish: () => setBusy(null),
+                onSuccess: () => setOpen(false),
+            },
+        );
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">Start from template</Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                <DialogTitle>Page templates</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    Each template drafts a page with the buyer-journey sections already ordered and filled with structural guidance. Replace the
+                    guidance with your own content, then publish — the health checks hold the page to the same bar as one built from scratch.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {templates.map((template) => (
+                        <Card key={template.key}>
+                            <CardContent className="flex h-full flex-col gap-2 p-4">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="font-medium">{template.name}</p>
+                                    <Badge variant="secondary">{humanize(template.type)}</Badge>
+                                </div>
+                                <p className="text-muted-foreground flex-1 text-sm">{template.description}</p>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground text-xs">{template.sections} sections</span>
+                                    <Button size="sm" disabled={busy !== null} onClick={() => apply(template.key)}>
+                                        {busy === template.key ? 'Drafting…' : 'Use template'}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -1081,6 +1140,7 @@ export default function WebPages({
     forms,
     page_types,
     section_types,
+    templates,
 }: {
     pages: SitePage[];
     report: SiteReport;
@@ -1091,6 +1151,7 @@ export default function WebPages({
     forms: Option[];
     page_types: string[];
     section_types: string[];
+    templates: TemplateOption[];
 }) {
     const { can } = usePermissions();
     const canManage = can('web.pages.manage');
@@ -1117,13 +1178,16 @@ export default function WebPages({
                         description="Every page, how healthy it is, and what has to be fixed before it earns its public URL"
                     />
                     {canManage && (
-                        <NewPageDialog
-                            pageTypes={page_types}
-                            serviceLines={service_lines}
-                            verticals={verticals}
-                            locations={locations}
-                            forms={forms}
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <TemplateGalleryDialog templates={templates ?? []} />
+                            <NewPageDialog
+                                pageTypes={page_types}
+                                serviceLines={service_lines}
+                                verticals={verticals}
+                                locations={locations}
+                                forms={forms}
+                            />
+                        </div>
                     )}
                 </div>
 

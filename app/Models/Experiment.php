@@ -24,7 +24,7 @@ class Experiment extends Model
 
     protected $fillable = [
         'organization_id', 'name', 'type', 'hypothesis', 'primary_metric',
-        'status', 'winning_variant_id', 'started_at', 'ended_at',
+        'status', 'winning_variant_id', 'site_page_id', 'started_at', 'ended_at',
     ];
 
     protected function casts(): array

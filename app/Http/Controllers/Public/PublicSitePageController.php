@@ -10,9 +10,13 @@ use App\Models\SeoLocation;
 use App\Models\SiteNavigationItem;
 use App\Models\SitePage;
 use App\Services\Seo\SchemaGenerator;
+use App\Services\Web\PageExperiments;
 use App\Support\CurrentOrganization;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cookie;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -29,7 +33,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 class PublicSitePageController extends Controller
 {
-    public function show(string $slug, CurrentOrganization $current, SchemaGenerator $schema): View
+    public function show(Request $request, string $slug, CurrentOrganization $current, SchemaGenerator $schema, PageExperiments $experiments): Response|View
     {
         $page = SitePage::withoutGlobalScope('tenant')
             ->where('slug', $slug)
@@ -41,6 +45,21 @@ class PublicSitePageController extends Controller
         }
 
         $current->set($page->organization);
+
+        // WEB-033/034/035: a running experiment on this page splits traffic —
+        // sticky per visitor, overrides applied in-memory, impression counted
+        // once. The stored page is always the control and never mutates.
+        $assignment = $experiments->assign($page, $request->cookie(PageExperiments::COOKIE_PREFIX.'page'.$page->id));
+        if ($assignment !== null) {
+            $experiments->apply($page, $assignment['variant']);
+            if ($assignment['fresh']) {
+                Cookie::queue(cookie(
+                    PageExperiments::COOKIE_PREFIX.'page'.$page->id,
+                    (string) $assignment['variant']->id,
+                    60 * 24 * PageExperiments::COOKIE_DAYS,
+                ));
+            }
+        }
 
         $page->increment('view_count');
         $page->load(['serviceLine', 'vertical', 'location', 'form']);
@@ -79,7 +98,7 @@ class PublicSitePageController extends Controller
             ->get()
             ->groupBy('placement');
 
-        return view('public.site-page', [
+        $html = view('public.site-page', [
             'page' => $page,
             'sections' => $sections,
             'organization' => $page->organization,
@@ -90,7 +109,23 @@ class PublicSitePageController extends Controller
             'related' => $this->relatedPages($page),
             'chatWidget' => $chatWidget,
             'schema' => $this->structuredData($page, $location, $sections, $schema),
-        ]);
+        ])->render();
+
+        // WEB-043: real HTTP caching — short-lived shared cache plus ETag, so
+        // repeat visits and CDN/proxy hops revalidate with a 304 instead of a
+        // full render. Pages with a live experiment stay uncached: a cached
+        // variant would break the traffic split.
+        $cacheable = $assignment === null;
+        $etag = '"'.md5($html).'"';
+
+        if ($cacheable && $request->headers->get('If-None-Match') === $etag) {
+            return response('', 304)->header('ETag', $etag);
+        }
+
+        return response($html)
+            ->header('Content-Type', 'text/html; charset=utf-8')
+            ->header('ETag', $etag)
+            ->header('Cache-Control', $cacheable ? 'public, max-age=300, stale-while-revalidate=600' : 'private, no-cache');
     }
 
     /**

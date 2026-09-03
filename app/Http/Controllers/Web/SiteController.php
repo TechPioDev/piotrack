@@ -75,6 +75,11 @@ class SiteController extends Controller
             'forms' => Form::orderBy('name')->get(['id', 'name', 'slug']),
             'page_types' => SitePage::TYPES,
             'section_types' => PageSection::TYPES,
+            // WEB-007..010: the buyer-journey template gallery.
+            'templates' => collect(SiteBuilderService::templates())->map(fn (array $t, string $key) => [
+                'key' => $key, 'name' => $t['name'], 'type' => $t['type'], 'description' => $t['description'],
+                'sections' => count($t['sections']),
+            ])->values(),
         ]);
     }
 
@@ -95,6 +100,16 @@ class SiteController extends Controller
         ]));
 
         return back()->with('status', __('Page created.'));
+    }
+
+    /** WEB-007..010: spin up a draft from a gallery template. */
+    public function storeFromTemplate(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['template' => ['required', 'string', 'in:'.implode(',', array_keys(SiteBuilderService::templates()))]]);
+
+        $page = $this->builder->applyTemplate($data['template']);
+
+        return back()->with('status', __('":name" drafted with :n sections - edit, then publish.', ['name' => $page->title, 'n' => $page->sections()->count()]));
     }
 
     public function update(Request $request, SitePage $page): RedirectResponse
