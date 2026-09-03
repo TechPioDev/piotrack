@@ -115,9 +115,9 @@ it('marks omnichannel channels active only where data exists', function () {
     app(CurrentOrganization::class)->forget();
 
     expect($channels->firstWhere('channel', 'seo')['active'])->toBeTrue()
-        ->and($channels->firstWhere('channel', 'ads')['active'])->toBeFalse()
-        ->and($channels->firstWhere('channel', 'ads')['value'])->toBe(0)
-        ->and($channels)->toHaveCount(8);
+        ->and($channels->firstWhere('channel', 'google_ads')['active'])->toBeFalse()
+        ->and($channels->firstWhere('channel', 'google_ads')['value'])->toBe(0)
+        ->and($channels)->toHaveCount(15);
 });
 
 it('builds a unified prospect journey', function () {

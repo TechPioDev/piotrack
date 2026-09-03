@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Omnichannel', href: '/analytics/omnichannel' }];
 
@@ -13,6 +13,8 @@ type Channel = {
     active: boolean;
     metric: string;
     value: number;
+    detail: string | null;
+    href: string;
 };
 
 type Touchpoint = {
@@ -51,15 +53,22 @@ export default function Omnichannel({ channels, journeys }: { channels: Channel[
                             <Card key={channel.channel}>
                                 <CardContent className="space-y-1 p-4">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-medium">{channel.label}</p>
+                                        <Link href={channel.href} className="text-sm font-medium hover:underline">
+                                            {channel.label}
+                                        </Link>
                                         <Badge variant={channel.active ? 'default' : 'secondary'}>{channel.active ? 'Active' : 'Inactive'}</Badge>
                                     </div>
                                     <p className="text-2xl font-semibold">{channel.value}</p>
                                     <p className="text-muted-foreground text-sm">{channel.metric}</p>
+                                    {channel.detail !== null && <p className="text-muted-foreground text-xs">{channel.detail}</p>}
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
+                    <p className="text-muted-foreground mt-2 text-xs">
+                        Measured from this platform&apos;s own records — posts, campaigns, citations, placements. Live network-side insights (Maps
+                        views, network impressions) appear once the platform connector is linked.
+                    </p>
                 </div>
 
                 <div>
