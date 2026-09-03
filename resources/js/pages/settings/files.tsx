@@ -16,6 +16,7 @@ type FileRow = {
     mime: string | null;
     size: number;
     uploaded_by: string | null;
+    attached_to: string | null;
     created_at: string;
 };
 
@@ -64,6 +65,7 @@ export default function Files({ files }: { files: FileRow[] }) {
                                         <th className="p-3 font-medium">Name</th>
                                         <th className="p-3 font-medium">Size</th>
                                         <th className="p-3 font-medium">Uploaded by</th>
+                                        <th className="p-3 font-medium">Attached to</th>
                                         <th className="p-3 text-right font-medium">Actions</th>
                                     </tr>
                                 </thead>
@@ -73,6 +75,7 @@ export default function Files({ files }: { files: FileRow[] }) {
                                             <td className="p-3 font-medium">{file.name}</td>
                                             <td className="text-muted-foreground p-3">{formatSize(file.size)}</td>
                                             <td className="text-muted-foreground p-3">{file.uploaded_by ?? '—'}</td>
+                                            <td className="text-muted-foreground p-3">{file.attached_to ?? '—'}</td>
                                             <td className="p-3 text-right">
                                                 <Button asChild variant="ghost" size="sm">
                                                     <a href={route('files.download', file.id)}>Download</a>

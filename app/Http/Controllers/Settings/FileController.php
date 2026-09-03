@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
+use App\Models\Deal;
 use App\Models\File;
+use App\Models\Project;
+use App\Models\Ticket;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +29,14 @@ class FileController extends Controller
 
     private const ALLOWED_MIMES = 'pdf,jpg,jpeg,png,gif,webp,svg,csv,txt,doc,docx,xls,xlsx,ppt,pptx';
 
+    /** FILE-002: records a document can attach to, by short key. */
+    public const ATTACHABLES = [
+        'contact' => Contact::class,
+        'deal' => Deal::class,
+        'ticket' => Ticket::class,
+        'project' => Project::class,
+    ];
+
     public function __construct(
         private CurrentOrganization $currentOrganization,
         private AuditLogger $audit,
@@ -43,15 +55,30 @@ class FileController extends Controller
                     'size' => $f->size,
                     'uploaded_by' => $f->uploader?->name,
                     'created_at' => $f->created_at,
+                    // FILE-002: what this document is attached to, if anything.
+                    'attached_to' => $f->attachable_type !== null
+                        ? array_search($f->attachable_type, self::ATTACHABLES, true).' #'.$f->attachable_id
+                        : null,
                 ]),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'file' => ['required', 'file', 'max:'.self::MAX_KB, 'mimes:'.self::ALLOWED_MIMES],
+            // FILE-002: optionally attach the document to a CRM record, ticket
+            // or project on upload.
+            'attachable_type' => ['nullable', 'string', 'in:'.implode(',', array_keys(self::ATTACHABLES))],
+            'attachable_id' => ['required_with:attachable_type', 'nullable', 'integer'],
         ]);
+
+        $attachableClass = null;
+        if (! empty($data['attachable_type'])) {
+            $attachableClass = self::ATTACHABLES[$data['attachable_type']];
+            // Tenant-scoped existence check: the target must be OUR record.
+            abort_unless($attachableClass::whereKey($data['attachable_id'])->exists(), 422, __('That record does not exist.'));
+        }
 
         $organizationId = $this->currentOrganization->id();
         $upload = $request->file('file');
@@ -64,6 +91,8 @@ class FileController extends Controller
             'name' => $upload->getClientOriginalName(),
             'mime' => $upload->getClientMimeType(),
             'size' => $upload->getSize(),
+            'attachable_type' => $attachableClass,
+            'attachable_id' => $attachableClass !== null ? (int) $data['attachable_id'] : null,
         ]);
 
         $this->audit->log(

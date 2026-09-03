@@ -8,6 +8,7 @@ use App\Http\Controllers\Analytics\CompetitorController;
 use App\Http\Controllers\Analytics\ExperimentController;
 use App\Http\Controllers\Analytics\GrowthScoreController;
 use App\Http\Controllers\Analytics\OmnichannelController;
+use App\Http\Controllers\Analytics\ReportExportController;
 use App\Http\Controllers\Crm\EntityExportController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +19,9 @@ use Illuminate\Support\Facades\Route;
  */
 Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
     ->prefix('analytics')->name('analytics.')->group(function () {
+
+        // IMEX-004: the Command Center as a native one-page PDF.
+        Route::get('report.pdf', ReportExportController::class)->middleware('can:analytics.view')->name('report.pdf');
 
         Route::middleware('can:analytics.view')->group(function () {
             Route::get('/', AnalyticsDashboardController::class)->name('dashboard');
