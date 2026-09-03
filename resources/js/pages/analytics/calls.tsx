@@ -38,6 +38,8 @@ type Call = {
     converted: boolean;
     contact: string | null;
     occurred_at: string | null;
+    has_transcript: boolean;
+    summary: string | null;
 };
 
 type Direction = 'inbound' | 'outbound';
@@ -244,12 +246,67 @@ function LogCallDialog({ numbers }: { numbers: TrackingNumber[] }) {
     );
 }
 
+/** AISA-014: paste the real transcript so the AI summary works on what was said. */
+function TranscriptDialog({ call }: { call: Call }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ transcript: string }>({ transcript: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.patch(route('analytics.calls.transcript', call.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="ghost">
+                    {call.has_transcript ? 'Transcript ✓' : 'Transcript'}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Call transcript</DialogTitle>
+                {call.summary !== null && (
+                    <div className="bg-muted/50 rounded-md p-3 text-sm">
+                        <p className="mb-1 font-medium">AI summary</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{call.summary}</p>
+                    </div>
+                )}
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor={`transcript_${call.id}`}>Paste the transcript</Label>
+                        <textarea
+                            id={`transcript_${call.id}`}
+                            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-40 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
+                            value={form.data.transcript}
+                            onChange={(e) => form.setData('transcript', e.target.value)}
+                            placeholder="Paste the call transcript or your detailed notes — the AI summary then works on what was actually said."
+                        />
+                        <InputError message={form.errors.transcript} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Attach transcript
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function Calls({ numbers, calls, breakdown }: { numbers: TrackingNumber[]; calls: Call[]; breakdown: Record<string, number> }) {
     const { can } = usePermissions();
     const canManage = can('analytics.calls.manage');
     const sources = Object.entries(breakdown);
 
     const convert = (id: number) => router.post(route('analytics.calls.convert', id), {}, { preserveScroll: true });
+    const summarize = (id: number) => router.post(route('analytics.calls.summarize', id), {}, { preserveScroll: true });
     const removeNumber = (id: number) => router.delete(route('analytics.calls.numbers.destroy', id), { preserveScroll: true });
 
     return (
@@ -382,7 +439,11 @@ export default function Calls({ numbers, calls, breakdown }: { numbers: Tracking
                                             <td className="text-muted-foreground p-3">{formatTime(call.occurred_at)}</td>
                                             {canManage && (
                                                 <td className="p-3">
-                                                    <div className="flex justify-end">
+                                                    <div className="flex justify-end gap-1">
+                                                        <TranscriptDialog call={call} />
+                                                        <Button size="sm" variant="outline" onClick={() => summarize(call.id)}>
+                                                            Summarize
+                                                        </Button>
                                                         {!call.converted && (
                                                             <Button size="sm" variant="secondary" onClick={() => convert(call.id)}>
                                                                 Mark converted

@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Analytics;
 
+use App\Ai\Exceptions\AiCreditsExhaustedException;
+use App\Ai\Exceptions\AiProviderException;
 use App\Http\Controllers\Controller;
 use App\Models\Call;
 use App\Models\CallTrackingNumber;
+use App\Services\Ai\AiSalesAgent;
 use App\Services\Analytics\CallTrackingService;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
@@ -42,6 +45,8 @@ class CallController extends Controller
                     'converted' => $c->converted,
                     'contact' => $c->contact?->fullName(),
                     'occurred_at' => $c->occurred_at?->toIso8601String(),
+                    'has_transcript' => $c->transcript !== null && $c->transcript !== '',
+                    'summary' => $c->summary,
                 ]),
             'breakdown' => $this->calls->sourceBreakdown(),
         ]);
@@ -72,6 +77,34 @@ class CallController extends Controller
         ]));
 
         return back()->with('status', __('Call logged.'));
+    }
+
+    /**
+     * AISA-014: attach a real transcript (pasted from any source) so the AI
+     * summary works on what was actually said, without the call provider.
+     */
+    public function transcript(Request $request, Call $call): RedirectResponse
+    {
+        $call->update($request->validate([
+            'transcript' => ['required', 'string', 'max:20000'],
+        ]));
+
+        return back()->with('status', __('Transcript attached.'));
+    }
+
+    /**
+     * AISA-014: summarize the call — from its transcript when one exists,
+     * honestly from metadata otherwise.
+     */
+    public function summarize(Call $call, AiSalesAgent $agent): RedirectResponse
+    {
+        try {
+            $agent->summarizeCall($call);
+        } catch (AiCreditsExhaustedException|AiProviderException $e) {
+            return back()->withErrors(['ai' => $e->getMessage()]);
+        }
+
+        return back()->with('status', __('Call summarized.'));
     }
 
     public function convert(Call $call): RedirectResponse

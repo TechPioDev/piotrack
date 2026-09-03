@@ -5,11 +5,13 @@ namespace App\Services\Ai;
 use App\Models\AiAction;
 use App\Models\AiConversation;
 use App\Models\AiMessage;
+use App\Models\AiScore;
 use App\Models\Call;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Services\Sales\IntentService;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * The AI sales agent (AISA). Every call runs through {@see AiGateway}, so all of
@@ -31,6 +33,7 @@ class AiSalesAgent
         private AiGateway $gateway,
         private AiActionService $actions,
         private IntentService $intent,
+        private ProspectSiteReader $sites,
     ) {}
 
     /**
@@ -154,17 +157,21 @@ class AiSalesAgent
     }
 
     /**
-     * AI lead research (AISA-005) / account research (AISA-007). Summarizes from
-     * the data we hold; it does not claim externally verified facts.
+     * AI lead research (AISA-005) / account research (AISA-007). Grounded in the
+     * data we hold PLUS the prospect's own public website (fetched through the
+     * SSRF guard — real external evidence, provenance-labeled). It still never
+     * claims facts from anywhere else.
      */
     public function researchLead(Contact $contact): string
     {
+        $company = $contact->company_id !== null ? $contact->company : null;
+
         return $this->gateway->run('sales.research', 'sales.research', [
             'profile' => sprintf(
                 "Contact: %s\nTitle: %s\nCompany: %s\nLifecycle: %s\nLead score: %d",
                 $contact->fullName(), $contact->title ?? 'unknown',
-                $contact->company_id !== null ? $contact->company->name : 'unknown', $contact->lifecycle_stage, $contact->lead_score,
-            ),
+                $company->name ?? 'unknown', $contact->lifecycle_stage, $contact->lead_score,
+            )."\n".$this->siteEvidence($company),
         ])->text;
     }
 
@@ -173,8 +180,29 @@ class AiSalesAgent
         $contacts = Contact::where('company_id', $company->id)->count();
 
         return $this->gateway->run('sales.research', 'sales.research', [
-            'profile' => sprintf("Company: %s\nIndustry: %s\nKnown contacts: %d", $company->name, $company->industry ?? 'unknown', $contacts),
+            'profile' => sprintf("Company: %s\nIndustry: %s\nKnown contacts: %d", $company->name, $company->industry ?? 'unknown', $contacts)
+                ."\n".$this->siteEvidence($company),
         ])->text;
+    }
+
+    /**
+     * The provenance-labeled external grounding block: what the prospect's own
+     * site says, or an explicit statement that only CRM records were used —
+     * honesty in both directions, never silence.
+     */
+    private function siteEvidence(?Company $company): string
+    {
+        $page = $this->sites->read($company?->website ?: $company?->domain);
+
+        if ($page === null) {
+            return 'No public website could be read; this summary uses only the CRM records above.';
+        }
+
+        return sprintf(
+            "Observed on their public website (%s, fetched %s):\nTitle: %s\nDescription: %s\nHeadings: %s\nExcerpt: %s",
+            $page['url'], now()->toDateString(), $page['title'], $page['description'],
+            implode(' | ', $page['headings']), $page['excerpt'],
+        );
     }
 
     /**
@@ -185,13 +213,13 @@ class AiSalesAgent
      */
     public function scoreLead(Contact $contact): array
     {
-        return $this->parseScore($this->gateway->run('sales.score_lead', 'sales.score', [
+        return $this->recordScore($contact, $this->parseScore($this->gateway->run('sales.score_lead', 'sales.score', [
             'profile' => sprintf(
                 "Lead: %s\nTitle: %s\nLifecycle: %s\nDeterministic score: %d\nIntent score: %d",
                 $contact->fullName(), $contact->title ?? 'unknown', $contact->lifecycle_stage,
                 $contact->lead_score, $this->intent->intentScore($contact),
             ),
-        ])->text);
+        ])->text));
     }
 
     /**
@@ -201,12 +229,32 @@ class AiSalesAgent
      */
     public function scoreOpportunity(Deal $deal): array
     {
-        return $this->parseScore($this->gateway->run('sales.score_deal', 'sales.score', [
+        return $this->recordScore($deal, $this->parseScore($this->gateway->run('sales.score_deal', 'sales.score', [
             'profile' => sprintf(
                 "Deal: %s\nValue: %d\nStage: %s\nSource: %s",
                 $deal->name, $deal->value, $deal->stage->name, $deal->lead_source ?? 'unknown',
             ),
-        ])->text);
+        ])->text));
+    }
+
+    /**
+     * Persist advisory-score history (AISA-012/013) so calibration can measure
+     * predictive quality against real outcomes. History only — the
+     * deterministic lead_score is never written from here.
+     *
+     * @param  array{score: int, reason: string}  $parsed
+     * @return array{score: int, reason: string}
+     */
+    private function recordScore(Model $scoreable, array $parsed): array
+    {
+        AiScore::create([
+            'scoreable_type' => $scoreable->getMorphClass(),
+            'scoreable_id' => $scoreable->getKey(),
+            'score' => $parsed['score'],
+            'reason' => $parsed['reason'],
+        ]);
+
+        return $parsed;
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\AiRequest;
 use App\Services\Ai\AiGateway;
+use App\Services\Ai\ScoreCalibration;
 use App\Support\CurrentOrganization;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,11 +20,15 @@ class AiDashboardController extends Controller
         AiProviderManager $providers,
         UsageMeter $usage,
         CurrentOrganization $current,
+        ScoreCalibration $calibration,
     ): Response {
         $organization = $current->get();
 
         return Inertia::render('ai/dashboard', [
             'usage' => $gateway->usageSummary(),
+            // AISA-012/013: advisory-score quality as the tenant's own measured
+            // number (scored deals vs actual outcomes), never our claim.
+            'calibration' => $calibration->report(),
             // Stated plainly so fixture output is never mistaken for live inference.
             'driver' => ['name' => $providers->driver()->name(), 'model' => $providers->driver()->model(), 'live' => $providers->isLive()],
             'credits' => [

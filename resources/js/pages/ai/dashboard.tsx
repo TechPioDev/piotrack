@@ -43,6 +43,14 @@ type Credits = {
     remaining: number | null;
 };
 
+type Calibration = {
+    insufficient_data: boolean;
+    required_per_bucket: number;
+    won: { count: number; avg_score: number | null };
+    lost: { count: number; avg_score: number | null };
+    separation: number | null;
+};
+
 type RecentRequest = {
     id: number;
     feature: string;
@@ -137,7 +145,61 @@ function CreditsCard({ credits }: { credits: Credits }) {
     );
 }
 
-export default function AiDashboard({ usage, driver, credits, recent }: { usage: Usage; driver: Driver; credits: Credits; recent: RecentRequest[] }) {
+/**
+ * AISA-012/013: advisory-score quality as the tenant's OWN measured number —
+ * scored deals versus their actual outcomes — never a claim from the platform.
+ */
+function CalibrationCard({ calibration }: { calibration: Calibration }) {
+    return (
+        <Card>
+            <CardContent className="space-y-2 p-4">
+                <p className="text-sm font-medium">Advisory score calibration</p>
+                {calibration.insufficient_data ? (
+                    <p className="text-muted-foreground text-sm">
+                        Not enough evidence yet: calibration needs at least {calibration.required_per_bucket} AI-scored deals that were won and{' '}
+                        {calibration.required_per_bucket} that were lost (so far {calibration.won.count} won, {calibration.lost.count} lost). Until
+                        then, no quality figure is shown — an unmeasured claim would be fiction.
+                    </p>
+                ) : (
+                    <div className="flex flex-wrap gap-6">
+                        <div>
+                            <p className="text-muted-foreground text-sm">Won deals ({calibration.won.count})</p>
+                            <p className="text-2xl font-semibold">{calibration.won.avg_score}</p>
+                            <p className="text-muted-foreground text-xs">avg advisory score</p>
+                        </div>
+                        <div>
+                            <p className="text-muted-foreground text-sm">Lost deals ({calibration.lost.count})</p>
+                            <p className="text-2xl font-semibold">{calibration.lost.avg_score}</p>
+                            <p className="text-muted-foreground text-xs">avg advisory score</p>
+                        </div>
+                        <div>
+                            <p className="text-muted-foreground text-sm">Separation</p>
+                            <p className="text-2xl font-semibold">
+                                {calibration.separation !== null && calibration.separation > 0 ? '+' : ''}
+                                {calibration.separation}
+                            </p>
+                            <p className="text-muted-foreground text-xs">won minus lost — higher means the score discriminates</p>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function AiDashboard({
+    usage,
+    driver,
+    credits,
+    recent,
+    calibration,
+}: {
+    usage: Usage;
+    driver: Driver;
+    credits: Credits;
+    recent: RecentRequest[];
+    calibration: Calibration;
+}) {
     const totals: { label: string; value: string | number }[] = [
         { label: 'Requests', value: usage.total_requests },
         { label: 'Failed', value: usage.failed_requests },
@@ -154,6 +216,8 @@ export default function AiDashboard({ usage, driver, credits, recent }: { usage:
                 <DriverNotice driver={driver} />
 
                 <CreditsCard credits={credits} />
+
+                <CalibrationCard calibration={calibration} />
 
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     {totals.map((total) => (

@@ -43,6 +43,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
             Route::delete('calls/numbers/{number}', [CallController::class, 'destroyNumber'])->name('calls.numbers.destroy');
             Route::post('calls', [CallController::class, 'storeCall'])->name('calls.store');
             Route::post('calls/{call}/convert', [CallController::class, 'convert'])->name('calls.convert');
+            // AISA-014: real transcripts in, AI summaries out.
+            Route::patch('calls/{call}/transcript', [CallController::class, 'transcript'])->name('calls.transcript');
+            Route::post('calls/{call}/summarize', [CallController::class, 'summarize'])->name('calls.summarize');
         });
 
         // CRO experiments.
