@@ -40,7 +40,7 @@ class UrlGuard
 
         $host = $parts['host'];
 
-        if (isset($parts['port']) && ! in_array((int) $parts['port'], [80, 443, 8080, 8443], true)) {
+        if (isset($parts['port']) && ! in_array((int) $parts['port'], [80, 443, 5050, 8080, 8443], true)) {
             throw new RuntimeException('That port cannot be fetched.');
         }
 

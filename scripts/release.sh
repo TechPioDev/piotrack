@@ -17,7 +17,7 @@ set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/piotrack}"
 RELEASES_DIR="${RELEASES_DIR:-/var/backups/piotrack-releases}"
-HEALTH_URL="${HEALTH_URL:-https://127.0.0.1:8443/health}"
+HEALTH_URL="${HEALTH_URL:-https://127.0.0.1:5050/health}"
 HISTORY="$RELEASES_DIR/history.log"
 
 fail() { echo "!!!!! FAILED: $*" >&2; exit 1; }

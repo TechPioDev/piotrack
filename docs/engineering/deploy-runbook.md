@@ -1,7 +1,7 @@
 # Deploy runbook — self-hosted production (DEVX-005)
 
 > Production is the self-hosted Ubuntu server (Apache + mod_php 8.5 + PostgreSQL),
-> publicly served at https://piotrack.com:8443. Releases are tarballs built on the
+> publicly served at https://piotrack.com:5050. Releases are tarballs built on the
 > dev machine and applied by `scripts/release.sh` — versioned, health-checked,
 > reversible. (The earlier bare `curl && tar` chains failed silently on directory
 > permissions; release.sh runs as root end to end and cannot.)
