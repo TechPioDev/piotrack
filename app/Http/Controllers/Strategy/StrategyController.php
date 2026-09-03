@@ -9,16 +9,20 @@ use App\Models\Engagement;
 use App\Models\KpiTarget;
 use App\Models\StrategyItem;
 use App\Models\StrategyPlan;
+use App\Services\Strategy\BrandPositioningService;
 use App\Services\Strategy\KpiTargetService;
 use App\Services\Strategy\MethodologyService;
 use App\Services\Strategy\StrategyInsights;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
+use App\Support\Pdf;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The strategy, brand and training workspaces (STRAT / BRAND / TRAIN) plus the
@@ -137,10 +141,18 @@ class StrategyController extends Controller
     /**
      * The brand workspace (BRAND) and training engagements (TRAIN).
      */
-    public function brand(): Response
+    public function brand(BrandPositioningService $positioning): Response
     {
         return Inertia::render('strategy/brand', [
             'profile' => BrandProfile::first(),
+            // BRAND-001..012: positioning evidence from real records.
+            'positioning' => [
+                'discovery' => $positioning->discovery(),
+                'competitorMessaging' => $positioning->competitorMessaging(),
+                'differentiators' => $positioning->differentiators(),
+                'icpAlignment' => $positioning->icpAlignment(),
+                'evidence' => $positioning->positioningEvidence(),
+            ],
             'assets' => BrandAsset::latest('id')->get()->map(fn (BrandAsset $a) => [
                 'id' => $a->id,
                 'type' => $a->type,
@@ -162,6 +174,52 @@ class StrategyController extends Controller
             'engagement_types' => Engagement::TYPES,
             'engagement_topics' => Engagement::TOPICS,
         ]);
+    }
+
+    /**
+     * BRAND-020/021/022: the captured identity as a shareable deliverable —
+     * a native one-page style guide PDF.
+     */
+    public function styleGuide(): StreamedResponse
+    {
+        $brand = BrandProfile::first();
+        $palette = $brand->palette ?? [];
+        $typography = $brand->typography ?? [];
+
+        $lines = [
+            ['text' => 'Positioning: '.($brand?->positioning_statement ?: '(not captured yet)'), 'size' => 10],
+            ['text' => 'Tagline: '.($brand?->tagline ?: '(not captured yet)'), 'size' => 10],
+            ['text' => ''],
+            ['text' => 'Color palette', 'size' => 13, 'bold' => true],
+        ];
+        foreach ($palette as $role => $value) {
+            $lines[] = ['text' => ucfirst((string) $role).': '.$value];
+        }
+        if ($palette === []) {
+            $lines[] = ['text' => '(no palette captured yet)', 'size' => 9];
+        }
+        $lines[] = ['text' => ''];
+        $lines[] = ['text' => 'Typography', 'size' => 13, 'bold' => true];
+        foreach ($typography as $role => $value) {
+            $lines[] = ['text' => ucfirst((string) $role).': '.$value];
+        }
+        if ($typography === []) {
+            $lines[] = ['text' => '(no typography captured yet)', 'size' => 9];
+        }
+        $lines[] = ['text' => ''];
+        $lines[] = ['text' => 'Imagery direction', 'size' => 13, 'bold' => true];
+        $lines[] = ['text' => $brand?->imagery_direction ?: '(not captured yet)', 'size' => 10];
+        $lines[] = ['text' => ''];
+        $lines[] = ['text' => 'Tone of voice: '.($brand?->tone_of_voice ?: '(not captured yet)'), 'size' => 10];
+
+        $pdf = Pdf::document(
+            (app(CurrentOrganization::class)->get()->name ?? 'Brand').' - Style Guide',
+            $lines,
+        );
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf;
+        }, 'style-guide.pdf', ['Content-Type' => 'application/pdf']);
     }
 
     public function saveBrand(Request $request): RedirectResponse

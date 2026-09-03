@@ -289,7 +289,13 @@
 <body>
 <header class="masthead">
     <div class="wrap">
-        <span class="mark" aria-hidden="true">{{ mb_strtoupper(mb_substr($organization->name, 0, 1)) }}</span>
+        {{-- BRAND-025: the site wears the brand — logo when the profile has one,
+             the monogram mark otherwise. --}}
+        @if (!empty($brand?->logo_url))
+            <img class="mark" src="{{ $brand->logo_url }}" alt="{{ $organization->name }} logo" style="width:34px;height:34px;object-fit:contain;border-radius:8px;background:transparent">
+        @else
+            <span class="mark" aria-hidden="true">{{ mb_strtoupper(mb_substr($organization->name, 0, 1)) }}</span>
+        @endif
         <span class="org">{{ $organization->name }}</span>
         @if ($headerNav !== [] || $location?->phone)
             <nav class="nav" aria-label="Site">

@@ -13,6 +13,20 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string|null $positioning_statement
  * @property string|null $tagline
+ * @property string|null $usp
+ * @property string|null $narrative
+ * @property string|null $tone_of_voice
+ * @property string|null $imagery_direction
+ * @property list<string>|null $differentiators
+ * @property array<string, string>|null $palette
+ * @property array<string, string>|null $typography
+ * @property list<string>|null $alternate_names
+ * @property list<string>|null $same_as
+ * @property string|null $website_url
+ * @property string|null $logo_url
+ * @property string|null $legal_name
+ * @property string|null $disambiguation
+ * @property int|null $founded_year
  */
 class BrandProfile extends Model
 {

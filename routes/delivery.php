@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
         Route::middleware('can:strategy.view')->group(function () {
             Route::get('/', [StrategyController::class, 'index'])->name('index');
             Route::get('brand', [StrategyController::class, 'brand'])->name('brand');
+            Route::get('brand/style-guide.pdf', [StrategyController::class, 'styleGuide'])->name('brand.style-guide');
             Route::get('performance', [PerformanceController::class, 'index'])->name('performance');
 
             // Training courses (TRAIN): reading and personal completion.

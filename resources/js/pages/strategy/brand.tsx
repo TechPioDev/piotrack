@@ -56,6 +56,19 @@ type Engagement = {
 
 const engagementStatuses = ['scheduled', 'completed', 'canceled'];
 
+type Positioning = {
+    discovery: { answered: number; total: number; items: { key: string; label: string; ok: boolean; detail: string }[] };
+    competitorMessaging: { competitor: string; checked_at: string | null; titles: string[] }[];
+    differentiators: { differentiator: string; on_our_site: boolean; claimed_by: string[] }[];
+    icpAlignment: { insufficient_data: boolean; checks: { attribute: string; stated: string; observed: string; aligned: boolean }[] };
+    evidence: {
+        premium: { won_deals: number; avg_deal_value: number | null; median_mrr: number | null };
+        vertical: { active: number; with_published_page: number };
+        service: { active: number; with_published_page: number };
+        geographic: { branches: number; with_published_page: number };
+    };
+};
+
 const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-28 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
 
@@ -523,6 +536,7 @@ function NewEngagementDialog({ engagementTypes, engagementTopics }: { engagement
 
 export default function StrategyBrand({
     profile,
+    positioning,
     assets,
     asset_types,
     engagements,
@@ -530,6 +544,7 @@ export default function StrategyBrand({
     engagement_topics,
 }: {
     profile: Profile;
+    positioning: Positioning;
     assets: Asset[];
     asset_types: string[];
     engagements: Engagement[];
@@ -555,6 +570,123 @@ export default function StrategyBrand({
                         producing the creative, stays human work.
                     </CardContent>
                 </Card>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <Card className="min-w-0">
+                        <CardContent className="p-4">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <h3 className="text-sm font-medium">Brand discovery</h3>
+                                <Badge variant={positioning.discovery.answered === positioning.discovery.total ? 'default' : 'secondary'}>
+                                    {positioning.discovery.answered}/{positioning.discovery.total} answered
+                                </Badge>
+                            </div>
+                            <ul className="space-y-1 text-sm">
+                                {positioning.discovery.items.map((item) => (
+                                    <li key={item.key} className="text-muted-foreground">
+                                        <span className={item.ok ? 'text-green-600' : 'text-destructive'}>{item.ok ? '✓' : '✗'}</span>{' '}
+                                        <span className="text-foreground font-medium">{item.label}</span> — {item.detail}
+                                    </li>
+                                ))}
+                            </ul>
+                            <Button variant="outline" size="sm" className="mt-3" asChild>
+                                <a href={route('strategy.brand.style-guide')}>Download style guide (PDF)</a>
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="min-w-0">
+                        <CardContent className="p-4">
+                            <h3 className="mb-2 text-sm font-medium">ICP alignment</h3>
+                            {positioning.icpAlignment.insufficient_data ? (
+                                <p className="text-muted-foreground text-sm">
+                                    Needs a defined ICP (Setup) and won deals — alignment against nothing would be fiction.
+                                </p>
+                            ) : (
+                                <ul className="space-y-1 text-sm">
+                                    {positioning.icpAlignment.checks.map((check) => (
+                                        <li key={check.attribute} className="text-muted-foreground">
+                                            <span className={check.aligned ? 'text-green-600' : 'text-destructive'}>{check.aligned ? '✓' : '✗'}</span>{' '}
+                                            <span className="text-foreground font-medium">{check.attribute}</span>: stated "{check.stated}", wins say
+                                            "{check.observed}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <h3 className="mt-4 mb-2 text-sm font-medium">Positioning evidence</h3>
+                            <ul className="text-muted-foreground space-y-1 text-sm">
+                                <li>
+                                    <span className="text-foreground font-medium">Premium:</span>{' '}
+                                    {positioning.evidence.premium.won_deals > 0
+                                        ? `avg deal $${((positioning.evidence.premium.avg_deal_value ?? 0) / 100).toFixed(0)}, median MRR $${((positioning.evidence.premium.median_mrr ?? 0) / 100).toFixed(0)} over ${positioning.evidence.premium.won_deals} wins`
+                                        : 'no wins yet — premium is a number, not an adjective'}
+                                </li>
+                                <li>
+                                    <span className="text-foreground font-medium">Vertical:</span> {positioning.evidence.vertical.with_published_page}
+                                    /{positioning.evidence.vertical.active} active verticals have a published page
+                                </li>
+                                <li>
+                                    <span className="text-foreground font-medium">Service:</span> {positioning.evidence.service.with_published_page}/
+                                    {positioning.evidence.service.active} active services have a published page
+                                </li>
+                                <li>
+                                    <span className="text-foreground font-medium">Geographic:</span>{' '}
+                                    {positioning.evidence.geographic.with_published_page}/{positioning.evidence.geographic.branches} branches have a
+                                    published location page
+                                </li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {positioning.differentiators.length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="mb-2 text-sm font-medium">Differentiators, checked against reality</h3>
+                            <ul className="space-y-1 text-sm">
+                                {positioning.differentiators.map((row) => (
+                                    <li key={row.differentiator} className="text-muted-foreground">
+                                        <span className="text-foreground font-medium">"{row.differentiator}"</span> —{' '}
+                                        {row.on_our_site ? 'on your published pages' : 'not found on your published pages'}
+                                        {row.claimed_by.length > 0 && (
+                                            <span className="text-destructive">
+                                                {' '}
+                                                · also claimed by {row.claimed_by.join(', ')} — a table stake, not a differentiator
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {positioning.competitorMessaging.length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <h3 className="mb-2 text-sm font-medium">Competitor messaging (from their captured pages)</h3>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {positioning.competitorMessaging.map((row) => (
+                                    <div key={row.competitor} className="min-w-0 rounded-md border p-3">
+                                        <p className="text-sm font-medium">{row.competitor}</p>
+                                        {row.titles.length === 0 ? (
+                                            <p className="text-muted-foreground text-xs">
+                                                No content captured yet — run Check content on Competitors.
+                                            </p>
+                                        ) : (
+                                            <ul className="text-muted-foreground mt-1 list-disc pl-4 text-xs">
+                                                {row.titles.map((title) => (
+                                                    <li key={title} className="break-words">
+                                                        {title}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Brand profile</h3>
