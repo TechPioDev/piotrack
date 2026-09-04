@@ -8,6 +8,7 @@ use App\Models\Deal;
 use App\Models\File;
 use App\Models\Project;
 use App\Models\Ticket;
+use App\Security\UploadScanner;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
@@ -82,6 +83,10 @@ class FileController extends Controller
 
         $organizationId = $this->currentOrganization->id();
         $upload = $request->file('file');
+
+        // SEC-003: content scanning before anything touches storage.
+        app(UploadScanner::class)->scan($upload);
+
         $path = $upload->store("org-{$organizationId}/files", 'local');
 
         $file = File::create([

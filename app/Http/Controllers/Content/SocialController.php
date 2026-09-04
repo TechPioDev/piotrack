@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdCampaign;
 use App\Models\ContentPiece;
 use App\Models\SocialPost;
 use App\Services\Content\SocialService;
+use App\Services\Content\SocialStrategy;
 use App\Support\AuditLogger;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +45,10 @@ class SocialController extends Controller
             'channels' => self::CHANNELS,
             'pieces' => ContentPiece::orderBy('title')->get(['id', 'title'])
                 ->map(fn ($p) => ['id' => $p->id, 'title' => $p->title]),
+            // SOC-006: strategy computed from the tenant's own posting records.
+            'strategy' => app(SocialStrategy::class)->report(),
+            // SOC-027: social lead attribution through the channel classifier.
+            'attribution' => app(SocialStrategy::class)->attribution(),
         ]);
     }
 
@@ -74,6 +80,36 @@ class SocialController extends Controller
         $this->social->publish($post);
 
         return back()->with('status', __('Post published.'));
+    }
+
+    /**
+     * SOC-018/019: boost a post — a draft ad campaign on the post's network's
+     * ad platform, finished in the Ads module where budgets and metrics live.
+     */
+    public function sponsor(SocialPost $post): RedirectResponse
+    {
+        $platform = ['linkedin' => 'linkedin', 'facebook' => 'meta', 'youtube' => 'youtube'][$post->channel] ?? null;
+
+        if ($platform === null) {
+            return back()->withErrors(['post' => __('No ads platform is available for :channel — sponsored posts run on LinkedIn, Facebook and YouTube.', ['channel' => $post->channel])]);
+        }
+
+        // Idempotent: a post sponsors into one campaign, never a stack of them.
+        $existing = AdCampaign::where('type', 'sponsored_post')
+            ->where('targeting->social_post_id', $post->id)->first();
+
+        $campaign = $existing ?? AdCampaign::create([
+            'platform' => $platform,
+            'name' => 'Sponsored: '.mb_substr((string) ($post->body ?: 'social post'), 0, 80),
+            'type' => 'sponsored_post',
+            'objective' => 'awareness',
+            'status' => 'draft',
+            'targeting' => ['social_post_id' => $post->id],
+        ]);
+
+        $this->audit->log('content.social.sponsored', context: ['post' => $post->id, 'campaign' => $campaign->id], resourceType: 'social_post', resourceId: (string) $post->id, organizationId: $post->organization_id);
+
+        return back()->with('status', __('Draft campaign ":name" ready — set the budget under Ads → Campaigns.', ['name' => $campaign->name]));
     }
 
     public function refreshMetrics(SocialPost $post): RedirectResponse

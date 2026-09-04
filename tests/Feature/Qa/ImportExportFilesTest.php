@@ -85,13 +85,13 @@ it('attaches uploaded documents to CRM records and tickets, tenant-checked', fun
     app(CurrentOrganization::class)->forget();
 
     $this->actingAs($this->owner)->post(route('files.store'), [
-        'file' => UploadedFile::fake()->create('contract.pdf', 100, 'application/pdf'),
+        'file' => UploadedFile::fake()->createWithContent('contract.pdf', '%PDF-1.4 '.str_repeat('c', 1024)),
         'attachable_type' => 'contact',
         'attachable_id' => $contact->id,
     ])->assertRedirect();
 
     $this->actingAs($this->owner)->post(route('files.store'), [
-        'file' => UploadedFile::fake()->create('screenshot.png', 50, 'image/png'),
+        'file' => UploadedFile::fake()->createWithContent('screenshot.png', chr(0x89).'PNG'.chr(13).chr(10).chr(0x1A).chr(10).str_repeat('d', 512)),
         'attachable_type' => 'ticket',
         'attachable_id' => $ticket->id,
     ])->assertRedirect();
@@ -108,7 +108,7 @@ it('attaches uploaded documents to CRM records and tickets, tenant-checked', fun
     app(CurrentOrganization::class)->forget();
 
     $this->actingAs($this->owner)->post(route('files.store'), [
-        'file' => UploadedFile::fake()->create('sneaky.pdf', 10, 'application/pdf'),
+        'file' => UploadedFile::fake()->createWithContent('sneaky.pdf', '%PDF-1.4 sneaky'),
         'attachable_type' => 'contact',
         'attachable_id' => $foreign->id,
     ])->assertStatus(422);

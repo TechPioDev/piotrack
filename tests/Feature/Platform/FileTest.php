@@ -12,7 +12,7 @@ it('uploads a valid file scoped to the organization', function () {
     [$org, $owner] = makeOrganization();
 
     $this->actingAs($owner)
-        ->post(route('files.store'), ['file' => UploadedFile::fake()->create('brand.pdf', 200, 'application/pdf')])
+        ->post(route('files.store'), ['file' => UploadedFile::fake()->createWithContent('brand.pdf', '%PDF-1.4 '.str_repeat('a', 2048))])
         ->assertRedirect();
 
     $file = File::withoutGlobalScope('tenant')->first();
@@ -61,7 +61,7 @@ it('isolates files across tenants on download', function () {
 it('deletes a file', function () {
     Storage::fake('local');
     [$org, $owner] = makeOrganization();
-    $this->actingAs($owner)->post(route('files.store'), ['file' => UploadedFile::fake()->create('doc.pdf', 100, 'application/pdf')]);
+    $this->actingAs($owner)->post(route('files.store'), ['file' => UploadedFile::fake()->createWithContent('doc.pdf', '%PDF-1.4 '.str_repeat('b', 1024))]);
     $file = File::withoutGlobalScope('tenant')->first();
 
     $this->actingAs($owner)->delete(route('files.destroy', $file->id))->assertRedirect();
@@ -76,6 +76,6 @@ it('forbids a viewer from uploading files', function () {
     $viewer = addMember($org, Role::Viewer); // files.view only, not files.manage
 
     $this->actingAs($viewer)
-        ->post(route('files.store'), ['file' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf')])
+        ->post(route('files.store'), ['file' => UploadedFile::fake()->createWithContent('x.pdf', '%PDF-1.4 tiny')])
         ->assertForbidden();
 });

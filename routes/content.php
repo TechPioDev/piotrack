@@ -35,6 +35,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:content'])
             Route::post('social/{post}/schedule', [SocialController::class, 'schedule'])->name('social.schedule');
             Route::post('social/{post}/publish', [SocialController::class, 'publish'])->name('social.publish');
             Route::post('social/{post}/refresh-metrics', [SocialController::class, 'refreshMetrics'])->name('social.refresh-metrics');
+            // SOC-018/019: boost a post into a draft ad campaign on its network.
+            Route::post('social/{post}/sponsor', [SocialController::class, 'sponsor'])->name('social.sponsor');
             Route::delete('social/{post}', [SocialController::class, 'destroy'])->name('social.destroy');
         });
 
