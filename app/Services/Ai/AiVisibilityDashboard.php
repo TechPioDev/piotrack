@@ -4,7 +4,10 @@ namespace App\Services\Ai;
 
 use App\Models\AiPrompt;
 use App\Models\AiVisibilityCheck;
+use App\Models\AuthorityAsset;
 use App\Models\Competitor;
+use App\Models\OutreachCampaign;
+use App\Models\OutreachProspect;
 use App\Seo\Contracts\AiSearchProvider;
 use App\Seo\SeoProviderManager;
 use App\Support\AuditLogger;
@@ -266,5 +269,112 @@ class AiVisibilityDashboard
         $mentions = AiVisibilityCheck::whereBetween('checked_at', [$from, $to])->where('mentioned', true)->count();
 
         return round($mentions / $checks * 100, 2);
+    }
+
+    /** A dimension value with fewer checks than this proves nothing yet. */
+    private const MIN_DIMENSION_CHECKS = 2;
+
+    /** Below this mention rate a dimension value needs work. */
+    private const WEAK_MENTION_RATE = 50.0;
+
+    /**
+     * City/service/vertical-specific recommendations (GEO-011/012/013): each
+     * weak dimension value gets a named platform action citing its own
+     * numbers; a dimension with no prompt variants at all is called out.
+     * Strong values produce nothing — no advice without a reason.
+     *
+     * @return list<array{dimension: string, value: string|null, evidence: string, action: string}>
+     */
+    public function dimensionRecommendations(): array
+    {
+        $actions = [
+            'city' => 'Publish the location page for it (Website → Taxonomy) and work its GBP + citations (SEO → Local).',
+            'service' => 'Publish a dedicated service page (Website → Pages) and add the service to the knowledge graph (SEO → LLMO).',
+            'vertical' => 'Publish the vertical page (Website → Pages) and draft a case study for that industry (Content).',
+        ];
+
+        $out = [];
+        foreach ($actions as $dimension => $action) {
+            $rows = $this->byDimension($dimension);
+
+            if ($rows === []) {
+                $out[] = [
+                    'dimension' => $dimension,
+                    'value' => null,
+                    'evidence' => "No prompts carry a {$dimension} yet, so {$dimension}-level visibility cannot be measured.",
+                    'action' => "Add {$dimension} variants to the prompt library (SEO → AI Visibility).",
+                ];
+
+                continue;
+            }
+
+            foreach ($rows as $row) {
+                if ($row['checks'] >= self::MIN_DIMENSION_CHECKS && $row['mention_rate'] < self::WEAK_MENTION_RATE) {
+                    $out[] = [
+                        'dimension' => $dimension,
+                        'value' => $row['value'],
+                        'evidence' => "Mentioned in {$row['mention_rate']}% of {$row['checks']} checks for \"{$row['value']}\".",
+                        'action' => $action,
+                    ];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Citation-source analysis (GEO-014): the hosts AI answers actually cite,
+     * ranked by citation count, each marked covered (we already work that
+     * source through outreach or hold an authority asset there) or gap.
+     *
+     * @return list<array{host: string, citations: int, status: string}>
+     */
+    public function citationSources(): array
+    {
+        $hosts = [];
+        foreach (AiVisibilityCheck::whereNotNull('cited_sources')->get(['cited_sources']) as $check) {
+            foreach ((array) $check->cited_sources as $source) {
+                $host = strtolower((string) (parse_url((string) $source, PHP_URL_HOST) ?? $source));
+                $host = preg_replace('/^www\./', '', trim($host)) ?? '';
+                if ($host !== '') {
+                    $hosts[$host] = ($hosts[$host] ?? 0) + 1;
+                }
+            }
+        }
+        arsort($hosts);
+
+        $covered = OutreachProspect::pluck('domain')
+            ->merge(AuthorityAsset::pluck('issuer'))
+            ->filter()->map(fn ($d) => strtolower((string) $d))->flip();
+
+        return collect($hosts)->map(fn (int $citations, string $host) => [
+            'host' => $host,
+            'citations' => $citations,
+            'status' => isset($covered[$host]) ? 'covered' : 'gap',
+        ])->values()->all();
+    }
+
+    /**
+     * Citation-source optimization / authority-source development
+     * (GEO-015/016): put a cited source into the tested outreach pipeline —
+     * from here it is pitch → placement → typed authority asset, like any
+     * other earned-media target. Idempotent per host.
+     */
+    public function targetSource(string $host): OutreachProspect
+    {
+        $campaign = OutreachCampaign::firstOrCreate(
+            ['name' => 'AI citation sources'],
+            ['type' => 'digital_pr', 'goal' => 'Earn presence on the sources AI answers cite', 'status' => 'active'],
+        );
+
+        $prospect = OutreachProspect::firstOrCreate(
+            ['outreach_campaign_id' => $campaign->id, 'domain' => $host],
+            ['name' => $host, 'status' => 'pitched'],
+        );
+
+        $this->audit->log('seo.ai.source_targeted', context: ['host' => $host], resourceType: 'outreach_prospect', resourceId: (string) $prospect->id, organizationId: $prospect->organization_id);
+
+        return $prospect;
     }
 }

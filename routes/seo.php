@@ -57,6 +57,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::middleware('entitlement:ai_visibility')->group(function () {
             Route::get('ai-visibility', [AiVisibilityController::class, 'index'])->middleware('can:seo.view')->name('ai.index');
             Route::post('ai-visibility', [AiVisibilityController::class, 'check'])->middleware('can:seo.ai.manage')->name('ai.check');
+            // GEO-015/016: put a cited source into the outreach pipeline.
+            Route::post('ai-visibility/target-source', [AiVisibilityController::class, 'targetSource'])->middleware('can:seo.ai.manage')->name('ai.target-source');
 
             // LLMO: knowledge graph + retrieval readiness + content scoring.
             Route::get('llmo', [LlmoController::class, 'index'])->middleware('can:seo.view')->name('llmo.index');

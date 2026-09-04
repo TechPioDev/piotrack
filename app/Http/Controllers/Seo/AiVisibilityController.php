@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seo;
 use App\Http\Controllers\Controller;
 use App\Models\AiVisibilityCheck;
 use App\Seo\SeoProviderManager;
+use App\Services\Ai\AiVisibilityDashboard;
 use App\Services\Seo\AiVisibilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,7 +46,22 @@ class AiVisibilityController extends Controller
                 'mentioned' => $checks->where('mentioned', true)->count(),
                 'avg_share' => (int) round($checks->where('mentioned', true)->avg('share_of_answer') ?? 0),
             ],
+            // GEO-011..013: per-dimension recommendations with their numbers.
+            'dimension_recommendations' => app(AiVisibilityDashboard::class)->dimensionRecommendations(),
+            // GEO-014..016: the sources AI answers cite, covered or gap.
+            'citation_sources' => app(AiVisibilityDashboard::class)->citationSources(),
         ]);
+    }
+
+    /** GEO-015/016: target a cited source through the outreach pipeline. */
+    public function targetSource(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['host' => ['required', 'string', 'max:255']]);
+        $host = strtolower(trim($data['host']));
+
+        app(AiVisibilityDashboard::class)->targetSource($host);
+
+        return back()->with('status', __('":host" added to the AI citation sources outreach campaign.', ['host' => $host]));
     }
 
     public function check(Request $request): RedirectResponse

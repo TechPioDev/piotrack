@@ -28,10 +28,11 @@ class SendBookingReminders extends Command
         Booking::query()
             ->where('status', 'booked')
             ->whereBetween('scheduled_at', [now(), now()->addDay()])
-            ->whereNotNull('owner_id')
+            // No owner filter: the ATTENDEE's reminder must not depend on the
+            // booking having been assigned to a rep yet.
             ->each(function (Booking $booking) use ($notifications, $messages, $current, &$sent) {
                 $when = $booking->scheduled_at->toDayDateTimeString();
-                $owner = User::find($booking->owner_id);
+                $owner = $booking->owner_id !== null ? User::find($booking->owner_id) : null;
 
                 if ($owner !== null) {
                     $notifications->toUser($owner, new BookingReminderNotification($booking->name, $when));
@@ -46,14 +47,31 @@ class SendBookingReminders extends Command
                 $organization = $booking->organization()->first();
                 $contact = $booking->contact()->first();
 
-                if ($organization !== null && $contact !== null && $contact->email !== null) {
+                if ($organization !== null && $contact !== null) {
                     $current->set($organization);
-                    $messages->sendEmail(
-                        $contact,
-                        __('Reminder: your meeting on :when', ['when' => $when]),
-                        __('This is a reminder of your meeting on :when (UTC).', ['when' => $when]),
-                        'booking',
-                    );
+
+                    if ($contact->email !== null) {
+                        $messages->sendEmail(
+                            $contact,
+                            __('Reminder: your meeting on :when', ['when' => $when]),
+                            __('This is a reminder of your meeting on :when (UTC).', ['when' => $when]),
+                            'booking',
+                        );
+                    }
+
+                    // SMS-002/006: the attendee SMS reminder — consent and
+                    // suppression enforced per contact by the dispatcher. Copy
+                    // is type-aware: an event-shaped booking page reads as an
+                    // event reminder, anything else as an appointment.
+                    if (! empty($contact->phone)) {
+                        $meetingType = (string) $booking->page()->first()?->meeting_type;
+                        $noun = in_array($meetingType, ['event', 'webinar', 'workshop'], true) ? __('event') : __('appointment');
+                        $messages->sendSms(
+                            $contact,
+                            __('Reminder: your :noun ":name" is on :when (UTC).', ['noun' => $noun, 'name' => $booking->name, 'when' => $when]),
+                            'booking_reminder',
+                        );
+                    }
 
                     $current->forget();
                 }
