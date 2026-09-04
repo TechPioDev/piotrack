@@ -278,6 +278,12 @@ export default function Accounts({ accounts, companies }: { accounts: Account[];
                                     Sync Tier {tier} list
                                 </Button>
                             ))}
+                        {canManage && (
+                            <Button size="sm" variant="outline" asChild>
+                                {/* ABM-012: the company-list CSV LinkedIn Campaign Manager accepts for account targeting. */}
+                                <a href={route('sales.accounts.linkedin-export')}>LinkedIn company list</a>
+                            </Button>
+                        )}
                         {canManage && <NewAccountDialog companies={companies} />}
                     </div>
                 </div>

@@ -35,6 +35,7 @@ class Contact extends Model implements HasActivities
         'organization_id', 'company_id', 'first_name', 'last_name', 'email', 'phone',
         'title', 'buying_role', 'lead_source', 'campaign', 'owner_id',
         'lifecycle_stage', 'lead_score', 'email_opt_in', 'sms_opt_in',
+        'reports_to_contact_id',
     ];
 
     protected function casts(): array

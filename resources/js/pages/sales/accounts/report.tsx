@@ -1,9 +1,12 @@
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 
 type Committee = {
     id: number;
@@ -16,23 +19,92 @@ type Committee = {
     lifecycle_stage: string;
 };
 
+type OrgNode = {
+    id: number;
+    name: string;
+    title: string | null;
+    buying_role: string | null;
+    is_decision_maker: boolean;
+    reports: OrgNode[];
+};
+
+type PlayStep = { step: string; detail: string };
+
 type ReportProps = {
     account: { id: number; company: string | null; tier: number; status: string; score: number };
     engagement: { committee_size: number; engaged: number; decision_makers: number; multi_threaded: boolean };
     committee: Committee[];
+    org_chart: OrgNode[];
+    content: { id: number; title: string; status: string; content_type: string }[];
+    available_content: { id: number; title: string; status: string }[];
+    plays: { key: string; description: string }[];
     deals: { id: number; name: string; status: string; value: number; mrr: number }[];
     bookings: { id: number; name: string; status: string; scheduled_at: string | null }[];
     signals: { type: string; weight: number; url: string | null; occurred_at: string | null }[];
 };
 
+function OrgChartNode({ node, depth }: { node: OrgNode; depth: number }) {
+    return (
+        <div style={{ marginLeft: depth * 20 }} className="py-1">
+            <span className="font-medium">{node.name}</span>
+            {node.title !== null && <span className="text-muted-foreground"> · {node.title}</span>}
+            {node.is_decision_maker && (
+                <Badge className="ml-2" variant="default">
+                    Decision maker
+                </Badge>
+            )}
+            {node.reports.map((report) => (
+                <OrgChartNode key={report.id} node={report} depth={depth + 1} />
+            ))}
+        </div>
+    );
+}
+
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
 
-export default function AccountReport({ account, engagement, committee, deals, bookings, signals }: ReportProps) {
+export default function AccountReport({
+    account,
+    engagement,
+    committee,
+    org_chart,
+    content,
+    available_content,
+    plays,
+    deals,
+    bookings,
+    signals,
+}: ReportProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Accounts', href: '/sales/accounts' },
         { title: account.company ?? 'Account', href: `/sales/accounts/${account.id}/report` },
     ];
+    const { can } = usePermissions();
+    const canManage = can('sales.accounts.manage');
+    const flash = usePage().props.flash as { play_result?: { play: string; steps: PlayStep[] } } | undefined;
+    const playResult = flash?.play_result ?? null;
+    const [attachId, setAttachId] = useState('');
+    const [managerFor, setManagerFor] = useState<Record<number, string>>({});
+
+    const runPlay = (play: string) => router.post(route('sales.accounts.play', account.id), { play }, { preserveScroll: true });
+
+    const attachContent = () => {
+        if (attachId === '') return;
+        router.post(
+            route('sales.accounts.content.attach', account.id),
+            { content_piece_id: Number(attachId) },
+            { preserveScroll: true, onSuccess: () => setAttachId('') },
+        );
+    };
+
+    const setManager = (contactId: number, managerId: string) => {
+        setManagerFor((prev) => ({ ...prev, [contactId]: managerId }));
+        router.patch(
+            route('sales.accounts.manager', contactId),
+            { reports_to_contact_id: managerId === 'none' ? null : Number(managerId) },
+            { preserveScroll: true },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -62,6 +134,33 @@ export default function AccountReport({ account, engagement, committee, deals, b
                     ))}
                 </div>
 
+                {canManage && (
+                    <div className="rounded-lg border p-4">
+                        <h3 className="mb-1 text-sm font-medium">Orchestration plays</h3>
+                        <p className="text-muted-foreground mb-3 text-sm">
+                            A play coordinates sales and marketing steps against this account and reports exactly what it did. Nothing is sent to
+                            anyone — drafts land as tasks, audiences are built for export.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {plays.map((play) => (
+                                <Button key={play.key} variant="outline" size="sm" title={play.description} onClick={() => runPlay(play.key)}>
+                                    {play.key.replace(/_/g, ' ')}
+                                </Button>
+                            ))}
+                        </div>
+                        {playResult !== null && (
+                            <div className="bg-muted/50 mt-3 rounded-md p-3 text-sm">
+                                <p className="mb-1 font-medium">{playResult.play.replace(/_/g, ' ')} — what happened</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {playResult.steps.map((step, index) => (
+                                        <li key={index}>{step.detail}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Buying committee</h3>
                     <div className="overflow-x-auto rounded-lg border">
@@ -74,6 +173,7 @@ export default function AccountReport({ account, engagement, committee, deals, b
                                     <th className="p-3 font-medium">Stage</th>
                                     <th className="p-3 text-center font-medium">Lead score</th>
                                     <th className="p-3 text-center font-medium">Intent</th>
+                                    {canManage && <th className="p-3 font-medium">Reports to</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -97,10 +197,86 @@ export default function AccountReport({ account, engagement, committee, deals, b
                                         <td className="text-muted-foreground p-3 uppercase">{person.lifecycle_stage}</td>
                                         <td className="p-3 text-center">{person.lead_score}</td>
                                         <td className="p-3 text-center">{person.intent_score}</td>
+                                        {canManage && (
+                                            <td className="p-3">
+                                                <Select value={managerFor[person.id] ?? ''} onValueChange={(value) => setManager(person.id, value)}>
+                                                    <SelectTrigger className="h-8 w-40">
+                                                        <SelectValue placeholder="Set manager" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">No manager</SelectItem>
+                                                        {committee
+                                                            .filter((other) => other.id !== person.id)
+                                                            .map((other) => (
+                                                                <SelectItem key={other.id} value={String(other.id)}>
+                                                                    {other.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <div>
+                        <h3 className="mb-2 text-sm font-medium">Org chart</h3>
+                        {org_chart.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No committee contacts yet.</p>
+                        ) : (
+                            <div className="rounded-lg border p-4 text-sm">
+                                {org_chart.map((node) => (
+                                    <OrgChartNode key={node.id} node={node} depth={0} />
+                                ))}
+                                {canManage && (
+                                    <p className="text-muted-foreground mt-2 text-xs">
+                                        Reporting lines come from the &quot;Reports to&quot; column above — set them as you learn the account.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <h3 className="mb-2 text-sm font-medium">Account content</h3>
+                        {content.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No content targeted at this account yet.</p>
+                        ) : (
+                            <ul className="space-y-1 rounded-lg border p-4 text-sm">
+                                {content.map((piece) => (
+                                    <li key={piece.id} className="flex items-center justify-between gap-2">
+                                        <span className="font-medium">{piece.title}</span>
+                                        <span className="text-muted-foreground text-xs">
+                                            {piece.content_type.replace(/_/g, ' ')} · {piece.status}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {canManage && available_content.length > 0 && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <Select value={attachId} onValueChange={setAttachId}>
+                                    <SelectTrigger className="h-8 flex-1">
+                                        <SelectValue placeholder="Target an existing piece at this account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {available_content.map((piece) => (
+                                            <SelectItem key={piece.id} value={String(piece.id)}>
+                                                {piece.title} ({piece.status})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button size="sm" variant="outline" disabled={attachId === ''} onClick={attachContent}>
+                                    Attach
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -4,11 +4,14 @@ namespace App\Services\Sales;
 
 use App\Models\Booking;
 use App\Models\Contact;
+use App\Models\ContentPiece;
 use App\Models\Deal;
 use App\Models\IntentSignal;
 use App\Models\LandingPage;
 use App\Models\MarketingList;
+use App\Models\RetargetingAudience;
 use App\Models\TargetAccount;
+use App\Services\Advertising\RetargetingService;
 use App\Services\Marketing\ListService;
 use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Collection;
@@ -160,6 +163,125 @@ class AccountService
         $this->audit->log('sales.account.page_created', context: ['account' => $company, 'slug' => $page->slug], resourceType: 'landing_page', resourceId: (string) $page->id, organizationId: $page->organization_id);
 
         return $page;
+    }
+
+    /**
+     * The committee as a reporting forest (ABM-007): reporting lines a rep
+     * captured in the CRM, rendered as nested trees. Enrichment providers would
+     * only auto-fill the same field. Cycle-safe: a contact already placed is
+     * never re-entered, so a bad A→B→A link degrades to two roots, not a hang.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function orgChart(TargetAccount $account): array
+    {
+        $committee = $this->buyingCommittee($account);
+        $byManager = $committee->groupBy(fn (Contact $c) => $c->reports_to_contact_id ?? 0);
+        $ids = $committee->pluck('id')->flip();
+        $placed = [];
+
+        $node = function (Contact $contact) use (&$node, &$placed, $byManager) {
+            $placed[$contact->id] = true;
+            $reports = [];
+            foreach ($byManager->get($contact->id, collect()) as $report) {
+                if (! isset($placed[$report->id])) {
+                    $reports[] = $node($report);
+                }
+            }
+
+            return [
+                'id' => $contact->id,
+                'name' => $contact->fullName(),
+                'title' => $contact->title,
+                'buying_role' => $contact->buying_role,
+                'is_decision_maker' => $this->isDecisionMaker($contact),
+                'reports' => $reports,
+            ];
+        };
+
+        // Roots: no manager, or a manager outside the committee.
+        $out = [];
+        foreach ($committee as $contact) {
+            $managerId = $contact->reports_to_contact_id;
+            if ($managerId === null || ! isset($ids[$managerId])) {
+                $out[] = $node($contact);
+            }
+        }
+        // Anything still unplaced sits inside a cycle: emit each as its own root.
+        foreach ($committee as $contact) {
+            if (! isset($placed[$contact->id])) {
+                $out[] = $node($contact);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Content targeted at this account's company (ABM-011).
+     *
+     * @return list<array{id: int, title: string, status: string, content_type: string}>
+     */
+    public function content(TargetAccount $account): array
+    {
+        return ContentPiece::where('company_id', $account->company_id)->orderByDesc('id')->get()
+            ->map(fn (ContentPiece $p) => [
+                'id' => $p->id, 'title' => $p->title, 'status' => $p->status, 'content_type' => $p->content_type,
+            ])->values()->all();
+    }
+
+    /**
+     * LinkedIn company-list CSV (ABM-012): the exact file LinkedIn Campaign
+     * Manager accepts for company-targeting upload — no API required. The
+     * automated audience sync stays a connector enhancement.
+     */
+    public function linkedinCompanyCsv(?int $tier = null): string
+    {
+        $accounts = TargetAccount::with('company:id,name,domain,website')
+            ->where('status', '!=', 'archived')
+            ->when($tier !== null, fn ($q) => $q->where('tier', $tier))
+            ->get();
+
+        $rows = ['companyname,companywebsite'];
+        foreach ($accounts as $account) {
+            $company = $account->company;
+            if ($company === null) {
+                continue;
+            }
+            $website = (string) ($company->website ?: $company->domain);
+            $rows[] = '"'.str_replace('"', '""', $company->name).'","'.str_replace('"', '""', $website).'"';
+        }
+
+        $this->audit->log('sales.account.linkedin_exported', context: ['tier' => $tier, 'companies' => count($rows) - 1]);
+
+        return implode("\n", $rows)."\n";
+    }
+
+    /**
+     * Account-based retargeting (ABM-014): connect the two tested halves — the
+     * tier committee list (ABM) and the list-sourced retargeting audience
+     * (Phase 16). From here the existing per-platform export CSVs and SMS
+     * re-engagement work unchanged. Idempotent per tier.
+     */
+    public function createRetargetingAudience(int $tier, RetargetingService $retargeting): RetargetingAudience
+    {
+        $list = $this->syncTierList($tier);
+
+        $audience = RetargetingAudience::firstOrCreate(
+            ['name' => "ABM Tier {$tier} committee"],
+            [
+                'source' => 'list', 'marketing_list_id' => $list->id,
+                // Existing customers are excluded: ABM retargeting chases the
+                // committee that has not bought, not the one that already did.
+                'exclude_converted' => true,
+            ],
+        );
+
+        $retargeting->rebuild($audience);
+
+        $this->audit->log('sales.account.retargeting_created', context: ['tier' => $tier, 'members' => $audience->refresh()->member_count], resourceType: 'retargeting_audience', resourceId: (string) $audience->id, organizationId: $audience->organization_id);
+
+        return $audience;
     }
 
     /**

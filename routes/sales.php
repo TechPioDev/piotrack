@@ -68,6 +68,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
         Route::get('accounts/{account}/report', [AccountController::class, 'report'])->middleware('can:sales.view')->name('accounts.report');
         Route::middleware('can:sales.accounts.manage')->group(function () {
             Route::post('accounts/sync-list', [AccountController::class, 'syncList'])->name('accounts.sync-list');
+            // ABM-007/011/012/016/019.
+            Route::patch('accounts/contacts/{contact}/manager', [AccountController::class, 'setManager'])->name('accounts.manager');
+            Route::post('accounts/{account}/content', [AccountController::class, 'attachContent'])->name('accounts.content.attach');
+            Route::get('accounts/linkedin-export', [AccountController::class, 'linkedinExport'])->name('accounts.linkedin-export');
+            Route::post('accounts/{account}/play', [AccountController::class, 'runPlay'])->name('accounts.play');
             Route::post('accounts/{account}/page', [AccountController::class, 'createPage'])->name('accounts.page.create');
             Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
             Route::patch('accounts/{account}', [AccountController::class, 'update'])->name('accounts.update');

@@ -112,6 +112,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'status' => $request->session()->get('status'),
                 'ai_result' => $request->session()->get('ai_result'),
+                'play_result' => $request->session()->get('play_result'),
             ],
             // Enforcement redirects through password confirmation, which consumes
             // the flash message explaining why — so the reason is derived per

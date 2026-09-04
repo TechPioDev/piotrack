@@ -23,6 +23,7 @@ class ContentPiece extends Model
         'organization_id', 'title', 'slug', 'content_type', 'format', 'funnel_stage', 'status',
         'author_id', 'excerpt', 'body', 'target_keyword', 'url', 'cta', 'pillar_id', 'tags',
         'is_lead_magnet', 'optimization_score', 'published_at', 'seo_location_id',
+        'company_id',
     ];
 
     protected function casts(): array
