@@ -106,6 +106,27 @@ export default function ContentPieceShow({ piece, statuses }: { piece: Piece; st
                                 </Button>
                             ))}
                         </div>
+                        {['webinar', 'video', 'podcast', 'interview'].includes(piece.content_type) && (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.post(route('content.pieces.promote', piece.id), {}, { preserveScroll: true })}
+                                >
+                                    Promote across networks
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.post(route('content.pieces.clips', piece.id), { count: 3 }, { preserveScroll: true })}
+                                >
+                                    Schedule 3 clips
+                                </Button>
+                                <p className="text-muted-foreground text-xs">
+                                    Announcements per network, and clip slots to attach your cuts to — all editable under Content → Social.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 

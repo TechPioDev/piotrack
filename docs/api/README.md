@@ -115,11 +115,12 @@ All paths are relative to `https://piotrack.com/api/v1`.
 
 ### Contacts
 
-| Method | Path             | Permission           | Notes                                           |
-| ------ | ---------------- | -------------------- | ----------------------------------------------- |
-| `GET`  | `/contacts`      | `crm.contact.read`   | Query: `search`, `per_page` (1–100, default 25) |
-| `GET`  | `/contacts/{id}` | `crm.contact.read`   |                                                 |
-| `POST` | `/contacts`      | `crm.contact.create` | Body below; rejects duplicate email in the org  |
+| Method  | Path             | Permission           | Notes                                                                                                                                                          |
+| ------- | ---------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`   | `/contacts`      | `crm.contact.read`   | Query: `search`, `per_page` (1–100, default 25), filters `lifecycle_stage`, `lead_source`, `company_id`, `owner_id`, `sort` (`id`, `created_at`, `lead_score`, `last_name`, each also as `-field` for descending) |
+| `GET`   | `/contacts/{id}` | `crm.contact.read`   |                                                                                                                                                                |
+| `POST`  | `/contacts`      | `crm.contact.create` | Body below; rejects duplicate email in the org                                                                                                                 |
+| `PATCH` | `/contacts/{id}` | `crm.contact.update` | Same fields plus `lifecycle_stage`; duplicate email refused                                                                                                     |
 
 **Create body:**
 
@@ -136,17 +137,21 @@ All paths are relative to `https://piotrack.com/api/v1`.
 
 ### Companies
 
-| Method | Path              | Permission         | Notes                       |
-| ------ | ----------------- | ------------------ | --------------------------- |
-| `GET`  | `/companies`      | `crm.company.read` | Query: `search`, `per_page` |
-| `GET`  | `/companies/{id}` | `crm.company.read` |                             |
+| Method  | Path              | Permission           | Notes                                                                                                  |
+| ------- | ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GET`   | `/companies`      | `crm.company.read`   | Query: `search` (name/domain), `per_page`, filter `industry`, `sort` (`id`, `created_at`, `name`, `-…`) |
+| `GET`   | `/companies/{id}` | `crm.company.read`   |                                                                                                        |
+| `POST`  | `/companies`      | `crm.company.create` | `name` required; `domain`, `industry`, `size`, `phone`, `website` optional                              |
+| `PATCH` | `/companies/{id}` | `crm.company.update` | Same fields, all optional                                                                              |
 
 ### Deals
 
-| Method | Path          | Permission      | Notes                                             |
-| ------ | ------------- | --------------- | ------------------------------------------------- |
-| `GET`  | `/deals`      | `crm.deal.read` | Query: `status` (`open`/`won`/`lost`), `per_page` |
-| `GET`  | `/deals/{id}` | `crm.deal.read` |                                                   |
+| Method  | Path          | Permission        | Notes                                                                                                                          |
+| ------- | ------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`   | `/deals`      | `crm.deal.read`   | Query: `status` (`open`/`won`/`lost`), `per_page`, filters `pipeline_id`, `stage_id`, `company_id`, `sort` (`id`, `created_at`, `value`, `-…`) |
+| `GET`   | `/deals/{id}` | `crm.deal.read`   |                                                                                                                                |
+| `POST`  | `/deals`      | `crm.deal.create` | `name` required; defaults to the default pipeline's first open stage; `stage_id` must belong to that pipeline                    |
+| `PATCH` | `/deals/{id}` | `crm.deal.update` | Same fields; `stage_id` must belong to the deal's own pipeline                                                                  |
 
 ---
 
@@ -179,9 +184,13 @@ curl -X POST https://piotrack.com/api/v1/contacts \
 
 **Implemented and tested (this release):** authentication, organization scoping,
 plan gating, rate limiting, idempotency, request tracing, the response envelope,
-and the read/create endpoints above.
+read + create + update endpoints for contacts/companies/deals, and whitelisted
+list filtering and sorting (`?sort=field` / `?sort=-field`; unknown fields are a
+422, never leaked into ORDER BY).
 
-**Planned:** update/delete for contacts, write endpoints for companies and deals,
-activities, list filtering/sorting parity with the web app, cursor pagination,
+**Deliberately out of scope:** deletes — destructive operations stay in the web
+app where they are audited through their own flows.
+
+**Planned:** activities, cursor pagination,
 and webhooks. These are tracked in the Feature Traceability Register under the
 `API-*` and `INTG-*` identifiers.

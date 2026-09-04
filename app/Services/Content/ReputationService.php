@@ -26,6 +26,8 @@ class ReputationService
         'award', 'certification', 'logo', 'mention', 'proof',
         'video_testimonial', 'directory_profile', 'article', 'press',
         'expert_quote', 'thought_leadership', 'backlink',
+        // POD-001: a won podcast pitch is an earned-media asset like any other.
+        'podcast_appearance',
     ];
 
     public function __construct(

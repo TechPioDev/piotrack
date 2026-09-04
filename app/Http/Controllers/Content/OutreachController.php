@@ -50,7 +50,8 @@ class OutreachController extends Controller
     {
         $campaign = OutreachCampaign::create($request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'type' => ['required', Rule::in(['digital_pr', 'link_building'])],
+            // POD-001: podcast booking rides the same pitch->placement pipeline.
+            'type' => ['required', Rule::in(['digital_pr', 'link_building', 'podcast_booking'])],
             'goal' => ['nullable', 'string', 'max:1000'],
         ]));
 

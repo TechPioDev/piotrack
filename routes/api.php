@@ -33,14 +33,24 @@ Route::middleware([
         ->middleware('can:crm.contact.create')->name('contacts.store');
     Route::get('contacts/{contact}', [ContactController::class, 'show'])
         ->middleware('can:crm.contact.read')->name('contacts.show');
+    Route::patch('contacts/{contact}', [ContactController::class, 'update'])
+        ->middleware('can:crm.contact.update')->name('contacts.update');
 
     Route::get('companies', [CompanyController::class, 'index'])
         ->middleware('can:crm.company.read')->name('companies.index');
+    Route::post('companies', [CompanyController::class, 'store'])
+        ->middleware('can:crm.company.create')->name('companies.store');
     Route::get('companies/{company}', [CompanyController::class, 'show'])
         ->middleware('can:crm.company.read')->name('companies.show');
+    Route::patch('companies/{company}', [CompanyController::class, 'update'])
+        ->middleware('can:crm.company.update')->name('companies.update');
 
     Route::get('deals', [DealController::class, 'index'])
         ->middleware('can:crm.deal.read')->name('deals.index');
+    Route::post('deals', [DealController::class, 'store'])
+        ->middleware('can:crm.deal.create')->name('deals.store');
     Route::get('deals/{deal}', [DealController::class, 'show'])
         ->middleware('can:crm.deal.read')->name('deals.show');
+    Route::patch('deals/{deal}', [DealController::class, 'update'])
+        ->middleware('can:crm.deal.update')->name('deals.update');
 });

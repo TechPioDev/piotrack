@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Content;
 use App\Http\Controllers\Controller;
 use App\Models\ContentPiece;
 use App\Services\Content\ContentService;
+use App\Services\Content\MultimediaPromotion;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,6 +79,34 @@ class ContentPieceController extends Controller
         $this->content->transition($piece, $data['status']);
 
         return back()->with('status', __('Moved to :status.', ['status' => $data['status']]));
+    }
+
+    /**
+     * POD-004: schedule one announcement post per network for a multimedia piece.
+     */
+    public function promote(ContentPiece $piece, MultimediaPromotion $promotion): RedirectResponse
+    {
+        try {
+            $posts = $promotion->promote($piece);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['piece' => $e->getMessage()]);
+        }
+
+        return back()->with('status', __(':n announcement posts scheduled — edit them under Content → Social.', ['n' => count($posts)]));
+    }
+
+    /** POD-009: a staggered clip schedule from a long-form piece. */
+    public function clips(Request $request, ContentPiece $piece, MultimediaPromotion $promotion): RedirectResponse
+    {
+        $data = $request->validate(['count' => ['nullable', 'integer', 'min:1', 'max:10']]);
+
+        try {
+            $posts = $promotion->clips($piece, (int) ($data['count'] ?? 3));
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['piece' => $e->getMessage()]);
+        }
+
+        return back()->with('status', __(':n clip slots scheduled — attach each cut under Content → Social before it goes out.', ['n' => count($posts)]));
     }
 
     public function destroy(ContentPiece $piece): RedirectResponse

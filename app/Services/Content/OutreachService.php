@@ -24,7 +24,7 @@ class OutreachService
     }
 
     /** What kind of authority a won placement is (REP-012/014/015/017). */
-    public const PLACEMENT_KINDS = ['article', 'press', 'expert_quote', 'backlink'];
+    public const PLACEMENT_KINDS = ['article', 'press', 'expert_quote', 'backlink', 'podcast_appearance'];
 
     public function markPlacement(OutreachProspect $prospect, string $url, ?int $domainAuthority = null, ?string $anchorText = null, ?string $linkType = null, string $kind = 'backlink'): OutreachProspect
     {

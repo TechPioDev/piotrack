@@ -23,6 +23,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:content'])
         Route::get('pieces/{piece}', [ContentPieceController::class, 'show'])->middleware('can:content.view')->name('pieces.show');
         Route::patch('pieces/{piece}', [ContentPieceController::class, 'update'])->middleware('can:content.pieces.manage')->name('pieces.update');
         Route::post('pieces/{piece}/status', [ContentPieceController::class, 'status'])->middleware('can:content.pieces.manage')->name('pieces.status');
+        // POD-004/009: multimedia promotion + clip schedules.
+        Route::post('pieces/{piece}/promote', [ContentPieceController::class, 'promote'])->middleware('can:content.pieces.manage')->name('pieces.promote');
+        Route::post('pieces/{piece}/clips', [ContentPieceController::class, 'clips'])->middleware('can:content.pieces.manage')->name('pieces.clips');
         Route::delete('pieces/{piece}', [ContentPieceController::class, 'destroy'])->middleware('can:content.pieces.manage')->name('pieces.destroy');
 
         // Social posts.
