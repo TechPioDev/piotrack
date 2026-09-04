@@ -6,7 +6,9 @@ use App\Models\AdMetric;
 use App\Models\Booking;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\Keyword;
 use App\Support\CurrentOrganization;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Proprietary benchmark data layer (BENCH). Computes anonymized peer benchmarks
@@ -18,7 +20,7 @@ use App\Support\CurrentOrganization;
 class BenchmarkService
 {
     /** Metrics with a real cross-tenant computation today. */
-    public const METRICS = ['cpl', 'conversion_rate', 'lead_to_sql', 'sql_to_meeting', 'meeting_to_proposal', 'proposal_to_win', 'avg_mrr', 'cac', 'time_to_close'];
+    public const METRICS = ['cpl', 'conversion_rate', 'lead_to_sql', 'sql_to_meeting', 'meeting_to_proposal', 'proposal_to_win', 'avg_mrr', 'cac', 'time_to_close', 'seo_conversion_rate'];
 
     public function __construct(private CurrentOrganization $current) {}
 
@@ -94,8 +96,243 @@ class BenchmarkService
             'avg_mrr' => $this->wonMrrByOrg(),
             'cac' => $this->ratio($this->spendByOrg(), $this->wonCountByOrg()),
             'time_to_close' => $this->timeToCloseByOrg(),
+            // BENCH-005: organic-sourced contacts who became customers.
+            'seo_conversion_rate' => $this->ratio($this->organicCustomersByOrg(), $this->organicLeadsByOrg(), asPercent: true),
             default => [],
         };
+    }
+
+    /**
+     * Segmented benchmarks (BENCH-003/004/013/014/015/016): the same
+     * k-anonymity floor applied PER SEGMENT — a segment contributed to by
+     * fewer orgs than the floor is omitted entirely, never blurred into an
+     * average that could be reverse-engineered.
+     *
+     * @return array<string, array{label: string, unit: string, columns: list<string>, segments: list<array<string, mixed>>}>
+     */
+    public function segmented(): array
+    {
+        return [
+            'cpc_by_service' => [
+                'label' => 'CPC by service', 'unit' => 'cents', 'columns' => ['peer_median_cpc', 'your_cpc'],
+                'segments' => $this->cpcSegments('service_lines.key', fn ($q) => $q
+                    ->join('service_lines', 'service_lines.id', '=', 'ad_campaigns.service_line_id')),
+            ],
+            'cpc_by_region' => [
+                'label' => 'CPC by city / region', 'unit' => 'cents', 'columns' => ['peer_median_cpc', 'your_cpc'],
+                // Region when the branch has one, city otherwise.
+                'segments' => $this->cpcSegments(
+                    "COALESCE(NULLIF(seo_locations.region, ''), seo_locations.city)",
+                    fn ($q) => $q->join('seo_locations', 'seo_locations.id', '=', 'ad_campaigns.seo_location_id'),
+                ),
+            ],
+            'top_keywords' => ['label' => 'Best-performing keywords', 'unit' => 'position', 'columns' => ['page_one_share', 'median_position'], 'segments' => $this->keywordSegments()],
+            'top_offers' => ['label' => 'Best-performing offers', 'unit' => 'percent', 'columns' => ['peer_median_completion', 'your_completion'], 'segments' => $this->offerSegments()],
+            'top_verticals' => ['label' => 'Best-performing verticals', 'unit' => 'cents', 'columns' => ['peer_median_deal_value', 'your_deal_value'], 'segments' => $this->verticalSegments()],
+            'top_ads' => ['label' => 'Best-performing ads', 'unit' => 'percent', 'columns' => ['peer_median_ctr', 'peer_median_cpc', 'your_ctr'], 'segments' => $this->adSegments()],
+        ];
+    }
+
+    /**
+     * CPC per segment: spend/clicks per (segment, org) from the metrics of the
+     * campaigns bound to that dimension; only orgs with clicks contribute.
+     *
+     * @param  string  $segmentSql  raw SQL for the segment key (trusted, in-code)
+     * @param  callable(Builder<AdMetric>): mixed  $joinDimension
+     * @return list<array<string, mixed>>
+     */
+    private function cpcSegments(string $segmentSql, callable $joinDimension): array
+    {
+        $query = AdMetric::withoutGlobalScope('tenant')
+            ->join('ad_campaigns', 'ad_campaigns.id', '=', 'ad_metrics.ad_campaign_id');
+        $joinDimension($query);
+
+        $rows = $query
+            ->toBase()
+            ->selectRaw($segmentSql.' AS segment, ad_metrics.organization_id')
+            ->selectRaw('SUM(ad_metrics.spend) AS spend, SUM(ad_metrics.clicks) AS clicks')
+            ->groupBy('segment', 'ad_metrics.organization_id')
+            ->get();
+
+        $bySegment = [];
+        foreach ($rows as $row) {
+            if ((int) $row->clicks > 0 && (string) $row->segment !== '') {
+                $bySegment[(string) $row->segment][(int) $row->organization_id] = round((int) $row->spend / (int) $row->clicks, 2);
+            }
+        }
+
+        return $this->emit($bySegment, 'peer_median_cpc', 'your_cpc');
+    }
+
+    /**
+     * BENCH-013: keyword phrases tracked by enough orgs — page-one share and
+     * the cohort's median best position, best first.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function keywordSegments(): array
+    {
+        $rows = Keyword::withoutGlobalScope('tenant')
+            ->where('is_tracked', true)->whereNotNull('current_position')
+            ->toBase()
+            ->selectRaw('LOWER(TRIM(phrase)) AS segment, organization_id, MIN(current_position) AS best')
+            ->groupBy('segment', 'organization_id')
+            ->get();
+
+        $bySegment = [];
+        foreach ($rows as $row) {
+            $bySegment[(string) $row->segment][(int) $row->organization_id] = (float) $row->best;
+        }
+
+        $out = [];
+        foreach ($bySegment as $segment => $byOrg) {
+            if (count($byOrg) < $this->minCohort()) {
+                continue;
+            }
+            $positions = array_values($byOrg);
+            sort($positions);
+            $out[] = [
+                'segment' => $segment,
+                'cohort' => count($byOrg),
+                'page_one_share' => (int) round(count(array_filter($positions, fn ($p) => $p <= 10)) / count($positions) * 100),
+                'median_position' => $this->percentile($positions, 50),
+                'your_best' => isset($byOrg[$this->current->id()]) ? (int) $byOrg[$this->current->id()] : null,
+            ];
+        }
+        usort($out, fn ($a, $b) => [$b['page_one_share'], $a['median_position']] <=> [$a['page_one_share'], $b['median_position']]);
+
+        return $out;
+    }
+
+    /**
+     * BENCH-014: booking-page meeting types (the canonical bottom-of-funnel
+     * offers) by completion rate.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function offerSegments(): array
+    {
+        $rows = Booking::withoutGlobalScope('tenant')
+            ->join('booking_pages', 'booking_pages.id', '=', 'bookings.booking_page_id')
+            ->toBase()
+            ->selectRaw('booking_pages.meeting_type AS segment, bookings.organization_id')
+            ->selectRaw("COUNT(*) AS total, SUM(CASE WHEN bookings.status = 'completed' THEN 1 ELSE 0 END) AS done")
+            ->groupBy('segment', 'bookings.organization_id')
+            ->get();
+
+        $bySegment = [];
+        foreach ($rows as $row) {
+            if ((int) $row->total > 0) {
+                $bySegment[(string) $row->segment][(int) $row->organization_id] = round((int) $row->done / (int) $row->total * 100, 2);
+            }
+        }
+
+        return $this->emit($bySegment, 'peer_median_completion', 'your_completion');
+    }
+
+    /**
+     * BENCH-015: industries (normalized) by average won-deal value.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function verticalSegments(): array
+    {
+        $rows = Deal::withoutGlobalScope('tenant')
+            ->join('companies', 'companies.id', '=', 'deals.company_id')
+            ->where('deals.status', 'won')
+            ->whereNotNull('companies.industry')->where('companies.industry', '!=', '')
+            ->toBase()
+            ->selectRaw('LOWER(TRIM(companies.industry)) AS segment, deals.organization_id, AVG(deals.value) AS avg_value')
+            ->groupBy('segment', 'deals.organization_id')
+            ->get();
+
+        $bySegment = [];
+        foreach ($rows as $row) {
+            $bySegment[(string) $row->segment][(int) $row->organization_id] = round((float) $row->avg_value, 2);
+        }
+
+        return $this->emit($bySegment, 'peer_median_deal_value', 'your_deal_value');
+    }
+
+    /**
+     * BENCH-016: ad platforms by click-through rate, with median CPC alongside.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function adSegments(): array
+    {
+        $rows = AdMetric::withoutGlobalScope('tenant')
+            ->join('ad_campaigns', 'ad_campaigns.id', '=', 'ad_metrics.ad_campaign_id')
+            ->toBase()
+            ->selectRaw('ad_campaigns.platform AS segment, ad_metrics.organization_id')
+            ->selectRaw('SUM(ad_metrics.impressions) AS impressions, SUM(ad_metrics.clicks) AS clicks, SUM(ad_metrics.spend) AS spend')
+            ->groupBy('segment', 'ad_metrics.organization_id')
+            ->get();
+
+        $ctr = [];
+        $cpc = [];
+        foreach ($rows as $row) {
+            if ((int) $row->impressions > 0) {
+                $ctr[(string) $row->segment][(int) $row->organization_id] = round((int) $row->clicks / (int) $row->impressions * 100, 2);
+            }
+            if ((int) $row->clicks > 0) {
+                $cpc[(string) $row->segment][(int) $row->organization_id] = round((int) $row->spend / (int) $row->clicks, 2);
+            }
+        }
+
+        $out = $this->emit($ctr, 'peer_median_ctr', 'your_ctr');
+        foreach ($out as &$segment) {
+            $values = array_values($cpc[$segment['segment']] ?? []);
+            sort($values);
+            $segment['peer_median_cpc'] = $values === [] ? null : $this->percentile($values, 50);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Emit segments above the k-floor: cohort, peer median, the current
+     * tenant's own value — never any single peer's raw number.
+     *
+     * @param  array<string, array<int, float>>  $bySegment
+     * @return list<array<string, mixed>>
+     */
+    private function emit(array $bySegment, string $medianKey, string $yourKey): array
+    {
+        $out = [];
+        foreach ($bySegment as $segment => $byOrg) {
+            if (count($byOrg) < $this->minCohort()) {
+                continue; // suppressed: too few contributors to anonymize
+            }
+            $values = array_values($byOrg);
+            sort($values);
+            $out[] = [
+                'segment' => $segment,
+                'cohort' => count($byOrg),
+                $medianKey => $this->percentile($values, 50),
+                $yourKey => $byOrg[$this->current->id()] ?? null,
+            ];
+        }
+        usort($out, fn ($a, $b) => [$b['cohort'], $a['segment']] <=> [$a['cohort'], $b['segment']]);
+
+        return $out;
+    }
+
+    /** @return array<int, int> */
+    private function organicLeadsByOrg(): array
+    {
+        return Contact::withoutGlobalScope('tenant')->where('lead_source', 'organic')
+            ->selectRaw('organization_id, COUNT(*) AS v')->groupBy('organization_id')
+            ->pluck('v', 'organization_id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    /** @return array<int, int> */
+    private function organicCustomersByOrg(): array
+    {
+        return Contact::withoutGlobalScope('tenant')->where('lead_source', 'organic')
+            ->where('lifecycle_stage', 'customer')
+            ->selectRaw('organization_id, COUNT(*) AS v')->groupBy('organization_id')
+            ->pluck('v', 'organization_id')->map(fn ($v) => (int) $v)->all();
     }
 
     /**

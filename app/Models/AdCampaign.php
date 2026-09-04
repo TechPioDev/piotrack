@@ -22,7 +22,7 @@ class AdCampaign extends Model
     protected $fillable = [
         'organization_id', 'platform', 'name', 'type', 'objective', 'status',
         'daily_budget', 'total_budget', 'start_date', 'end_date', 'targeting', 'external_id',
-        'seo_location_id',
+        'seo_location_id', 'service_line_id',
     ];
 
     protected function casts(): array

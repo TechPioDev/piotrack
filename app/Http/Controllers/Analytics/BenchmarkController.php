@@ -15,6 +15,9 @@ class BenchmarkController extends Controller
             'benchmarks' => $benchmarks->all(),
             'metrics' => BenchmarkService::METRICS,
             'min_cohort' => $benchmarks->minCohort(),
+            // BENCH-003/004/013/014/015/016: per-segment peer benchmarks,
+            // each segment k-floored independently.
+            'segmented' => $benchmarks->segmented(),
         ]);
     }
 }

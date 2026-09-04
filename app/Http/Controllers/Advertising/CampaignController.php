@@ -8,6 +8,7 @@ use App\Models\AdCampaign;
 use App\Models\AdGroup;
 use App\Models\AdKeyword;
 use App\Models\AdMetric;
+use App\Models\ServiceLine;
 use App\Services\Advertising\AdCampaignService;
 use App\Services\Advertising\AdMetricsService;
 use App\Validation\TenantExists;
@@ -39,6 +40,8 @@ class CampaignController extends Controller
                 'daily_budget' => $c->daily_budget,
             ]),
             'platforms' => self::PLATFORMS,
+            // BENCH-003: bindable service lines for segmented CPC benchmarks.
+            'service_lines' => ServiceLine::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -131,6 +134,9 @@ class CampaignController extends Controller
             'targeting' => ['nullable', 'array'],
             // MLOC-006: a local campaign is bound to its branch; null = central.
             'seo_location_id' => ['nullable', 'integer', TenantExists::in('seo_locations')],
+            // BENCH-003: a campaign can target one service line; the canonical
+            // service key is what segmented CPC benchmarks aggregate on.
+            'service_line_id' => ['nullable', 'integer', TenantExists::in('service_lines')],
         ]);
     }
 }

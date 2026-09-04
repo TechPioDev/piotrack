@@ -36,16 +36,25 @@ function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'active' ? 'default' : 'secondary';
 }
 
-export default function Campaigns({ campaigns, platforms }: { campaigns: Campaign[]; platforms: string[] }) {
+export default function Campaigns({
+    campaigns,
+    platforms,
+    service_lines,
+}: {
+    campaigns: Campaign[];
+    platforms: string[];
+    service_lines: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('ads.campaigns.manage');
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; platform: string; type: string; objective: Objective; daily_budget: string }>({
+    const form = useForm<{ name: string; platform: string; type: string; objective: Objective; daily_budget: string; service_line_id: string }>({
         name: '',
         platform: '',
         type: '',
         objective: 'leads',
         daily_budget: '',
+        service_line_id: '',
     });
 
     const create: FormEventHandler = (e) => {
@@ -53,6 +62,7 @@ export default function Campaigns({ campaigns, platforms }: { campaigns: Campaig
         form.transform((data) => ({
             ...data,
             daily_budget: data.daily_budget ? Math.round(Number(data.daily_budget) * 100) : null,
+            service_line_id: data.service_line_id === '' ? null : Number(data.service_line_id),
         }));
         form.post(route('ads.campaigns.store'), {
             preserveScroll: true,
@@ -104,6 +114,24 @@ export default function Campaigns({ campaigns, platforms }: { campaigns: Campaig
                                             <Input id="type" value={form.data.type} onChange={(e) => form.setData('type', e.target.value)} />
                                         </div>
                                     </div>
+                                    {service_lines.length > 0 && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="campaign_service">Service line (optional)</Label>
+                                            <Select value={form.data.service_line_id} onValueChange={(v) => form.setData('service_line_id', v)}>
+                                                <SelectTrigger id="campaign_service">
+                                                    <SelectValue placeholder="Not bound to one service" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {service_lines.map((service) => (
+                                                        <SelectItem key={service.id} value={String(service.id)}>
+                                                            {service.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={form.errors.service_line_id} />
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="grid gap-1">
                                             <Label htmlFor="objective">Objective</Label>
