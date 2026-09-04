@@ -26,13 +26,16 @@ class PlanSeeder extends Seeder
                     'sort_order' => $definition['sort_order'] ?? 0,
                     'is_public' => true,
                     'is_active' => true,
+                    // BILL-004: cents per unit past each metered limit.
+                    'overage_prices' => $definition['overages'] ?? null,
                 ],
             );
 
             foreach ($definition['prices'] as $interval => $amount) {
                 $plan->prices()->updateOrCreate(
                     ['interval' => $interval, 'currency' => 'USD'],
-                    ['amount' => $amount, 'per_seat' => false],
+                    // BILL-003: a per-seat plan's amount is per user per period.
+                    ['amount' => $amount, 'per_seat' => $definition['per_seat'] ?? false],
                 );
             }
 

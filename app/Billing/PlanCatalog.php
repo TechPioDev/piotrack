@@ -55,6 +55,8 @@ class PlanCatalog
                     Limit::Members->value => 25, Limit::Contacts->value => 50000,
                     Limit::Emails->value => 100000, Limit::AiCredits->value => 5000,
                 ],
+                // BILL-004: metered overage, cents per unit past the limit.
+                'overages' => [Limit::AiCredits->value => 2],
             ],
             [
                 'code' => 'agency',
@@ -71,12 +73,24 @@ class PlanCatalog
                     Limit::Members->value => 100, Limit::Emails->value => 500000,
                     Limit::AiCredits->value => 20000,
                 ],
+                'overages' => [Limit::AiCredits->value => 1],
+            ],
+            [
+                // BILL-003: per-seat pricing — the amount is per user per period.
+                'code' => 'team',
+                'name' => 'Team',
+                'description' => 'Per-seat pricing for teams that scale headcount before scope.',
+                'sort_order' => 5,
+                'per_seat' => true,
+                'prices' => ['monthly' => 4900, 'annual' => 47000],
+                'features' => [Feature::Crm, Feature::Marketing, Feature::Content, Feature::Seo, Feature::Automation, Feature::Teams, Feature::AuditLog, Feature::Chat],
+                'limits' => [Limit::Contacts->value => 25000, Limit::Emails->value => 50000],
             ],
             [
                 'code' => 'enterprise',
                 'name' => 'Enterprise',
                 'description' => 'Custom scale, security and support.',
-                'sort_order' => 5,
+                'sort_order' => 6,
                 'is_custom_priced' => true,
                 'prices' => [],
                 'features' => Feature::cases(),
@@ -96,6 +110,22 @@ class PlanCatalog
         return [
             'features' => [Feature::Crm->value],
             'limits' => [Limit::Members->value => 1],
+        ];
+    }
+
+    /**
+     * Purchasable add-ons (BILL-005): a monthly price plus entitlement grants.
+     * Attached per subscription; the central Entitlements resolver applies the
+     * limit boosts, and renewals bill one line per add-on.
+     *
+     * @return array<string, array{name: string, price: int, grants: array<string, int>}>
+     */
+    public static function addons(): array
+    {
+        return [
+            'ai_credit_pack' => ['name' => 'AI credit pack (+500/mo)', 'price' => 2000, 'grants' => [Limit::AiCredits->value => 500]],
+            'extra_locations' => ['name' => 'Extra locations (+5)', 'price' => 1500, 'grants' => [Limit::Locations->value => 5]],
+            'extra_keywords' => ['name' => 'Extra tracked keywords (+100)', 'price' => 1000, 'grants' => [Limit::Keywords->value => 100]],
         ];
     }
 }

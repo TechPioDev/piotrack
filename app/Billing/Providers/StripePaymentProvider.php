@@ -99,6 +99,17 @@ class StripePaymentProvider implements PaymentProvider
         return $invoice->provider_id !== null;
     }
 
+    public function paymentMethodPortalUrl(Subscription $subscription): ?string
+    {
+        // The hosted billing portal exists once a Stripe customer does — the
+        // same credential gate as the rest of this driver.
+        if ($subscription->provider_id === null || (string) config('billing.stripe.portal_url', '') === '') {
+            return null;
+        }
+
+        return (string) config('billing.stripe.portal_url');
+    }
+
     public function verifyWebhook(Request $request): ?WebhookEvent
     {
         try {

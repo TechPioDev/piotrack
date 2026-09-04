@@ -25,5 +25,8 @@ return [
         'key' => env('STRIPE_KEY'),
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // BILL-018: the hosted customer-portal link (no-code portal URL from
+        // the Stripe dashboard) where customers manage their payment method.
+        'portal_url' => env('STRIPE_PORTAL_URL'),
     ],
 ];

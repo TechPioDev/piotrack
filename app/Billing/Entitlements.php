@@ -96,6 +96,21 @@ class Entitlements
             }
         }
 
+        // BILL-005: add-on grants boost the plan's limits — resolved HERE and
+        // only here (the no-scattered-plan-checks rule). A limit the plan
+        // leaves unlimited (null) stays unlimited; a limit the plan does not
+        // list at all is granted at the boost value.
+        foreach ($subscription->addons as $addon) {
+            foreach ($addon->grants as $key => $boost) {
+                // array_key_exists, not ??: a listed-null limit is explicitly
+                // unlimited and a boost must never cap it back down.
+                $current = array_key_exists($key, $limits) ? $limits[$key] : 0;
+                if ($current !== null) {
+                    $limits[$key] = $current + ((int) $boost * $addon->quantity);
+                }
+            }
+        }
+
         return ['features' => $features, 'limits' => $limits];
     }
 }

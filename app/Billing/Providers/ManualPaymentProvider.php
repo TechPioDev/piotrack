@@ -48,6 +48,12 @@ class ManualPaymentProvider implements PaymentProvider
         return true;
     }
 
+    public function paymentMethodPortalUrl(Subscription $subscription): ?string
+    {
+        // Offline billing has no card on file to manage.
+        return null;
+    }
+
     public function verifyWebhook(Request $request): ?WebhookEvent
     {
         $secret = (string) config('billing.manual.webhook_secret');

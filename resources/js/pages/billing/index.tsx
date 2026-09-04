@@ -37,11 +37,15 @@ type BillingProfile = {
     tax_id: string | null;
 } | null;
 
+type AddonOption = { code: string; name: string; price: number };
+
 type BillingProps = {
     subscription: Subscription | null;
     usage: UsageRow[];
     invoices: InvoiceRow[];
     billingProfile: BillingProfile;
+    addonCatalog: AddonOption[];
+    attachedAddons: AddonOption[];
 };
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -57,8 +61,9 @@ function formatDate(value: string | null): string {
     return value ? new Date(value).toLocaleDateString() : '—';
 }
 
-export default function Billing({ subscription, usage, invoices, billingProfile }: BillingProps) {
+export default function Billing({ subscription, usage, invoices, billingProfile, addonCatalog, attachedAddons }: BillingProps) {
     const { can } = usePermissions();
+    const attachedCodes = new Set(attachedAddons.map((addon) => addon.code));
     const profile = useForm({
         billing_email: billingProfile?.billing_email ?? '',
         company_name: billingProfile?.company_name ?? '',
@@ -136,6 +141,53 @@ export default function Billing({ subscription, usage, invoices, billingProfile 
                                 </Link>
                                 .
                             </p>
+                        )}
+
+                        {subscription && can('billing.manage') && (
+                            <div className="space-y-3">
+                                <HeadingSmall title="Add-ons" description="Entitlements apply immediately; billing starts with the next renewal" />
+                                <div className="space-y-2">
+                                    {addonCatalog.map((addon) => (
+                                        <div key={addon.code} className="flex items-center justify-between rounded-md border p-3 text-sm">
+                                            <div>
+                                                <p className="font-medium">{addon.name}</p>
+                                                <p className="text-muted-foreground text-xs">${(addon.price / 100).toFixed(2)}/mo</p>
+                                            </div>
+                                            {attachedCodes.has(addon.code) ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-red-600"
+                                                    onClick={() =>
+                                                        router.delete(route('billing.addons.destroy'), {
+                                                            data: { code: addon.code },
+                                                            preserveScroll: true,
+                                                        })
+                                                    }
+                                                >
+                                                    Remove
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        router.post(route('billing.addons.store'), { code: addon.code }, { preserveScroll: true })
+                                                    }
+                                                >
+                                                    Add
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button asChild variant="outline" size="sm">
+                                    <a href={route('billing.payment-method')}>Manage payment method</a>
+                                </Button>
+                                <p className="text-muted-foreground text-xs">
+                                    Card details are managed by the payment provider and never touch this application.
+                                </p>
+                            </div>
                         )}
                     </div>
 

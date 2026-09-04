@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Billing;
 
+use App\Billing\Contracts\PaymentProvider;
+use App\Billing\PlanCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -17,6 +19,56 @@ class SubscriptionController extends Controller
         private CurrentOrganization $currentOrganization,
         private SubscriptionService $subscriptions,
     ) {}
+
+    /**
+     * BILL-005: attach a catalog add-on. Entitlement boosts apply now;
+     * billing starts with the next renewal (stated in the UI).
+     */
+    public function addAddon(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', Rule::in(array_keys(PlanCatalog::addons()))],
+        ]);
+
+        $subscription = $this->activeSubscriptionOrAbort();
+        $addon = $this->subscriptions->addAddon($subscription, $data['code']);
+
+        return back()->with('status', __('":name" added — entitlements apply now, billing starts with the next renewal.', ['name' => $addon->name]));
+    }
+
+    /** BILL-005: detach an add-on (its boost leaves the entitlements at once). */
+    public function removeAddon(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:60']]);
+
+        $this->subscriptions->removeAddon($this->activeSubscriptionOrAbort(), $data['code']);
+
+        return back()->with('status', __('Add-on removed.'));
+    }
+
+    /**
+     * BILL-018: payment-method management is provider-hosted by design — card
+     * data never touches this application. Redirects when the provider offers
+     * a portal; says so plainly when it does not (manual/offline billing).
+     */
+    public function paymentMethod(PaymentProvider $provider): RedirectResponse
+    {
+        $url = $provider->paymentMethodPortalUrl($this->activeSubscriptionOrAbort());
+
+        if ($url !== null) {
+            return redirect()->away($url);
+        }
+
+        return back()->with('status', __('Payment methods are managed by your payment provider. Card management activates once live Stripe billing is connected; until then invoices are settled offline.'));
+    }
+
+    private function activeSubscriptionOrAbort(): Subscription
+    {
+        $subscription = $this->currentOrganization->get()?->activeSubscription();
+        abort_if($subscription === null, 404, __('No active subscription.'));
+
+        return $subscription;
+    }
 
     /**
      * Change plan / interval (BILL-013) and/or quantity (BILL-014).

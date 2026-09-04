@@ -13,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Notifications\PaymentFailedNotification;
 use App\Notifications\SubscriptionSuspendedNotification;
 use App\Support\AuditLogger;
@@ -20,6 +21,7 @@ use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 /**
  * Orchestrates the subscription lifecycle (BILL-011…017) over our own tables,
@@ -138,6 +140,10 @@ class SubscriptionService
      */
     public function renew(Subscription $subscription): void
     {
+        // Metered overage is settled for the period just ENDING, so it is
+        // computed before the period advances (BILL-004).
+        $extraLines = array_merge($this->overageLines($subscription), $this->addonLines($subscription));
+
         $start = $subscription->current_period_end ?? now();
         $end = $this->periodEnd($start, $subscription->interval);
 
@@ -150,7 +156,95 @@ class SubscriptionService
         $this->audit->log('subscription.renewed', context: ['plan' => $subscription->plan->code], resourceType: 'subscription', resourceId: (string) $subscription->id, organizationId: $subscription->organization_id);
 
         $amount = $this->periodAmount($subscription);
-        $this->generatePaidInvoice($subscription, $amount, "{$subscription->plan->name} renewal ({$subscription->interval})", null);
+        $this->generatePaidInvoice($subscription, $amount, "{$subscription->plan->name} renewal ({$subscription->interval})", null, $extraLines);
+    }
+
+    /**
+     * Attach a catalog add-on to the subscription (BILL-005). Entitlement
+     * boosts apply immediately; billing starts with the next renewal, which is
+     * stated in the UI rather than silently prorated. Idempotent per code.
+     */
+    public function addAddon(Subscription $subscription, string $code, int $quantity = 1): SubscriptionAddon
+    {
+        $definition = PlanCatalog::addons()[$code] ?? null;
+        if ($definition === null) {
+            throw new RuntimeException('Unknown add-on.');
+        }
+
+        $addon = SubscriptionAddon::firstOrCreate(
+            ['subscription_id' => $subscription->id, 'code' => $code],
+            [
+                'organization_id' => $subscription->organization_id,
+                'name' => $definition['name'],
+                'price' => $definition['price'],
+                'grants' => $definition['grants'],
+                'quantity' => max(1, min(10, $quantity)),
+            ],
+        );
+
+        $this->entitlements->forget($subscription->organization);
+        $this->audit->log('subscription.addon_added', context: ['code' => $code], resourceType: 'subscription', resourceId: (string) $subscription->id, organizationId: $subscription->organization_id);
+
+        return $addon;
+    }
+
+    public function removeAddon(Subscription $subscription, string $code): void
+    {
+        SubscriptionAddon::where('subscription_id', $subscription->id)->where('code', $code)->delete();
+
+        $this->entitlements->forget($subscription->organization);
+        $this->audit->log('subscription.addon_removed', context: ['code' => $code], resourceType: 'subscription', resourceId: (string) $subscription->id, organizationId: $subscription->organization_id);
+    }
+
+    /**
+     * Overage lines for the period being settled (BILL-004): usage past a
+     * metered plan limit at the plan's per-unit price. Unlimited limits never
+     * bill overage; no overage, no line.
+     *
+     * @return list<array{description: string, quantity: int, unit_amount: int, amount: int}>
+     */
+    private function overageLines(Subscription $subscription): array
+    {
+        $prices = $subscription->plan->overage_prices ?? [];
+        if ($prices === []) {
+            return [];
+        }
+
+        $lines = [];
+        foreach ($prices as $limitKey => $unitPrice) {
+            $limit = $this->entitlements->limit($subscription->organization, $limitKey);
+            if ($limit === null) {
+                continue; // unlimited: nothing to exceed
+            }
+
+            $used = $this->usage->usage($subscription->organization, $limitKey);
+            if ($used > $limit) {
+                $over = $used - $limit;
+                $lines[] = [
+                    'description' => 'Overage: '.str_replace('_', ' ', $limitKey)." ({$over} over {$limit})",
+                    'quantity' => $over,
+                    'unit_amount' => (int) $unitPrice,
+                    'amount' => $over * (int) $unitPrice,
+                ];
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * One line per attached add-on, each renewal (BILL-005).
+     *
+     * @return list<array{description: string, quantity: int, unit_amount: int, amount: int}>
+     */
+    private function addonLines(Subscription $subscription): array
+    {
+        return $subscription->addons()->get()->map(fn (SubscriptionAddon $addon) => [
+            'description' => 'Add-on: '.$addon->name,
+            'quantity' => $addon->quantity,
+            'unit_amount' => $addon->price,
+            'amount' => $addon->price * $addon->quantity,
+        ])->values()->all();
     }
 
     /**
@@ -279,10 +373,15 @@ class SubscriptionService
     // Invoicing
     // ---------------------------------------------------------------------
 
-    private function generatePaidInvoice(Subscription $subscription, int $amount, string $description, ?Coupon $coupon): Invoice
+    /**
+     * @param  list<array{description: string, quantity: int, unit_amount: int, amount: int}>  $extraLines
+     */
+    private function generatePaidInvoice(Subscription $subscription, int $amount, string $description, ?Coupon $coupon, array $extraLines = []): Invoice
     {
+        $extraTotal = (int) array_sum(array_column($extraLines, 'amount'));
+        $subtotal = $amount + $extraTotal;
         $discount = $coupon !== null ? $coupon->discountFor($amount) : 0;
-        $total = max(0, $amount - $discount);
+        $total = max(0, $subtotal - $discount);
 
         $invoice = Invoice::create([
             'organization_id' => $subscription->organization_id,
@@ -291,7 +390,7 @@ class SubscriptionService
             'number' => $this->nextInvoiceNumber(),
             'status' => 'open',
             'currency' => config('billing.currency', 'USD'),
-            'subtotal' => $amount,
+            'subtotal' => $subtotal,
             'discount' => $discount,
             'tax' => 0,
             'total' => $total,
@@ -306,6 +405,11 @@ class SubscriptionService
             'unit_amount' => $subscription->quantity > 0 ? intdiv($amount, $subscription->quantity) : $amount,
             'amount' => $amount,
         ]);
+
+        // BILL-004/005: overage and add-on lines ride the same invoice.
+        foreach ($extraLines as $line) {
+            $invoice->lineItems()->create($line);
+        }
 
         if ($discount > 0) {
             // A positive discount implies a coupon was applied (see above).

@@ -38,6 +38,13 @@ interface PaymentProvider
     public function payInvoice(Invoice $invoice): bool;
 
     /**
+     * BILL-018: where the customer manages their payment method. Card data
+     * never touches this application — providers host that surface; null when
+     * the provider has none (manual/offline billing).
+     */
+    public function paymentMethodPortalUrl(Subscription $subscription): ?string;
+
+    /**
      * Verify the request's authenticity and normalize it into an event, or
      * null if verification fails.
      */

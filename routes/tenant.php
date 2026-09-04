@@ -149,5 +149,9 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
         Route::post('billing/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('billing.subscription.cancel');
         Route::post('billing/subscription/resume', [SubscriptionController::class, 'resume'])->name('billing.subscription.resume');
         Route::patch('billing/profile', [BillingProfileController::class, 'update'])->name('billing.profile.update');
+        // BILL-005/018: add-ons and provider-hosted payment-method management.
+        Route::post('billing/addons', [SubscriptionController::class, 'addAddon'])->name('billing.addons.store');
+        Route::delete('billing/addons', [SubscriptionController::class, 'removeAddon'])->name('billing.addons.destroy');
+        Route::get('billing/payment-method', [SubscriptionController::class, 'paymentMethod'])->name('billing.payment-method');
     });
 });

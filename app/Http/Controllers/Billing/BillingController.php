@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Billing;
 
+use App\Billing\PlanCatalog;
 use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Support\CurrentOrganization;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,6 +64,13 @@ class BillingController extends Controller
                     'created_at' => $i->created_at,
                 ]),
             'billingProfile' => $organization->billingProfile,
+            // BILL-005: the add-on catalog plus what this subscription carries.
+            'addonCatalog' => collect(PlanCatalog::addons())->map(fn (array $a, string $code) => [
+                'code' => $code, 'name' => $a['name'], 'price' => $a['price'],
+            ])->values(),
+            'attachedAddons' => $subscription?->addons()->get()
+                ->map(fn (SubscriptionAddon $a) => ['code' => $a->code, 'name' => $a->name, 'price' => $a->price])
+                ->values() ?? [],
         ]);
     }
 
