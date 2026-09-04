@@ -54,6 +54,16 @@ type Metrics = {
     sources: Record<string, number>;
 };
 
+type DropOffStep = { step: string; count: number; conversion_from_previous: number | null };
+
+type FunnelInsights = {
+    drop_off: { insufficient_data: boolean; required_leads: number; steps: DropOffStep[]; weakest_step: string | null };
+    paths: { path: string; wins: number }[];
+    recommendations: { area: string; evidence: string; action: string }[];
+};
+
+const STEP_LABELS: Record<string, string> = { leads: 'Leads', mql: 'Reached MQL', sql: 'Reached SQL', meetings: 'Meetings', won: 'Closed won' };
+
 const FUNNEL_STEPS: { key: keyof Funnel; label: string }[] = [
     { key: 'leads', label: 'Leads' },
     { key: 'mqls', label: 'MQLs' },
@@ -98,7 +108,7 @@ function adCards(ads: Advertising): { label: string; value: string | number }[] 
     ];
 }
 
-export default function AnalyticsDashboard({ metrics }: { metrics: Metrics }) {
+export default function AnalyticsDashboard({ metrics, funnel_insights }: { metrics: Metrics; funnel_insights: FunnelInsights }) {
     const sources = Object.entries(metrics.sources);
     const sourceTotal = sources.reduce((total, [, count]) => total + count, 0);
 
@@ -128,6 +138,67 @@ export default function AnalyticsDashboard({ metrics }: { metrics: Metrics }) {
                                 </CardContent>
                             </Card>
                         ))}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Step drop-off</h3>
+                        {funnel_insights.drop_off.weakest_step !== null && (
+                            <p className="text-muted-foreground text-sm">
+                                Weakest step: <span className="font-medium">{funnel_insights.drop_off.weakest_step}</span>
+                            </p>
+                        )}
+                    </div>
+                    {funnel_insights.drop_off.insufficient_data ? (
+                        <p className="text-muted-foreground text-sm">
+                            Step conversions appear once at least {funnel_insights.drop_off.required_leads} leads are captured — rates on fewer would
+                            be noise.
+                        </p>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                            {funnel_insights.drop_off.steps.map((step) => (
+                                <Card key={step.step}>
+                                    <CardContent className="p-4">
+                                        <p className="text-muted-foreground text-sm">{STEP_LABELS[step.step] ?? step.step}</p>
+                                        <p className="text-2xl font-semibold">{step.count}</p>
+                                        {step.conversion_from_previous !== null && (
+                                            <p className="text-muted-foreground text-xs">{step.conversion_from_previous}% of previous step</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                    <div className="mt-3 grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <h4 className="mb-1 text-sm font-medium">Winning paths</h4>
+                            {funnel_insights.paths.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">First-touch → last-touch paths appear once deals are won.</p>
+                            ) : (
+                                <ul className="space-y-1 rounded-lg border p-3 text-sm">
+                                    {funnel_insights.paths.map((row) => (
+                                        <li key={row.path} className="flex items-center justify-between gap-2">
+                                            <span>{row.path}</span>
+                                            <span className="text-muted-foreground">
+                                                {row.wins} {row.wins === 1 ? 'win' : 'wins'}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="mb-1 text-sm font-medium">Recommendations</h4>
+                            <ul className="space-y-2 rounded-lg border p-3 text-sm">
+                                {funnel_insights.recommendations.map((rec, index) => (
+                                    <li key={index}>
+                                        <p className="font-medium">{rec.action}</p>
+                                        <p className="text-muted-foreground text-xs">{rec.evidence}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
                 </div>
 

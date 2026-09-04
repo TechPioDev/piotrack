@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Analytics\AnalyticsDashboardController;
 use App\Http\Controllers\Analytics\AttributionController;
+use App\Http\Controllers\Analytics\BehaviorController;
 use App\Http\Controllers\Analytics\BenchmarkController;
 use App\Http\Controllers\Analytics\CallController;
 use App\Http\Controllers\Analytics\CompetitorController;
@@ -28,6 +29,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
             Route::get('attribution', [AttributionController::class, 'index'])->name('attribution.index');
             Route::get('benchmarks', [BenchmarkController::class, 'index'])->name('benchmarks.index');
             Route::get('omnichannel', [OmnichannelController::class, 'index'])->name('omnichannel.index');
+            // CRO-010/011/014: first-party heatmaps, behavior and bounce rates.
+            Route::get('behavior', [BehaviorController::class, 'index'])->name('behavior.index');
             Route::get('growth-score', [GrowthScoreController::class, 'index'])->name('growth-score.index');
         });
 

@@ -37,6 +37,7 @@ import {
     MapPin,
     Megaphone,
     MessagesSquare,
+    MousePointerClick,
     Network,
     Palette,
     PenLine,
@@ -140,6 +141,7 @@ export function AppSidebar() {
         can('analytics.view') && { title: 'Omnichannel', url: '/analytics/omnichannel', icon: Layers },
         can('analytics.view') && { title: 'Calls', url: '/analytics/calls', icon: Phone },
         can('analytics.view') && { title: 'Experiments', url: '/analytics/experiments', icon: FlaskConical },
+        can('analytics.view') && { title: 'Behavior', url: '/analytics/behavior', icon: MousePointerClick },
         can('analytics.view') && { title: 'Competitors', url: '/analytics/competitors', icon: Swords },
     ].filter(Boolean) as NavItem[];
 

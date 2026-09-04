@@ -64,6 +64,28 @@ class TrackingController extends Controller
     });
     w.piotrack = w.piotrack || {};
     w.piotrack.identify = function (email) { if (email) { send({ type: 'identify', email: String(email).slice(0, 255) }); } };
+    // CRO-010/011: click positions (viewport-x% x document-y%) + element label.
+    function docH() { var b = d.body, e = d.documentElement; return Math.max(b.scrollHeight, e.scrollHeight, e.clientHeight, 1); }
+    d.addEventListener('click', function (ev) {
+        var t = ev.target && ev.target.closest ? (ev.target.closest('a,button,input,select,textarea,label') || ev.target) : ev.target;
+        var label = t && t.tagName ? (t.tagName.toLowerCase() + ' ' + (t.innerText || t.value || '').trim().slice(0, 60)).trim() : '';
+        send({
+            type: 'click',
+            path: w.location.pathname,
+            title: label.slice(0, 200),
+            x_pct: Math.max(0, Math.min(100, Math.round(ev.clientX / Math.max(w.innerWidth, 1) * 100))),
+            y_pct: Math.max(0, Math.min(100, Math.round((ev.clientY + w.scrollY) / docH() * 100)))
+        });
+    }, { capture: true, passive: true });
+    // CRO-014: max scroll depth, sent once when the page is left.
+    var depth = 0, sentDepth = false;
+    w.addEventListener('scroll', function () {
+        var p = Math.round((w.scrollY + w.innerHeight) / docH() * 100);
+        if (p > depth) { depth = Math.min(p, 100); }
+    }, { passive: true });
+    w.addEventListener('pagehide', function () {
+        if (!sentDepth) { sentDepth = true; send({ type: 'scroll', path: w.location.pathname, y_pct: depth }); }
+    });
 })();
 JS;
 
@@ -79,7 +101,7 @@ JS;
 
         $data = $request->validate([
             'vid' => ['required', 'string', 'regex:/^[a-z0-9]{8,64}$/'],
-            'type' => ['required', 'in:pageview,identify'],
+            'type' => ['required', 'in:pageview,identify,click,scroll'],
             'path' => ['nullable', 'string', 'max:300'],
             'title' => ['nullable', 'string', 'max:200'],
             'referrer' => ['nullable', 'string', 'max:300'],
@@ -87,6 +109,9 @@ JS;
             'utm_source' => ['nullable', 'string', 'max:120'],
             'utm_medium' => ['nullable', 'string', 'max:120'],
             'utm_campaign' => ['nullable', 'string', 'max:120'],
+            // CRO-010/014: click position and scroll depth, both 0–100.
+            'x_pct' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'y_pct' => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $this->currentOrganization->set($organization);

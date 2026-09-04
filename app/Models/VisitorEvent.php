@@ -14,7 +14,12 @@ class VisitorEvent extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['organization_id', 'visitor_id', 'type', 'path', 'title'];
+    protected $fillable = ['organization_id', 'visitor_id', 'type', 'path', 'title', 'x_pct', 'y_pct'];
+
+    protected function casts(): array
+    {
+        return ['x_pct' => 'integer', 'y_pct' => 'integer'];
+    }
 
     /** @return BelongsTo<Visitor, $this> */
     public function visitor(): BelongsTo

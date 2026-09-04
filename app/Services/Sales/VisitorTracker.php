@@ -39,7 +39,7 @@ class VisitorTracker
     ) {}
 
     /**
-     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string}  $event
+     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string, x_pct?: ?int, y_pct?: ?int}  $event
      */
     public function ingest(array $event): Visitor
     {
@@ -106,6 +106,9 @@ class VisitorTracker
             'type' => $event['type'],
             'path' => isset($event['path']) ? mb_substr((string) $event['path'], 0, 300) : null,
             'title' => isset($event['title']) ? mb_substr((string) $event['title'], 0, 200) : null,
+            // CRO-010/014: click position / scroll depth from the pixel.
+            'x_pct' => $event['x_pct'] ?? null,
+            'y_pct' => $event['y_pct'] ?? null,
         ]);
 
         if ($event['type'] === 'pageview') {
