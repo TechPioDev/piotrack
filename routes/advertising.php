@@ -3,6 +3,7 @@
 use App\Http\Controllers\Advertising\AdDashboardController;
 use App\Http\Controllers\Advertising\AdGroupController;
 use App\Http\Controllers\Advertising\CampaignController;
+use App\Http\Controllers\Advertising\PpcController;
 use App\Http\Controllers\Advertising\RetargetingController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,18 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
             Route::delete('ads/{ad}', [AdGroupController::class, 'destroyAd'])->name('ads.destroy');
             Route::post('groups/{group}/keywords', [AdGroupController::class, 'storeKeyword'])->name('keywords.store');
             Route::delete('keywords/{keyword}', [AdGroupController::class, 'destroyKeyword'])->name('keywords.destroy');
+        });
+
+        // PPC management (Phase 36): copy drafts, bid advice, editor export,
+        // extensions, call-tracking + landing-page bridges.
+        Route::middleware('can:ads.campaigns.manage')->group(function () {
+            Route::post('groups/{group}/draft-copy', [PpcController::class, 'draftCopy'])->name('groups.draft-copy');
+            Route::post('campaigns/{campaign}/bid-advice', [PpcController::class, 'bidAdvice'])->name('campaigns.bid-advice');
+            Route::get('campaigns/{campaign}/export', [PpcController::class, 'export'])->name('campaigns.export');
+            Route::post('campaigns/{campaign}/extensions', [PpcController::class, 'storeExtension'])->name('extensions.store');
+            Route::delete('extensions/{extension}', [PpcController::class, 'destroyExtension'])->name('extensions.destroy');
+            Route::post('campaigns/{campaign}/tracking-number', [PpcController::class, 'attachTrackingNumber'])->name('campaigns.tracking-number');
+            Route::post('campaigns/{campaign}/landing-page', [PpcController::class, 'createLandingPage'])->name('campaigns.landing-page');
         });
 
         // Retargeting audiences.

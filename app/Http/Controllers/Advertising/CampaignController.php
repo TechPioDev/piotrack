@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Advertising;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdCampaign;
+use App\Models\AdExtension;
 use App\Models\AdGroup;
 use App\Models\AdKeyword;
 use App\Models\AdMetric;
+use App\Models\Call;
+use App\Models\CallTrackingNumber;
 use App\Models\ServiceLine;
 use App\Services\Advertising\AdCampaignService;
+use App\Services\Advertising\AdExportService;
 use App\Services\Advertising\AdMetricsService;
+use App\Services\Advertising\BidAdvisor;
+use App\Services\Advertising\PpcAuditor;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +33,7 @@ class CampaignController extends Controller
         private AdMetricsService $metrics,
     ) {}
 
-    public function index(): Response
+    public function index(PpcAuditor $auditor): Response
     {
         return Inertia::render('advertising/campaigns/index', [
             'campaigns' => AdCampaign::latest('id')->get()->map(fn (AdCampaign $c) => [
@@ -42,12 +48,18 @@ class CampaignController extends Controller
             'platforms' => self::PLATFORMS,
             // BENCH-003: bindable service lines for segmented CPC benchmarks.
             'service_lines' => ServiceLine::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            // PPC-010: first-party account audit over stored structure + metrics.
+            'audit' => $auditor->audit(),
         ]);
     }
 
-    public function show(AdCampaign $campaign): Response
+    public function show(AdCampaign $campaign, BidAdvisor $advisor): Response
     {
-        $campaign->load(['groups.ads', 'groups.keywords']);
+        $campaign->load(['groups.ads', 'groups.keywords', 'extensions']);
+
+        // PPC-020: calls attributed through this campaign's tracking numbers.
+        $numberIds = $campaign->trackingNumbers()->pluck('id');
+        $calls = Call::whereIn('call_tracking_number_id', $numberIds);
 
         return Inertia::render('advertising/campaigns/show', [
             'campaign' => [
@@ -78,6 +90,25 @@ class CampaignController extends Controller
                     'conversions' => $m->conversions,
                     'revenue' => $m->revenue,
                 ])->all(),
+            // PPC-017: extensions/assets attached to this campaign.
+            'extensions' => $campaign->extensions->map(fn (AdExtension $e) => [
+                'id' => $e->id, 'kind' => $e->kind, 'text' => $e->text, 'url' => $e->url, 'phone' => $e->phone,
+            ])->all(),
+            'extension_kinds' => AdExtension::KINDS,
+            // PPC-013: rule-based bid guidance from the campaign's own numbers.
+            'bid_recommendations' => $advisor->recommendations($campaign),
+            // PPC-020: call attribution through linked tracking numbers.
+            'calls' => [
+                'linked_numbers' => $campaign->trackingNumbers()->get()->map(fn (CallTrackingNumber $n) => [
+                    'id' => $n->id, 'phone_number' => $n->phone_number, 'label' => $n->label,
+                ])->all(),
+                'total' => (clone $calls)->count(),
+                'qualified' => (clone $calls)->where('is_qualified', true)->count(),
+                'converted' => (clone $calls)->where('converted', true)->count(),
+            ],
+            'available_numbers' => CallTrackingNumber::whereNull('ad_campaign_id')->where('is_active', true)
+                ->get()->map(fn (CallTrackingNumber $n) => ['id' => $n->id, 'phone_number' => $n->phone_number, 'label' => $n->label])->all(),
+            'export_formats' => AdExportService::FORMATS,
         ]);
     }
 

@@ -36,14 +36,23 @@ function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'active' ? 'default' : 'secondary';
 }
 
+type AuditFinding = {
+    campaign_id: number;
+    campaign: string;
+    severity: string;
+    finding: string;
+};
+
 export default function Campaigns({
     campaigns,
     platforms,
     service_lines,
+    audit,
 }: {
     campaigns: Campaign[];
     platforms: string[];
     service_lines: { id: number; name: string }[];
+    audit: AuditFinding[];
 }) {
     const { can } = usePermissions();
     const canManage = can('ads.campaigns.manage');
@@ -171,6 +180,27 @@ export default function Campaigns({
                         </Dialog>
                     )}
                 </div>
+
+                {audit.length > 0 && (
+                    <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Account audit</h3>
+                        <p className="text-muted-foreground text-xs">
+                            Findings from the structure and metrics recorded here — auditing a live ads account additionally needs the platform API
+                            connection.
+                        </p>
+                        <ul className="divide-y rounded-lg border">
+                            {audit.map((item, i) => (
+                                <li key={i} className="flex items-center gap-3 p-3 text-sm">
+                                    <Badge variant={item.severity === 'error' ? 'destructive' : 'secondary'}>{item.severity}</Badge>
+                                    <Link href={route('ads.campaigns.show', item.campaign_id)} className="font-medium hover:underline">
+                                        {item.campaign}
+                                    </Link>
+                                    <span className="text-muted-foreground">{item.finding}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 {campaigns.length === 0 ? (
                     <p className="text-muted-foreground text-sm">No campaigns yet. Create a campaign to start advertising.</p>

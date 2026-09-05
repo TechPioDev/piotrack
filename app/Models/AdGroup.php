@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property array<string, mixed>|null $targeting
  * @property string $status
+ * @property string|null $bid_strategy
+ * @property int|null $bid_amount
  */
 class AdGroup extends Model
 {

@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 type Kpi = {
@@ -68,6 +68,32 @@ type Metric = {
     spend: number;
     conversions: number;
     revenue: number;
+};
+
+type Extension = {
+    id: number;
+    kind: string;
+    text: string;
+    url: string | null;
+    phone: string | null;
+};
+
+type BidRecommendations = {
+    sufficient: boolean;
+    items: { rule: string; message: string }[];
+};
+
+type TrackingNumber = {
+    id: number;
+    phone_number: string;
+    label: string | null;
+};
+
+type CallStats = {
+    linked_numbers: TrackingNumber[];
+    total: number;
+    qualified: number;
+    converted: number;
 };
 
 type BidStrategy = 'manual_cpc' | 'maximize_conversions' | 'target_cpa';
@@ -317,10 +343,80 @@ function AddKeywordDialog({ groupId }: { groupId: number }) {
     );
 }
 
+function AddExtensionDialog({ campaignId, kinds }: { campaignId: number; kinds: string[] }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ kind: string; text: string; url: string; phone: string }>({ kind: 'sitelink', text: '', url: '', phone: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.transform((data) => ({ ...data, url: data.url || null, phone: data.phone || null }));
+        form.post(route('ads.extensions.store', campaignId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm">Add extension</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Add extension</DialogTitle>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor="ext_kind">Kind</Label>
+                        <Select value={form.data.kind} onValueChange={(v) => form.setData('kind', v)}>
+                            <SelectTrigger id="ext_kind">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {kinds.map((kind) => (
+                                    <SelectItem key={kind} value={kind}>
+                                        {kind.replace('_', ' ')}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor="ext_text">Text</Label>
+                        <Input id="ext_text" maxLength={90} value={form.data.text} onChange={(e) => form.setData('text', e.target.value)} />
+                        <InputError message={form.errors.text} />
+                    </div>
+                    {form.data.kind === 'sitelink' && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="ext_url">URL</Label>
+                            <Input id="ext_url" type="url" value={form.data.url} onChange={(e) => form.setData('url', e.target.value)} />
+                            <InputError message={form.errors.url} />
+                        </div>
+                    )}
+                    {form.data.kind === 'call' && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="ext_phone">Phone</Label>
+                            <Input id="ext_phone" value={form.data.phone} onChange={(e) => form.setData('phone', e.target.value)} />
+                            <InputError message={form.errors.phone} />
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Add
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function AdGroupCard({ group, canManage }: { group: Group; canManage: boolean }) {
     const deleteGroup = () => router.delete(route('ads.groups.destroy', group.id), { preserveScroll: true });
     const deleteAd = (id: number) => router.delete(route('ads.ads.destroy', id), { preserveScroll: true });
     const deleteKeyword = (id: number) => router.delete(route('ads.keywords.destroy', id), { preserveScroll: true });
+    const draftCopy = () => router.post(route('ads.groups.draft-copy', group.id), {}, { preserveScroll: true });
 
     return (
         <Card>
@@ -335,6 +431,9 @@ function AdGroupCard({ group, canManage }: { group: Group; canManage: boolean })
                         <div className="flex flex-wrap gap-2">
                             <AddAdDialog groupId={group.id} />
                             <AddKeywordDialog groupId={group.id} />
+                            <Button size="sm" variant="outline" onClick={draftCopy}>
+                                Draft copy with AI
+                            </Button>
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={deleteGroup}>
                                 Delete group
                             </Button>
@@ -396,9 +495,34 @@ function AdGroupCard({ group, canManage }: { group: Group; canManage: boolean })
     );
 }
 
-export default function CampaignShow({ campaign, groups, kpi, metrics }: { campaign: Campaign; groups: Group[]; kpi: Kpi; metrics: Metric[] }) {
+export default function CampaignShow({
+    campaign,
+    groups,
+    kpi,
+    metrics,
+    extensions,
+    extension_kinds,
+    bid_recommendations,
+    calls,
+    available_numbers,
+    export_formats,
+}: {
+    campaign: Campaign;
+    groups: Group[];
+    kpi: Kpi;
+    metrics: Metric[];
+    extensions: Extension[];
+    extension_kinds: string[];
+    bid_recommendations: BidRecommendations;
+    calls: CallStats;
+    available_numbers: TrackingNumber[];
+    export_formats: string[];
+}) {
     const { can } = usePermissions();
     const canManage = can('ads.campaigns.manage');
+    const page = usePage<SharedData>();
+    const aiResult = (page.props.flash as { ai_result?: string } | undefined)?.ai_result ?? null;
+    const [numberId, setNumberId] = useState('');
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Campaigns', href: '/ads/campaigns' },
@@ -407,6 +531,14 @@ export default function CampaignShow({ campaign, groups, kpi, metrics }: { campa
 
     const setStatus = (status: string) => router.post(route('ads.campaigns.status', campaign.id), { status }, { preserveScroll: true });
     const refreshMetrics = () => router.post(route('ads.campaigns.refresh-metrics', campaign.id), {}, { preserveScroll: true });
+    const bidAdvice = () => router.post(route('ads.campaigns.bid-advice', campaign.id), {}, { preserveScroll: true });
+    const createLandingPage = () => router.post(route('ads.campaigns.landing-page', campaign.id), {}, { preserveScroll: true });
+    const deleteExtension = (id: number) => router.delete(route('ads.extensions.destroy', id), { preserveScroll: true });
+    const linkNumber = () => {
+        if (numberId !== '') {
+            router.post(route('ads.campaigns.tracking-number', campaign.id), { call_tracking_number_id: Number(numberId) }, { preserveScroll: true });
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -432,9 +564,28 @@ export default function CampaignShow({ campaign, groups, kpi, metrics }: { campa
                             <Button size="sm" onClick={refreshMetrics}>
                                 Refresh metrics
                             </Button>
+                            {export_formats.map((format) => (
+                                <Button key={format} size="sm" variant="outline" asChild>
+                                    <a href={`${route('ads.campaigns.export', campaign.id)}?format=${format}`}>
+                                        {format === 'google' ? 'Google Ads Editor CSV' : 'Microsoft Ads CSV'}
+                                    </a>
+                                </Button>
+                            ))}
+                            <Button size="sm" variant="outline" onClick={createLandingPage}>
+                                Create landing page
+                            </Button>
                         </div>
                     )}
                 </div>
+
+                {aiResult && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground mb-1 text-xs font-medium uppercase">AI result — advisory only</p>
+                            <pre className="text-sm whitespace-pre-wrap">{aiResult}</pre>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
                     {kpiCards(kpi).map((card) => (
@@ -460,6 +611,122 @@ export default function CampaignShow({ campaign, groups, kpi, metrics }: { campa
                                 <AdGroupCard key={group.id} group={group} canManage={canManage} />
                             ))}
                         </div>
+                    )}
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-2">
+                    <Card>
+                        <CardContent className="space-y-2 p-4">
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="text-sm font-medium">Bid guidance</h3>
+                                {canManage && (
+                                    <Button size="sm" variant="outline" onClick={bidAdvice}>
+                                        AI bid advice
+                                    </Button>
+                                )}
+                            </div>
+                            {!bid_recommendations.sufficient ? (
+                                <p className="text-muted-foreground text-sm">
+                                    Not enough recorded clicks in the last 30 days to recommend bid changes — guidance appears once the campaign has
+                                    real data.
+                                </p>
+                            ) : bid_recommendations.items.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">No bid issues detected from the last 30 days of metrics.</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {bid_recommendations.items.map((item) => (
+                                        <li key={item.rule} className="rounded-lg border p-3 text-sm">
+                                            {item.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <p className="text-muted-foreground text-xs">
+                                Advisory only — apply changes on the ad groups. Automated live bidding requires the ads platform API connection.
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="space-y-2 p-4">
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="text-sm font-medium">Call tracking</h3>
+                                {canManage && available_numbers.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Select value={numberId} onValueChange={setNumberId}>
+                                            <SelectTrigger className="h-8 w-44">
+                                                <SelectValue placeholder="Link a number" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {available_numbers.map((n) => (
+                                                    <SelectItem key={n.id} value={String(n.id)}>
+                                                        {n.label ?? n.phone_number}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button size="sm" variant="outline" onClick={linkNumber} disabled={numberId === ''}>
+                                            Link
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                            {calls.linked_numbers.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    No tracking number linked. Link one so calls it receives attribute to this campaign.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                        <div className="rounded-lg border p-2">
+                                            <p className="text-lg font-semibold">{calls.total}</p>
+                                            <p className="text-muted-foreground text-xs">Calls</p>
+                                        </div>
+                                        <div className="rounded-lg border p-2">
+                                            <p className="text-lg font-semibold">{calls.qualified}</p>
+                                            <p className="text-muted-foreground text-xs">Qualified</p>
+                                        </div>
+                                        <div className="rounded-lg border p-2">
+                                            <p className="text-lg font-semibold">{calls.converted}</p>
+                                            <p className="text-muted-foreground text-xs">Converted</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-muted-foreground text-xs">
+                                        Numbers: {calls.linked_numbers.map((n) => n.label ?? n.phone_number).join(', ')}
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Extensions &amp; assets</h3>
+                        {canManage && <AddExtensionDialog campaignId={campaign.id} kinds={extension_kinds} />}
+                    </div>
+                    {extensions.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No extensions yet. Sitelinks, callouts and snippets lift CTR at no extra cost and ship with the editor export.
+                        </p>
+                    ) : (
+                        <ul className="divide-y rounded-lg border">
+                            {extensions.map((ext) => (
+                                <li key={ext.id} className="flex items-center justify-between gap-3 p-3">
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline">{ext.kind.replace('_', ' ')}</Badge>
+                                        <span className="text-sm">{ext.text}</span>
+                                        {ext.url && <span className="text-muted-foreground text-xs">{ext.url}</span>}
+                                        {ext.phone && <span className="text-muted-foreground text-xs">{ext.phone}</span>}
+                                    </div>
+                                    {canManage && (
+                                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => deleteExtension(ext.id)}>
+                                            Delete
+                                        </Button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
 

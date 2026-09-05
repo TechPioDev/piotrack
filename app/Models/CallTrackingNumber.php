@@ -19,7 +19,7 @@ class CallTrackingNumber extends Model
 
     protected $fillable = [
         'organization_id', 'phone_number', 'label', 'source', 'campaign',
-        'provider', 'provider_id', 'is_active',
+        'provider', 'provider_id', 'is_active', 'ad_campaign_id',
     ];
 
     protected function casts(): array

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -53,5 +54,29 @@ class AdCampaign extends Model
     public function metrics(): HasMany
     {
         return $this->hasMany(AdMetric::class);
+    }
+
+    /**
+     * @return BelongsTo<ServiceLine, $this>
+     */
+    public function serviceLine(): BelongsTo
+    {
+        return $this->belongsTo(ServiceLine::class);
+    }
+
+    /**
+     * @return HasMany<AdExtension, $this>
+     */
+    public function extensions(): HasMany
+    {
+        return $this->hasMany(AdExtension::class);
+    }
+
+    /**
+     * @return HasMany<CallTrackingNumber, $this>
+     */
+    public function trackingNumbers(): HasMany
+    {
+        return $this->hasMany(CallTrackingNumber::class);
     }
 }
