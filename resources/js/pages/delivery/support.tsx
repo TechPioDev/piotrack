@@ -24,6 +24,8 @@ type TicketMessage = {
     created_at: string | null;
 };
 
+type TicketAttachment = { id: number; name: string; size: number };
+
 type Ticket = {
     id: number;
     subject: string;
@@ -34,6 +36,7 @@ type Ticket = {
     assignee_id: number | null;
     resolved_at: string | null;
     messages: TicketMessage[];
+    attachments: TicketAttachment[];
 };
 
 type Article = {
@@ -240,6 +243,35 @@ function NewArticleDialog() {
  * choice is stated in plain words because getting it wrong sends internal
  * commentary to a customer.
  */
+/** SUPP-002: attach a document through the scanned, tenant-checked file store. */
+function AttachmentForm({ ticket }: { ticket: Ticket }) {
+    const form = useForm<{ file: File | null; attachable_type: string; attachable_id: number }>({
+        file: null,
+        attachable_type: 'ticket',
+        attachable_id: ticket.id,
+    });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('files.store'), { preserveScroll: true, onSuccess: () => form.reset('file') });
+    };
+
+    return (
+        <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
+            <Input
+                id={`ticket_file_${ticket.id}`}
+                type="file"
+                className="h-9 max-w-72 text-xs"
+                onChange={(e) => form.setData('file', e.target.files?.[0] ?? null)}
+            />
+            <Button type="submit" size="sm" variant="outline" disabled={form.processing || form.data.file === null}>
+                Attach
+            </Button>
+            <InputError message={form.errors.file} />
+        </form>
+    );
+}
+
 function ReplyForm({ ticket }: { ticket: Ticket }) {
     const form = useForm<{ body: string; is_internal: boolean }>({ body: '', is_internal: false });
 
@@ -296,6 +328,8 @@ export default function DeliverySupport({
 }) {
     const { can } = usePermissions();
     const canManage = can('support.manage');
+    // Attaching goes through the file store, which has its own permission.
+    const canAttach = can('files.manage');
 
     const assign = (ticket: Ticket, userId: string) =>
         router.post(route('support.tickets.assign', ticket.id), { user_id: Number(userId) }, { preserveScroll: true });
@@ -376,6 +410,29 @@ export default function DeliverySupport({
                                                         <p className="text-sm whitespace-pre-line">{message.body}</p>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {(ticket.attachments.length > 0 || canManage) && (
+                                            <div className="space-y-2 border-t pt-3">
+                                                <p className="text-sm font-medium">Attachments</p>
+                                                {ticket.attachments.length === 0 ? (
+                                                    <p className="text-muted-foreground text-xs">No documents attached yet.</p>
+                                                ) : (
+                                                    <ul className="space-y-1 text-sm">
+                                                        {ticket.attachments.map((file) => (
+                                                            <li key={file.id} className="flex items-center justify-between gap-2">
+                                                                <a href={route('files.download', file.id)} className="hover:underline">
+                                                                    {file.name}
+                                                                </a>
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    {Math.round(file.size / 1024)} KB
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                                {canAttach && <AttachmentForm ticket={ticket} />}
                                             </div>
                                         )}
 

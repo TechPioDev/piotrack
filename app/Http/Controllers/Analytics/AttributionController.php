@@ -28,6 +28,8 @@ class AttributionController extends Controller
             'cac' => $attribution->cac(),
             'roi' => $attribution->marketingRoi(),
             'journeys' => $journeys,
+            // ATTR-006..011: won revenue per keyword/ad/landing-page/content/form/call.
+            'dimensions' => $attribution->dimensionAttribution(),
         ]);
     }
 }

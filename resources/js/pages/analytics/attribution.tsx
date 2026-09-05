@@ -57,18 +57,31 @@ function RevenueTable({ rows, label, empty }: { rows: [string, number][]; label:
     );
 }
 
+type DimensionRow = { bucket: string; contacts: number; revenue: number };
+
+const DIMENSION_LABELS: Record<string, string> = {
+    keywords: 'Keywords (utm_term)',
+    ads: 'Ads (utm_content)',
+    landing_pages: 'Landing pages',
+    content: 'Content',
+    forms: 'Forms',
+    calls: 'Call sources',
+};
+
 export default function Attribution({
     channels,
     campaigns,
     cac,
     roi,
     journeys,
+    dimensions,
 }: {
     channels: Record<string, number>;
     campaigns: Record<string, number>;
     cac: number;
     roi: number;
     journeys: Journey[];
+    dimensions: Record<string, DimensionRow[]>;
 }) {
     const summary: { label: string; value: string }[] = [
         { label: 'Customer acquisition cost', value: money(cac) },
@@ -144,6 +157,45 @@ export default function Attribution({
                             </table>
                         </div>
                     )}
+                </div>
+
+                <div>
+                    <h3 className="mb-1 text-sm font-medium">Revenue by dimension</h3>
+                    <p className="text-muted-foreground mb-3 text-sm">
+                        Won revenue joined visitor-first-touch → identified contact → closed deals. Anonymous visitors and unwon contacts contribute
+                        nothing.
+                    </p>
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        {Object.entries(dimensions).map(([key, rows]) => (
+                            <div key={key}>
+                                <h4 className="mb-1 text-sm font-medium">{DIMENSION_LABELS[key] ?? key}</h4>
+                                {rows.length === 0 ? (
+                                    <p className="text-muted-foreground text-sm">No attributed contacts yet for this dimension.</p>
+                                ) : (
+                                    <div className="overflow-x-auto rounded-lg border">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-muted/50 text-muted-foreground">
+                                                <tr>
+                                                    <th className="p-3 font-medium">Bucket</th>
+                                                    <th className="p-3 text-center font-medium">Contacts</th>
+                                                    <th className="p-3 text-right font-medium">Won revenue</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {rows.map((row) => (
+                                                    <tr key={row.bucket} className="hover:bg-muted/40">
+                                                        <td className="p-3 font-medium break-all">{row.bucket}</td>
+                                                        <td className="p-3 text-center">{row.contacts}</td>
+                                                        <td className="p-3 text-right">{money(row.revenue)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </AppLayout>

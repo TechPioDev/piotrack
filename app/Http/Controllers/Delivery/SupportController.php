@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Delivery;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\File;
 use App\Models\KbArticle;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
@@ -23,6 +24,11 @@ class SupportController extends Controller
 
     public function index(): Response
     {
+        // SUPP-002: documents attached to tickets, loaded once and keyed.
+        $attachments = File::where('attachable_type', Ticket::class)
+            ->get(['id', 'attachable_id', 'name', 'size'])
+            ->groupBy('attachable_id');
+
         return Inertia::render('delivery/support', [
             'tickets' => Ticket::with('messages')->latest('id')->limit(100)->get()->map(fn (Ticket $t) => [
                 'id' => $t->id,
@@ -39,6 +45,10 @@ class SupportController extends Controller
                     'is_internal' => $m->is_internal,
                     'created_at' => $m->created_at?->toIso8601String(),
                 ])->all(),
+                // SUPP-002: the ticket's attached documents.
+                'attachments' => ($attachments->get($t->id) ?? collect())->map(fn (File $f) => [
+                    'id' => $f->id, 'name' => $f->name, 'size' => $f->size,
+                ])->values()->all(),
             ]),
             // The help centre is product-wide, not tenant data.
             'articles' => KbArticle::orderBy('title')->get()->map(fn (KbArticle $a) => [

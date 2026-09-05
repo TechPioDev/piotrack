@@ -39,7 +39,7 @@ class VisitorTracker
     ) {}
 
     /**
-     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string, x_pct?: ?int, y_pct?: ?int}  $event
+     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string, utm_term?: ?string, utm_content?: ?string, x_pct?: ?int, y_pct?: ?int}  $event
      */
     public function ingest(array $event): Visitor
     {
@@ -60,7 +60,7 @@ class VisitorTracker
         ];
 
         // First-touch attribution is set once and never overwritten.
-        foreach (['referrer', 'utm_source', 'utm_medium', 'utm_campaign'] as $field) {
+        foreach (['referrer', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as $field) {
             if ($visitor->{$field} === null && ! empty($event[$field])) {
                 $updates[$field] = mb_substr((string) $event[$field], 0, 120);
             }
@@ -70,6 +70,10 @@ class VisitorTracker
             $updates['page_views'] = $visitor->page_views + 1;
             if (! empty($event['path'])) {
                 $updates['last_path'] = mb_substr((string) $event['path'], 0, 300);
+                // ATTR-007: the landing page is first-touch too — set once.
+                if ($visitor->first_path === null) {
+                    $updates['first_path'] = mb_substr((string) $event['path'], 0, 300);
+                }
             }
         }
 

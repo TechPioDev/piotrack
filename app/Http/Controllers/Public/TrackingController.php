@@ -60,7 +60,9 @@ class TrackingController extends Controller
         referrer: d.referrer.slice(0, 300),
         utm_source: q.get('utm_source') || undefined,
         utm_medium: q.get('utm_medium') || undefined,
-        utm_campaign: q.get('utm_campaign') || undefined
+        utm_campaign: q.get('utm_campaign') || undefined,
+        utm_term: q.get('utm_term') || undefined,
+        utm_content: q.get('utm_content') || undefined
     });
     w.piotrack = w.piotrack || {};
     w.piotrack.identify = function (email) { if (email) { send({ type: 'identify', email: String(email).slice(0, 255) }); } };
@@ -109,6 +111,9 @@ JS;
             'utm_source' => ['nullable', 'string', 'max:120'],
             'utm_medium' => ['nullable', 'string', 'max:120'],
             'utm_campaign' => ['nullable', 'string', 'max:120'],
+            // ATTR-006/011: keyword and ad-creative first-touch dimensions.
+            'utm_term' => ['nullable', 'string', 'max:120'],
+            'utm_content' => ['nullable', 'string', 'max:120'],
             // CRO-010/014: click position and scroll depth, both 0–100.
             'x_pct' => ['nullable', 'integer', 'min:0', 'max:100'],
             'y_pct' => ['nullable', 'integer', 'min:0', 'max:100'],
