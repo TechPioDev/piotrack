@@ -21,12 +21,19 @@ type CampaignStats = {
     unsubscribed: number;
 };
 
+type AbVariant = { subject: string | null; recipients: number; opens: number; open_rate: number };
+type AbResults = { enabled: boolean; variants: Record<string, AbVariant>; leader: string | null } | null;
+type Conversions = { customers: number; revenue: number };
+
 type Campaign = {
     id: number;
     name: string;
     channel: string;
     type: string | null;
     subject: string | null;
+    subject_b: string | null;
+    ab: AbResults;
+    conversions: Conversions;
     from_name: string | null;
     from_email: string | null;
     body_html: string | null;
@@ -58,6 +65,7 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
     const form = useForm<{
         name: string;
         subject: string;
+        subject_b: string;
         from_name: string;
         from_email: string;
         body_html: string;
@@ -66,6 +74,7 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
     }>({
         name: campaign.name,
         subject: campaign.subject ?? '',
+        subject_b: campaign.subject_b ?? '',
         from_name: campaign.from_name ?? '',
         from_email: campaign.from_email ?? '',
         body_html: campaign.body_html ?? '',
@@ -113,6 +122,36 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
                     ))}
                 </div>
 
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">Customers converted</p>
+                            <p className="text-2xl font-semibold">{campaign.conversions.customers}</p>
+                            <p className="text-muted-foreground text-xs">won after this campaign was sent</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">Attributed revenue</p>
+                            <p className="text-2xl font-semibold">${(campaign.conversions.revenue / 100).toLocaleString('en-US')}</p>
+                            <p className="text-muted-foreground text-xs">closed-won deals of recipients, post-send only</p>
+                        </CardContent>
+                    </Card>
+                    {campaign.ab !== null && (
+                        <Card>
+                            <CardContent className="space-y-1 p-4">
+                                <p className="text-sm font-medium">Subject A/B</p>
+                                {Object.entries(campaign.ab.variants).map(([variant, row]) => (
+                                    <p key={variant} className="text-muted-foreground text-xs">
+                                        <span className="font-medium uppercase">{variant}</span> · {row.opens}/{row.recipients} opened (
+                                        {row.open_rate}%){campaign.ab?.leader === variant && ' — leading'}
+                                    </p>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
                 <Card>
                     <CardContent className="p-4">
                         <form onSubmit={save} className="space-y-3">
@@ -121,9 +160,20 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
                                 <Input id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
                                 <InputError message={form.errors.name} />
                             </div>
-                            <div className="grid gap-1">
-                                <Label htmlFor="subject">Subject</Label>
-                                <Input id="subject" value={form.data.subject} onChange={(e) => form.setData('subject', e.target.value)} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-1">
+                                    <Label htmlFor="subject">Subject</Label>
+                                    <Input id="subject" value={form.data.subject} onChange={(e) => form.setData('subject', e.target.value)} />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label htmlFor="subject_b">Subject B (optional A/B test)</Label>
+                                    <Input
+                                        id="subject_b"
+                                        placeholder="Leave empty to send one subject"
+                                        value={form.data.subject_b}
+                                        onChange={(e) => form.setData('subject_b', e.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="grid gap-1">

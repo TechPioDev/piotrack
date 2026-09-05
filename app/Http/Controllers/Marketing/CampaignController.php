@@ -48,12 +48,16 @@ class CampaignController extends Controller
                 'channel' => $campaign->channel,
                 'type' => $campaign->type,
                 'subject' => $campaign->subject,
+                'subject_b' => $campaign->subject_b,
                 'from_name' => $campaign->from_name,
                 'from_email' => $campaign->from_email,
                 'body_html' => $campaign->body_html,
                 'body_text' => $campaign->body_text,
                 'status' => $campaign->status,
                 'marketing_list_id' => $campaign->marketing_list_id,
+                // EMAIL-015/019: split results + post-send conversions.
+                'ab' => app(CampaignService::class)->abResults($campaign),
+                'conversions' => app(CampaignService::class)->conversions($campaign),
                 'stats' => [
                     'recipients' => $campaign->stat_recipients,
                     'sent' => $campaign->stat_sent,
@@ -109,6 +113,8 @@ class CampaignController extends Controller
             'channel' => ['required', Rule::in(['email', 'sms'])],
             'type' => ['nullable', 'string', 'max:40'],
             'subject' => ['nullable', 'string', 'max:200'],
+            // EMAIL-015: the B subject arms the A/B split at send time.
+            'subject_b' => ['nullable', 'string', 'max:200'],
             'from_name' => ['nullable', 'string', 'max:120'],
             'from_email' => ['nullable', 'email', 'max:200'],
             'body_html' => ['nullable', 'string', 'max:50000'],

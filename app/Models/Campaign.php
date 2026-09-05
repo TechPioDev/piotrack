@@ -25,7 +25,7 @@ class Campaign extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'organization_id', 'name', 'channel', 'type', 'subject', 'preheader',
+        'organization_id', 'name', 'channel', 'type', 'subject', 'subject_b', 'preheader',
         'from_name', 'from_email', 'body_html', 'body_text', 'marketing_list_id',
         'status', 'scheduled_at', 'sent_at',
         'stat_recipients', 'stat_sent', 'stat_opened', 'stat_clicked', 'stat_bounced', 'stat_unsubscribed',

@@ -22,7 +22,7 @@ class CampaignRecipient extends Model
 
     protected $fillable = [
         'organization_id', 'campaign_id', 'contact_id', 'address', 'token',
-        'status', 'sent_at', 'opened_at', 'clicked_at', 'unsubscribed_at', 'error',
+        'status', 'variant', 'sent_at', 'opened_at', 'clicked_at', 'unsubscribed_at', 'error',
     ];
 
     protected function casts(): array

@@ -4,9 +4,12 @@ namespace App\Services\Marketing;
 
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\Contact;
 use App\Models\IntentSignal;
+use App\Models\Organization;
 use App\Models\OutboundMessage;
 use App\Models\Suppression;
+use App\Support\CurrentOrganization;
 
 /**
  * Records email engagement from OUR public tracking endpoints (EMAIL-016…020).
@@ -61,6 +64,11 @@ class EmailTrackingService
                     'weight' => 10,
                     'occurred_at' => now(),
                 ]);
+
+                // EMAIL-014: the first click is the behavioral trigger —
+                // matching email_engagement workflows enroll the contact.
+                // Public route, so the tenant context comes from the recipient.
+                $this->fireEngagement($recipient);
             }
             $recipient->update($updates);
 
@@ -70,6 +78,32 @@ class EmailTrackingService
         $message = OutboundMessage::withoutGlobalScope('tenant')->where('token', $token)->first();
         if ($message !== null) {
             $message->update(['clicked_at' => now(), 'opened_at' => $message->opened_at ?? now()]);
+        }
+    }
+
+    /**
+     * EMAIL-014: fire the email_engagement workflow trigger for a first click.
+     * Best-effort by design — tracking must never fail because a workflow did.
+     */
+    private function fireEngagement(CampaignRecipient $recipient): void
+    {
+        $organization = Organization::find($recipient->organization_id);
+        $contact = Contact::withoutGlobalScope('tenant')->find($recipient->contact_id);
+        if ($organization === null || $contact === null) {
+            return;
+        }
+
+        $current = app(CurrentOrganization::class);
+        $current->set($organization);
+        try {
+            app(MarketingTrigger::class)->fire('email_engagement', $contact, [
+                'campaign_id' => $recipient->campaign_id,
+                'engagement' => 'click',
+            ]);
+        } catch (\Throwable) {
+            // Swallowed: engagement workflows are additive, never load-bearing.
+        } finally {
+            $current->forget();
         }
     }
 
