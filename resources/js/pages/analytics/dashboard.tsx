@@ -46,12 +46,23 @@ type Revenue = {
     ltv: number;
 };
 
+type WebChannel = { channel: string; visitors: number; sessions: number; leads: number };
+
+type WebAnalytics = {
+    sessions: number;
+    users: number;
+    pageviews: number;
+    channels: WebChannel[];
+    organic: { sessions: number; customers: number; won_revenue: number };
+};
+
 type Metrics = {
     funnel: Funnel;
     advertising: Advertising;
     seo: Seo;
     revenue: Revenue;
     sources: Record<string, number>;
+    web: WebAnalytics;
 };
 
 type DropOffStep = { step: string; count: number; conversion_from_previous: number | null };
@@ -138,6 +149,64 @@ export default function AnalyticsDashboard({ metrics, funnel_insights }: { metri
                                 </CardContent>
                             </Card>
                         ))}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Website analytics</h3>
+                        <p className="text-muted-foreground text-sm">measured by the first-party pixel — GA4/GSC add engagement and query detail</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 sm:max-w-md">
+                        {[
+                            { label: 'Sessions', value: metrics.web.sessions },
+                            { label: 'Users', value: metrics.web.users },
+                            { label: 'Pageviews', value: metrics.web.pageviews },
+                        ].map((card) => (
+                            <Card key={card.label}>
+                                <CardContent className="p-4">
+                                    <p className="text-muted-foreground text-sm">{card.label}</p>
+                                    <p className="text-2xl font-semibold">{card.value}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <div className="mt-3 grid gap-6 lg:grid-cols-2">
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                    <tr>
+                                        <th className="p-3 font-medium">Channel</th>
+                                        <th className="p-3 text-center font-medium">Visitors</th>
+                                        <th className="p-3 text-center font-medium">Sessions</th>
+                                        <th className="p-3 text-center font-medium">Leads</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {metrics.web.channels.map((row) => (
+                                        <tr key={row.channel}>
+                                            <td className="p-3 font-medium capitalize">{row.channel}</td>
+                                            <td className="p-3 text-center">{row.visitors}</td>
+                                            <td className="p-3 text-center">{row.sessions}</td>
+                                            <td className="p-3 text-center">{row.leads}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Card>
+                            <CardContent className="p-4">
+                                <p className="text-sm font-medium">Organic performance</p>
+                                <p className="text-muted-foreground mt-1 text-sm">
+                                    {metrics.web.organic.sessions} organic sessions · {metrics.web.organic.customers} customers won ·{' '}
+                                    {money(metrics.web.organic.won_revenue)} revenue
+                                </p>
+                                <p className="text-muted-foreground mt-2 text-xs">
+                                    Organic sessions are the first-party measure of search clicks landing on the site; Search Console adds
+                                    impressions, CTR and query detail once connected.
+                                </p>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
 

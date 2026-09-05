@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\CookiePreference;
 use App\Models\Organization;
 use App\Services\Sales\VisitorTracker;
 use App\Support\CurrentOrganization;
@@ -95,6 +96,27 @@ JS;
             'Content-Type' => 'application/javascript; charset=utf-8',
             'Cache-Control' => 'public, max-age=3600',
         ]);
+    }
+
+    /**
+     * PRIV-002: record a visitor's cookie decision. The banner already wrote
+     * the pt_consent cookie client-side; this row is the durable record.
+     */
+    public function consent(Request $request, string $key): JsonResponse
+    {
+        Organization::where('tracking_key', $key)->firstOrFail();
+
+        $data = $request->validate(['analytics' => ['required', 'boolean']]);
+
+        CookiePreference::create([
+            'visitor_token' => 'consent-'.substr(hash('sha256', $key.'|'.(string) $request->ip().'|'.(string) $request->userAgent()), 0, 32),
+            'necessary' => true,
+            'analytics' => (bool) $data['analytics'],
+            'marketing' => false,
+            'decided_at' => now(),
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function event(Request $request, string $key): JsonResponse

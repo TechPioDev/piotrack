@@ -6,6 +6,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InvitationAcceptanceController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\Public\ContactMessageController;
+use App\Http\Controllers\Public\EmailProviderWebhookController;
 use App\Http\Controllers\Public\EmailTrackingController;
 use App\Http\Controllers\Public\MarketingSiteController;
 use App\Http\Controllers\Public\NewsletterController;
@@ -41,6 +42,8 @@ Route::get('sitemap.xml', SitemapController::class)->name('sitemap');
 
 Route::get('health', HealthController::class)->name('health');
 
+// PRIV-006: provider-agnostic ESP bounce/complaint webhook (shared-secret guarded).
+Route::post('webhooks/email', EmailProviderWebhookController::class)->middleware('throttle:60,1')->name('public.email.webhook');
 // Public billing webhooks — verified by the provider driver, CSRF-exempt.
 Route::post('webhooks/{provider}', [WebhookController::class, 'handle'])->name('billing.webhook');
 
@@ -60,6 +63,8 @@ Route::post('newsletter', [NewsletterController::class, 'subscribe'])
 // Visitor Intelligence tracker (VINT): keyed to a tenant, throttled, CSRF-exempt.
 Route::get('t/{key}.js', [TrackingController::class, 'script'])->middleware('throttle:60,1')->name('public.track.script');
 Route::post('t/{key}/e', [TrackingController::class, 'event'])->middleware('throttle:60,1')->name('public.track.event');
+// PRIV-002: the consent banner's durable record.
+Route::post('t/{key}/consent', [TrackingController::class, 'consent'])->middleware('throttle:20,1')->name('public.track.consent');
 
 Route::get('e/o/{token}', [EmailTrackingController::class, 'open'])->name('public.track.open');
 Route::get('e/c/{token}', [EmailTrackingController::class, 'click'])->name('public.track.click');

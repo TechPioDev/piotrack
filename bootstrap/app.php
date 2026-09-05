@@ -53,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // The visitor-pixel cookie is written by plain JS on public pages, so
         // it must stay out of cookie encryption to be readable server-side.
-        $middleware->encryptCookies(except: ['_pt_vid']);
+        $middleware->encryptCookies(except: ['_pt_vid', 'pt_consent']);
 
         $middleware->web(append: [
             SetCurrentOrganization::class,

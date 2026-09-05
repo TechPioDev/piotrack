@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // PRIV-006: shared secret the ESP bounce/complaint webhook must present.
+    // Unset = the endpoint refuses everything.
+    'email_webhook' => [
+        'secret' => env('EMAIL_WEBHOOK_SECRET'),
+    ],
+
 ];

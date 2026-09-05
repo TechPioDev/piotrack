@@ -563,8 +563,8 @@
     </div>
 </footer>
 @if ($organization->tracking_key !== null)
-    {{-- Visitor Intelligence pixel (VINT): first-party, same-origin here. --}}
-    <script src="{{ route('public.track.script', $organization->tracking_key) }}" defer></script>
+    {{-- Visitor Intelligence pixel (VINT), consent-gated (PRIV-002). --}}
+    @include('public.consent-pixel', ['trackingKey' => $organization->tracking_key])
 @endif
 </body>
 </html>

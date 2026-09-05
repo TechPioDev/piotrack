@@ -43,8 +43,8 @@
     </div>
     @php($trackingKey = app(\App\Support\CurrentOrganization::class)->get()?->tracking_key)
     @if ($trackingKey !== null)
-        {{-- Visitor Intelligence pixel (VINT): first-party, same-origin here. --}}
-        <script src="{{ route('public.track.script', $trackingKey) }}" defer></script>
+        {{-- Visitor Intelligence pixel (VINT), consent-gated (PRIV-002). --}}
+        @include('public.consent-pixel', ['trackingKey' => $trackingKey])
     @endif
 </body>
 </html>

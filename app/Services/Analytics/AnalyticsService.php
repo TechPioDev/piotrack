@@ -8,6 +8,8 @@ use App\Models\Booking;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Keyword;
+use App\Models\Visitor;
+use App\Support\ChannelClassifier;
 
 /**
  * Analytics dashboard (ANLY). A pure read/aggregation layer over the tenant's
@@ -28,6 +30,8 @@ class AnalyticsService
             'seo' => $this->seo(),
             'revenue' => $this->revenue(),
             'sources' => $this->sourceBreakdown(),
+            // ANLY-001..008/013/014: first-party web analytics from the pixel.
+            'web' => $this->web(),
         ];
     }
 
@@ -136,5 +140,53 @@ class AnalyticsService
             ->pluck('total', 'channel')
             ->map(fn ($n) => (int) $n)
             ->all();
+    }
+
+    /**
+     * First-party web analytics (ANLY-001..008/013/014), measured by the
+     * tracking pixel: sessions (the tracker's own 30-minute-window counter),
+     * users, pageviews, the classifier's channel split, and organic
+     * conversions. GA4/GSC add engagement and query detail when connected —
+     * they are enrichment, not prerequisites.
+     *
+     * @return array{sessions: int, users: int, pageviews: int, channels: list<array{channel: string, visitors: int, sessions: int, leads: int}>, organic: array{sessions: int, customers: int, won_revenue: int}}
+     */
+    public function web(): array
+    {
+        $visitors = Visitor::get(['id', 'contact_id', 'visits', 'page_views', 'utm_source', 'utm_medium', 'referrer']);
+
+        $channels = [];
+        foreach (ChannelClassifier::CHANNELS as $channel) {
+            $channels[$channel] = ['channel' => $channel, 'visitors' => 0, 'sessions' => 0, 'leads' => 0];
+        }
+
+        $organicContactIds = [];
+        foreach ($visitors as $visitor) {
+            $channel = $visitor->channel();
+            $channels[$channel]['visitors']++;
+            $channels[$channel]['sessions'] += (int) $visitor->visits;
+            if ($visitor->contact_id !== null) {
+                $channels[$channel]['leads']++;
+                if ($channel === 'organic') {
+                    $organicContactIds[] = $visitor->contact_id;
+                }
+            }
+        }
+
+        $organicWins = $organicContactIds === []
+            ? collect()
+            : Deal::where('status', 'won')->whereIn('contact_id', array_unique($organicContactIds))->get(['contact_id', 'value']);
+
+        return [
+            'sessions' => (int) $visitors->sum('visits'),
+            'users' => $visitors->count(),
+            'pageviews' => (int) $visitors->sum('page_views'),
+            'channels' => array_values($channels),
+            'organic' => [
+                'sessions' => $channels['organic']['sessions'],
+                'customers' => $organicWins->pluck('contact_id')->unique()->count(),
+                'won_revenue' => (int) $organicWins->sum(fn (Deal $d) => (int) $d->value),
+            ],
+        ];
     }
 }
