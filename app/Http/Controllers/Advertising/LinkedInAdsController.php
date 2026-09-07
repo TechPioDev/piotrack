@@ -7,6 +7,7 @@ use App\Models\AdCampaign;
 use App\Models\ContentPiece;
 use App\Models\RetargetingAudience;
 use App\Services\Advertising\LinkedInAdsService;
+use App\Services\Advertising\MetaAdsService;
 use App\Services\Advertising\RetargetingService;
 use App\Services\Sales\AccountService;
 use App\Validation\TenantExists;
@@ -34,14 +35,22 @@ class LinkedInAdsController extends Controller
         return back()->with('status', __('Draft LinkedIn campaign ":name" ready — set budget and targeting under Ads → Campaigns.', ['name' => $campaign->name]));
     }
 
-    /** LIAD-013: attach a matched audience to a LinkedIn campaign. */
-    public function attachAudience(Request $request, AdCampaign $campaign): RedirectResponse
+    /** LIAD-013 / META-002: attach a matched audience (platform-dispatched). */
+    public function attachAudience(Request $request, AdCampaign $campaign, MetaAdsService $meta): RedirectResponse
     {
         $data = $request->validate([
             'audience_id' => ['required', 'integer', TenantExists::in('retargeting_audiences')],
         ]);
 
-        $this->linkedin->attachAudience($campaign, RetargetingAudience::whereKey($data['audience_id'])->firstOrFail());
+        $audience = RetargetingAudience::whereKey($data['audience_id'])->firstOrFail();
+
+        if ($campaign->platform === 'meta') {
+            $meta->attachAudience($campaign, $audience);
+
+            return back()->with('status', __('Audience attached — upload its export CSV in Ads Manager (Audiences → Customer list) and select it as the custom audience.'));
+        }
+
+        $this->linkedin->attachAudience($campaign, $audience);
 
         return back()->with('status', __('Audience attached — upload its export CSV in Campaign Manager and select it as the matched audience.'));
     }

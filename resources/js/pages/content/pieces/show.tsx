@@ -138,8 +138,19 @@ export default function ContentPieceShow({ piece, statuses }: { piece: Piece; st
                                 >
                                     Promote on LinkedIn
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(route('ads.meta.promote-content'), { content_piece_id: piece.id }, { preserveScroll: true })
+                                    }
+                                >
+                                    {['video', 'webinar', 'podcast', 'interview'].includes(piece.content_type)
+                                        ? 'Run as Meta video ad'
+                                        : 'Amplify on Facebook'}
+                                </Button>
                                 <p className="text-muted-foreground text-xs">
-                                    Creates a draft sponsored-content campaign with creative from this piece
+                                    Creates a draft campaign with creative from this piece
                                     {piece.content_type === 'case_study' ? ' — case studies promote for conversions.' : '.'}
                                 </p>
                             </div>

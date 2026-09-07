@@ -110,8 +110,8 @@ class CampaignController extends Controller
             'available_numbers' => CallTrackingNumber::whereNull('ad_campaign_id')->where('is_active', true)
                 ->get()->map(fn (CallTrackingNumber $n) => ['id' => $n->id, 'phone_number' => $n->phone_number, 'label' => $n->label])->all(),
             'export_formats' => AdExportService::FORMATS,
-            // LIAD-013: matched audiences attachable to LinkedIn campaigns.
-            'audiences' => $campaign->platform === 'linkedin'
+            // LIAD-013 / META-002: audiences attachable to social ad campaigns.
+            'audiences' => in_array($campaign->platform, ['linkedin', 'meta'], true)
                 ? RetargetingAudience::orderBy('name')->get()->map(fn (RetargetingAudience $a) => ['id' => $a->id, 'name' => $a->name, 'member_count' => $a->member_count])->all()
                 : [],
             'attached_audience' => $campaign->targeting['audience_name'] ?? null,

@@ -145,75 +145,11 @@ class LinkedInAdsService
      */
     public function importLeads(string $path, ?string $fallbackCampaign = null): array
     {
-        $handle = fopen($path, 'r');
-        if ($handle === false) {
-            throw ValidationException::withMessages(['file' => __('The leads file could not be read.')]);
-        }
+        $counts = app(AdLeadImporter::class)->import($path, self::LEAD_ALIASES, 'linkedin', $fallbackCampaign);
 
-        $headers = array_map(fn ($h) => mb_strtolower(trim((string) $h)), fgetcsv($handle, escape: '\\') ?: []);
-        $mapping = [];
-        foreach ($headers as $i => $header) {
-            foreach (self::LEAD_ALIASES as $field => $aliases) {
-                if (in_array($header, $aliases, true)) {
-                    $mapping[$i] = $field;
+        $this->audit->log('ads.linkedin.leads_imported', context: $counts);
 
-                    break;
-                }
-            }
-        }
-
-        if (! in_array('email', $mapping, true)) {
-            fclose($handle);
-
-            throw ValidationException::withMessages(['file' => __('No email column found — export leads from LinkedIn Campaign Manager and upload that CSV unchanged.')]);
-        }
-
-        $created = $updated = $skipped = 0;
-
-        while (($line = fgetcsv($handle, escape: '\\')) !== false) {
-            $row = [];
-            foreach ($mapping as $i => $field) {
-                $row[$field] = trim((string) ($line[$i] ?? ''));
-            }
-
-            $email = mb_strtolower($row['email'] ?? '');
-            if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $skipped++;
-
-                continue;
-            }
-
-            $campaignName = ($row['campaign'] ?? '') !== '' ? $row['campaign'] : $fallbackCampaign;
-            $contact = Contact::firstWhere('email', $email);
-
-            if ($contact === null) {
-                Contact::create(array_filter([
-                    'email' => $email,
-                    'first_name' => $row['first_name'] ?? null,
-                    'last_name' => $row['last_name'] ?? null,
-                    'title' => $row['title'] ?? null,
-                    'lead_source' => 'linkedin',
-                    'campaign' => $campaignName,
-                    'lifecycle_stage' => 'lead',
-                ], fn ($v) => $v !== null && $v !== ''));
-                $created++;
-            } else {
-                // Fill blanks only; first-touch fields are never rewritten.
-                $contact->fill(array_filter([
-                    'first_name' => $contact->first_name ?: ($row['first_name'] ?? null),
-                    'last_name' => $contact->last_name ?: ($row['last_name'] ?? null),
-                    'title' => $contact->title ?: ($row['title'] ?? null),
-                    'lead_source' => $contact->lead_source ?: 'linkedin',
-                    'campaign' => $contact->campaign ?: $campaignName,
-                ], fn ($v) => $v !== null && $v !== ''))->save();
-                $updated++;
-            }
-        }
-        fclose($handle);
-
-        $this->audit->log('ads.linkedin.leads_imported', context: ['created' => $created, 'updated' => $updated, 'skipped' => $skipped]);
-
-        return ['created' => $created, 'updated' => $updated, 'skipped' => $skipped];
+        return $counts;
     }
 
     /**

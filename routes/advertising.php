@@ -4,6 +4,7 @@ use App\Http\Controllers\Advertising\AdDashboardController;
 use App\Http\Controllers\Advertising\AdGroupController;
 use App\Http\Controllers\Advertising\CampaignController;
 use App\Http\Controllers\Advertising\LinkedInAdsController;
+use App\Http\Controllers\Advertising\MetaAdsController;
 use App\Http\Controllers\Advertising\PpcController;
 use App\Http\Controllers\Advertising\RetargetingController;
 use Illuminate\Support\Facades\Route;
@@ -57,6 +58,13 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
             Route::post('linkedin/leads', [LinkedInAdsController::class, 'importLeads'])->name('linkedin.leads');
             Route::post('campaigns/{campaign}/audience', [LinkedInAdsController::class, 'attachAudience'])->name('campaigns.audience');
             Route::get('campaigns/{campaign}/brief', [LinkedInAdsController::class, 'brief'])->name('campaigns.brief');
+        });
+
+        // Meta Advertising (Phase 38): drafts and imports only (ADR-0006).
+        Route::middleware('can:ads.campaigns.manage')->group(function () {
+            Route::post('meta/promote-content', [MetaAdsController::class, 'promoteContent'])->name('meta.promote-content');
+            Route::post('meta/proof', [MetaAdsController::class, 'proofCampaign'])->name('meta.proof');
+            Route::post('meta/leads', [MetaAdsController::class, 'importLeads'])->name('meta.leads');
         });
 
         // Retargeting audiences.

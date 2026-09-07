@@ -529,6 +529,8 @@ export default function CampaignShow({
     const [numberId, setNumberId] = useState('');
     const [audienceId, setAudienceId] = useState('');
     const isLinkedIn = campaign.platform === 'linkedin';
+    const isMeta = campaign.platform === 'meta';
+    const isSocialAds = isLinkedIn || isMeta;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Campaigns', href: '/ads/campaigns' },
@@ -575,7 +577,7 @@ export default function CampaignShow({
                             <Button size="sm" onClick={refreshMetrics}>
                                 Refresh metrics
                             </Button>
-                            {!isLinkedIn &&
+                            {!isSocialAds &&
                                 export_formats.map((format) => (
                                     <Button key={format} size="sm" variant="outline" asChild>
                                         <a href={`${route('ads.campaigns.export', campaign.id)}?format=${format}`}>
@@ -595,11 +597,11 @@ export default function CampaignShow({
                     )}
                 </div>
 
-                {isLinkedIn && (
+                {isSocialAds && (
                     <Card>
                         <CardContent className="space-y-2 p-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-medium">Matched audience</h3>
+                                <h3 className="text-sm font-medium">{isMeta ? 'Custom audience' : 'Matched audience'}</h3>
                                 {canManage && audiences.length > 0 && (
                                     <div className="flex items-center gap-2">
                                         <Select value={audienceId} onValueChange={setAudienceId}>
@@ -622,8 +624,12 @@ export default function CampaignShow({
                             </div>
                             <p className="text-muted-foreground text-sm">
                                 {attached_audience
-                                    ? `Attached: ${attached_audience}. Upload its export CSV in Campaign Manager (Plan → Audiences) and select it there — live audience push needs the LinkedIn API.`
-                                    : 'Attach a retargeting audience, then upload its export CSV in Campaign Manager as the matched audience.'}
+                                    ? isMeta
+                                        ? `Attached: ${attached_audience}. Upload its export CSV in Ads Manager (Audiences → Customer list) and select it there — live audience push needs the Meta API.`
+                                        : `Attached: ${attached_audience}. Upload its export CSV in Campaign Manager (Plan → Audiences) and select it there — live audience push needs the LinkedIn API.`
+                                    : isMeta
+                                      ? 'Attach a retargeting audience, then upload its export CSV in Ads Manager as the custom audience.'
+                                      : 'Attach a retargeting audience, then upload its export CSV in Campaign Manager as the matched audience.'}
                             </p>
                         </CardContent>
                     </Card>

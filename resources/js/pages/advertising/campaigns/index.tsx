@@ -43,13 +43,13 @@ type AuditFinding = {
     finding: string;
 };
 
-function LinkedInLeadsDialog() {
+function AdLeadsDialog({ label, title, hint, routeName }: { label: string; title: string; hint: string; routeName: string }) {
     const [open, setOpen] = useState(false);
     const form = useForm<{ file: File | null; campaign: string }>({ file: null, campaign: '' });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        form.post(route('ads.linkedin.leads'), {
+        form.post(route(routeName), {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
@@ -63,14 +63,13 @@ function LinkedInLeadsDialog() {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
-                    Import LinkedIn leads
+                    {label}
                 </Button>
             </DialogTrigger>
             <DialogContent>
-                <DialogTitle>Import LinkedIn lead-gen leads</DialogTitle>
+                <DialogTitle>{title}</DialogTitle>
                 <p className="text-muted-foreground text-sm">
-                    Export leads from LinkedIn Campaign Manager (Account Assets → Lead Gen Forms → Download leads) and upload the CSV unchanged.
-                    Contacts are matched by email; a lead&rsquo;s original source is never overwritten.
+                    {hint} Contacts are matched by email; a lead&rsquo;s original source is never overwritten.
                 </p>
                 <form onSubmit={submit} className="space-y-3">
                     <div className="grid gap-1">
@@ -237,19 +236,38 @@ export default function Campaigns({
                 </div>
 
                 {canManage && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-medium uppercase">LinkedIn</span>
-                        {[1, 2, 3].map((tier) => (
-                            <Button
-                                key={tier}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => router.post(route('ads.linkedin.abm'), { tier }, { preserveScroll: true })}
-                            >
-                                ABM Tier {tier} campaign
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-muted-foreground text-xs font-medium uppercase">LinkedIn</span>
+                            {[1, 2, 3].map((tier) => (
+                                <Button
+                                    key={tier}
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.post(route('ads.linkedin.abm'), { tier }, { preserveScroll: true })}
+                                >
+                                    ABM Tier {tier} campaign
+                                </Button>
+                            ))}
+                            <AdLeadsDialog
+                                label="Import LinkedIn leads"
+                                title="Import LinkedIn lead-gen leads"
+                                hint="Export leads from LinkedIn Campaign Manager (Account Assets → Lead Gen Forms → Download leads) and upload the CSV unchanged."
+                                routeName="ads.linkedin.leads"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-muted-foreground text-xs font-medium uppercase">Meta</span>
+                            <Button size="sm" variant="outline" onClick={() => router.post(route('ads.meta.proof'), {}, { preserveScroll: true })}>
+                                Proof campaign from reviews
                             </Button>
-                        ))}
-                        <LinkedInLeadsDialog />
+                            <AdLeadsDialog
+                                label="Import Meta leads"
+                                title="Import Meta lead ads leads"
+                                hint="Download leads from Meta Ads Manager (Lead ads forms → Download) and upload the CSV unchanged."
+                                routeName="ads.meta.leads"
+                            />
+                        </div>
                     </div>
                 )}
 
