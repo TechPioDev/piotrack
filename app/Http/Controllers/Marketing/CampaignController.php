@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Marketing;
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\MarketingList;
+use App\Models\Vertical;
 use App\Services\Marketing\CampaignService;
 use App\Support\AuditLogger;
 use App\Validation\TenantExists;
@@ -55,6 +56,7 @@ class CampaignController extends Controller
                 'body_text' => $campaign->body_text,
                 'status' => $campaign->status,
                 'marketing_list_id' => $campaign->marketing_list_id,
+                'vertical_id' => $campaign->vertical_id,
                 // EMAIL-015/019: split results + post-send conversions.
                 'ab' => app(CampaignService::class)->abResults($campaign),
                 'conversions' => app(CampaignService::class)->conversions($campaign),
@@ -69,6 +71,8 @@ class CampaignController extends Controller
             ],
             'lists' => MarketingList::orderBy('name')->get(['id', 'name'])
                 ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name]),
+            // VERT-018: bindable vertical for the coverage report.
+            'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -120,6 +124,8 @@ class CampaignController extends Controller
             'body_html' => ['nullable', 'string', 'max:50000'],
             'body_text' => ['nullable', 'string', 'max:5000'],
             'marketing_list_id' => ['nullable', TenantExists::in('marketing_lists')],
+            // VERT-018: vertical the campaign targets; coverage joins on it.
+            'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
     }
 }

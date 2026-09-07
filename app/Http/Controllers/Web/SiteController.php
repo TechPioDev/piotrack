@@ -252,6 +252,31 @@ class SiteController extends Controller
         ]));
     }
 
+    /**
+     * VERT-016/020: the vertical's messaging framework and compliance framing
+     * — the copy every page, campaign and sequence targeting it draws on.
+     */
+    public function updateVertical(Request $request, Vertical $vertical): RedirectResponse
+    {
+        $data = $request->validate([
+            'value_proposition' => ['nullable', 'string', 'max:500'],
+            'pain_points' => ['nullable', 'string', 'max:1000'],
+            'differentiators' => ['nullable', 'string', 'max:1000'],
+            'compliance_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $vertical->update([
+            'compliance_notes' => $data['compliance_notes'] ?? $vertical->compliance_notes,
+            'messaging' => array_filter([
+                'value_proposition' => $data['value_proposition'] ?? null,
+                'pain_points' => $data['pain_points'] ?? null,
+                'differentiators' => $data['differentiators'] ?? null,
+            ], fn ($v) => $v !== null && $v !== ''),
+        ]);
+
+        return back()->with('status', __(':name messaging saved.', ['name' => $vertical->name]));
+    }
+
     public function storeLocation(Request $request, LocationService $locations): RedirectResponse
     {
         $locations->create($request->validate([

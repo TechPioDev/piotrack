@@ -27,18 +27,28 @@ type Workflow = {
 const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-20 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
 
-export default function Automation({ workflows, triggers }: { workflows: Workflow[]; triggers: string[] }) {
+export default function Automation({
+    workflows,
+    triggers,
+    verticals,
+}: {
+    workflows: Workflow[];
+    triggers: string[];
+    verticals: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('marketing.automation.manage');
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; description: string; trigger_type: string }>({
+    const form = useForm<{ name: string; description: string; trigger_type: string; vertical_id: string }>({
         name: '',
         description: '',
         trigger_type: triggers[0] ?? '',
+        vertical_id: '',
     });
 
     const create: FormEventHandler = (e) => {
         e.preventDefault();
+        form.transform((data) => ({ ...data, vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id) }));
         form.post(route('marketing.automation.store'), {
             preserveScroll: true,
             onSuccess: () => {
@@ -92,6 +102,24 @@ export default function Automation({ workflows, triggers }: { workflows: Workflo
                                         </Select>
                                         <InputError message={form.errors.trigger_type} />
                                     </div>
+                                    {verticals.length > 0 && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="workflow_vertical">Vertical (optional)</Label>
+                                            <Select value={form.data.vertical_id} onValueChange={(v) => form.setData('vertical_id', v)}>
+                                                <SelectTrigger id="workflow_vertical">
+                                                    <SelectValue placeholder="Not bound to one vertical" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {verticals.map((vertical) => (
+                                                        <SelectItem key={vertical.id} value={String(vertical.id)}>
+                                                            {vertical.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={form.errors.vertical_id} />
+                                        </div>
+                                    )}
                                     <DialogFooter>
                                         <Button type="submit" disabled={form.processing}>
                                             Create

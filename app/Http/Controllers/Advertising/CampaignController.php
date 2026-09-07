@@ -13,6 +13,7 @@ use App\Models\Call;
 use App\Models\CallTrackingNumber;
 use App\Models\RetargetingAudience;
 use App\Models\ServiceLine;
+use App\Models\Vertical;
 use App\Services\Advertising\AdCampaignService;
 use App\Services\Advertising\AdExportService;
 use App\Services\Advertising\AdMetricsService;
@@ -51,6 +52,8 @@ class CampaignController extends Controller
             'service_lines' => ServiceLine::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             // PPC-010: first-party account audit over stored structure + metrics.
             'audit' => $auditor->audit(),
+            // VERT-015: bindable vertical for the coverage report.
+            'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -174,6 +177,8 @@ class CampaignController extends Controller
             // BENCH-003: a campaign can target one service line; the canonical
             // service key is what segmented CPC benchmarks aggregate on.
             'service_line_id' => ['nullable', 'integer', TenantExists::in('service_lines')],
+            // VERT-015: vertical the campaign targets; coverage joins on it.
+            'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
     }
 }

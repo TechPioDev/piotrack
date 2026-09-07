@@ -16,7 +16,7 @@ class TargetAccount extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'organization_id', 'company_id', 'tier', 'status', 'account_score', 'notes',
+        'organization_id', 'company_id', 'tier', 'status', 'account_score', 'notes', 'vertical_id',
     ];
 
     /**

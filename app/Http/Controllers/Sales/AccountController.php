@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Contact;
 use App\Models\ContentPiece;
 use App\Models\TargetAccount;
+use App\Models\Vertical;
 use App\Services\Sales\AbmPlayRunner;
 use App\Services\Sales\AccountService;
 use App\Support\AuditLogger;
@@ -48,6 +49,8 @@ class AccountController extends Controller
                 }),
             'companies' => Company::orderBy('name')->limit(200)->get(['id', 'name'])
                 ->map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name]),
+            // VERT-019: bindable vertical for ABM coverage.
+            'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -57,6 +60,8 @@ class AccountController extends Controller
             'company_id' => ['required', Rule::exists('companies', 'id')->where('organization_id', $this->currentOrganization->id())],
             'tier' => ['required', 'integer', 'min:1', 'max:3'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // VERT-019: vertical the account is worked under; ABM coverage joins on it.
+            'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
 
         if (TargetAccount::where('company_id', $data['company_id'])->exists()) {

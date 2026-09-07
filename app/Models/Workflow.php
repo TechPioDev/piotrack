@@ -19,7 +19,7 @@ class Workflow extends Model
 
     protected $fillable = [
         'organization_id', 'name', 'description', 'trigger_type', 'trigger_config',
-        'status', 'enrolled_count', 'completed_count',
+        'status', 'enrolled_count', 'completed_count', 'vertical_id',
     ];
 
     protected function casts(): array

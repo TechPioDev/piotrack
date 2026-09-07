@@ -12,6 +12,83 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
+function MessagingCell({ vertical, canManage }: { vertical: Vertical; canManage: boolean }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ value_proposition: string; pain_points: string; differentiators: string; compliance_notes: string }>({
+        value_proposition: vertical.messaging?.value_proposition ?? '',
+        pain_points: vertical.messaging?.pain_points ?? '',
+        differentiators: vertical.messaging?.differentiators ?? '',
+        compliance_notes: vertical.compliance_notes ?? '',
+    });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.patch(route('web.taxonomy.vertical', vertical.id), {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
+    const summary = vertical.messaging?.value_proposition;
+
+    return (
+        <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">{summary ?? 'No messaging yet.'}</p>
+            {canManage && (
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" variant="outline">
+                            {summary ? 'Edit messaging' : 'Add messaging'}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogTitle>{vertical.name} messaging</DialogTitle>
+                        <p className="text-muted-foreground text-sm">
+                            The framing every page, campaign and sequence targeting this vertical draws on.
+                        </p>
+                        <form onSubmit={submit} className="space-y-3">
+                            <div className="grid gap-1">
+                                <Label htmlFor="msg_value">Value proposition</Label>
+                                <Input
+                                    id="msg_value"
+                                    value={form.data.value_proposition}
+                                    onChange={(e) => form.setData('value_proposition', e.target.value)}
+                                />
+                                <InputError message={form.errors.value_proposition} />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="msg_pains">Pain points</Label>
+                                <Input id="msg_pains" value={form.data.pain_points} onChange={(e) => form.setData('pain_points', e.target.value)} />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="msg_diff">Differentiators</Label>
+                                <Input
+                                    id="msg_diff"
+                                    value={form.data.differentiators}
+                                    onChange={(e) => form.setData('differentiators', e.target.value)}
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="msg_compliance">Compliance notes</Label>
+                                <Input
+                                    id="msg_compliance"
+                                    value={form.data.compliance_notes}
+                                    onChange={(e) => form.setData('compliance_notes', e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="submit" disabled={form.processing}>
+                                    Save
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            )}
+        </div>
+    );
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Website', href: '/website' },
     { title: 'Taxonomy & Locations', href: '/website/taxonomy' },
@@ -30,7 +107,20 @@ type Coverage = {
 
 type ServiceLine = Coverage & { category: string | null };
 
-type Vertical = Coverage & { compliance_notes: string | null };
+type Messaging = {
+    value_proposition?: string;
+    pain_points?: string;
+    differentiators?: string;
+};
+
+type Vertical = Coverage & {
+    compliance_notes: string | null;
+    messaging: Messaging | null;
+    ads: number;
+    case_studies: number;
+    sequences: number;
+    accounts: number;
+};
 
 type Location = {
     id: number;
@@ -301,6 +391,11 @@ export default function WebTaxonomy({
                                             <th className="p-3 text-center font-medium">Keywords</th>
                                             <th className="p-3 text-center font-medium">Campaigns</th>
                                             <th className="p-3 text-center font-medium">Content</th>
+                                            <th className="p-3 text-center font-medium">Ads</th>
+                                            <th className="p-3 text-center font-medium">Case studies</th>
+                                            <th className="p-3 text-center font-medium">Sequences</th>
+                                            <th className="p-3 text-center font-medium">Accounts</th>
+                                            <th className="p-3 font-medium">Messaging</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -393,6 +488,21 @@ export default function WebTaxonomy({
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         <CoverageCell value={vertical.content} />
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <CoverageCell value={vertical.ads} />
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <CoverageCell value={vertical.case_studies} />
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <CoverageCell value={vertical.sequences} />
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <CoverageCell value={vertical.accounts} />
+                                                    </td>
+                                                    <td className="max-w-64 p-3">
+                                                        <MessagingCell vertical={vertical} canManage={canManage} />
                                                     </td>
                                                 </tr>
                                             );

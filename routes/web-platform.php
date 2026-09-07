@@ -34,5 +34,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:marketing'])
         Route::middleware('can:web.taxonomy.manage')->group(function () {
             Route::post('taxonomy/provision', [SiteController::class, 'provisionTaxonomy'])->name('taxonomy.provision');
             Route::post('locations', [SiteController::class, 'storeLocation'])->name('locations.store');
+            // VERT-016: per-vertical messaging framework + compliance framing.
+            Route::patch('taxonomy/verticals/{vertical}', [SiteController::class, 'updateVertical'])->name('taxonomy.vertical');
         });
     });

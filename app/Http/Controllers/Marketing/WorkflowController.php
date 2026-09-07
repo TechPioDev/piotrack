@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Marketing;
 
 use App\Http\Controllers\Controller;
 use App\Models\MarketingList;
+use App\Models\Vertical;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Support\AuditLogger;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,8 @@ class WorkflowController extends Controller
                 'completed_count' => $w->completed_count,
             ]),
             'triggers' => self::TRIGGERS,
+            // VERT-018: bindable vertical for the coverage report.
+            'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -73,6 +77,8 @@ class WorkflowController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'trigger_type' => ['required', Rule::in(self::TRIGGERS)],
             'trigger_config' => ['nullable', 'array'],
+            // VERT-018: vertical the sequence targets; coverage joins on it.
+            'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
 
         $workflow = Workflow::create($data);

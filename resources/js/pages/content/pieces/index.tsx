@@ -33,7 +33,7 @@ function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'published' ? 'default' : 'secondary';
 }
 
-export default function ContentPieces({ pieces, types }: { pieces: Piece[]; types: string[] }) {
+export default function ContentPieces({ pieces, types, verticals }: { pieces: Piece[]; types: string[]; verticals: { id: number; name: string }[] }) {
     const { can } = usePermissions();
     const canManage = can('content.pieces.manage');
     const [open, setOpen] = useState(false);
@@ -44,6 +44,7 @@ export default function ContentPieces({ pieces, types }: { pieces: Piece[]; type
         target_keyword: string;
         cta: string;
         is_lead_magnet: boolean;
+        vertical_id: string;
     }>({
         title: '',
         content_type: types[0] ?? '',
@@ -51,10 +52,12 @@ export default function ContentPieces({ pieces, types }: { pieces: Piece[]; type
         target_keyword: '',
         cta: '',
         is_lead_magnet: false,
+        vertical_id: '',
     });
 
     const create: FormEventHandler = (e) => {
         e.preventDefault();
+        form.transform((data) => ({ ...data, vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id) }));
         form.post(route('content.pieces.store'), {
             preserveScroll: true,
             onSuccess: () => {
@@ -117,6 +120,24 @@ export default function ContentPieces({ pieces, types }: { pieces: Piece[]; type
                                             <InputError message={form.errors.funnel_stage} />
                                         </div>
                                     </div>
+                                    {verticals.length > 0 && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="piece_vertical">Vertical (optional)</Label>
+                                            <Select value={form.data.vertical_id} onValueChange={(v) => form.setData('vertical_id', v)}>
+                                                <SelectTrigger id="piece_vertical">
+                                                    <SelectValue placeholder="Not bound to one vertical" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {verticals.map((vertical) => (
+                                                        <SelectItem key={vertical.id} value={String(vertical.id)}>
+                                                            {vertical.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={form.errors.vertical_id} />
+                                        </div>
+                                    )}
                                     <div className="grid gap-1">
                                         <Label htmlFor="target_keyword">Target keyword</Label>
                                         <Input

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Content;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContentPiece;
+use App\Models\Vertical;
 use App\Services\Content\ContentService;
 use App\Services\Content\MultimediaPromotion;
 use App\Validation\TenantExists;
@@ -34,6 +35,7 @@ class ContentPieceController extends Controller
                 'optimization_score' => $p->optimization_score,
             ]),
             'types' => self::TYPES,
+            'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -134,6 +136,8 @@ class ContentPieceController extends Controller
             'is_lead_magnet' => ['boolean'],
             // MLOC-008: region-specific content targets one branch; null = central.
             'seo_location_id' => ['nullable', 'integer', TenantExists::in('seo_locations')],
+            // VERT-014/017: the piece targets one vertical; coverage joins on it.
+            'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
     }
 }

@@ -102,22 +102,33 @@ export default function Campaigns({
     platforms,
     service_lines,
     audit,
+    verticals,
 }: {
     campaigns: Campaign[];
     platforms: string[];
     service_lines: { id: number; name: string }[];
     audit: AuditFinding[];
+    verticals: { id: number; name: string }[];
 }) {
     const { can } = usePermissions();
     const canManage = can('ads.campaigns.manage');
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; platform: string; type: string; objective: Objective; daily_budget: string; service_line_id: string }>({
+    const form = useForm<{
+        name: string;
+        platform: string;
+        type: string;
+        objective: Objective;
+        daily_budget: string;
+        service_line_id: string;
+        vertical_id: string;
+    }>({
         name: '',
         platform: '',
         type: '',
         objective: 'leads',
         daily_budget: '',
         service_line_id: '',
+        vertical_id: '',
     });
 
     const create: FormEventHandler = (e) => {
@@ -126,6 +137,7 @@ export default function Campaigns({
             ...data,
             daily_budget: data.daily_budget ? Math.round(Number(data.daily_budget) * 100) : null,
             service_line_id: data.service_line_id === '' ? null : Number(data.service_line_id),
+            vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id),
         }));
         form.post(route('ads.campaigns.store'), {
             preserveScroll: true,
@@ -193,6 +205,24 @@ export default function Campaigns({
                                                 </SelectContent>
                                             </Select>
                                             <InputError message={form.errors.service_line_id} />
+                                        </div>
+                                    )}
+                                    {verticals.length > 0 && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="campaign_vertical">Vertical (optional)</Label>
+                                            <Select value={form.data.vertical_id} onValueChange={(v) => form.setData('vertical_id', v)}>
+                                                <SelectTrigger id="campaign_vertical">
+                                                    <SelectValue placeholder="Not bound to one vertical" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {verticals.map((vertical) => (
+                                                        <SelectItem key={vertical.id} value={String(vertical.id)}>
+                                                            {vertical.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={form.errors.vertical_id} />
                                         </div>
                                     )}
                                     <div className="grid grid-cols-2 gap-3">

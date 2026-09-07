@@ -2,12 +2,15 @@
 
 namespace App\Services\Web;
 
+use App\Models\AdCampaign;
 use App\Models\Campaign;
 use App\Models\ContentPiece;
 use App\Models\Keyword;
 use App\Models\ServiceLine;
 use App\Models\SitePage;
+use App\Models\TargetAccount;
 use App\Models\Vertical;
+use App\Models\Workflow;
 use App\Web\TaxonomyCatalog;
 
 /**
@@ -68,6 +71,10 @@ class TaxonomyService
     }
 
     /**
+     * VERT-014..019: coverage joins on the explicit vertical bindings, with
+     * name matching kept as a fallback for unbound records. Keywords stay
+     * name-matched — a keyword phrase has no vertical axis to bind.
+     *
      * @return array<string, int>
      */
     public function verticalCoverage(Vertical $vertical): array
@@ -77,8 +84,16 @@ class TaxonomyService
             'published_pages' => SitePage::where('vertical_id', $vertical->id)
                 ->where('status', SitePage::STATUS_PUBLISHED)->count(),
             'keywords' => $this->keywordMatches($vertical->name),
-            'campaigns' => $this->campaignMatches($vertical->name),
-            'content' => $this->contentMatches($vertical->name),
+            'campaigns' => Campaign::where(fn ($q) => $q->where('vertical_id', $vertical->id)
+                ->orWhereLike('name', '%'.$vertical->name.'%'))->count(),
+            'content' => ContentPiece::where(fn ($q) => $q->where('vertical_id', $vertical->id)
+                ->orWhereLike('title', '%'.$vertical->name.'%'))->count(),
+            'ads' => AdCampaign::where('vertical_id', $vertical->id)->count(),
+            'case_studies' => ContentPiece::where('vertical_id', $vertical->id)
+                ->where('content_type', 'case_study')->count(),
+            'sequences' => Workflow::where('vertical_id', $vertical->id)->count()
+                + Campaign::where('vertical_id', $vertical->id)->where('channel', 'email')->count(),
+            'accounts' => TargetAccount::where('vertical_id', $vertical->id)->count(),
         ];
     }
 
@@ -102,7 +117,7 @@ class TaxonomyService
     public function verticalGaps(): array
     {
         return Vertical::where('is_active', true)->orderBy('name')->get()
-            ->map(fn (Vertical $v) => ['id' => $v->id, 'key' => $v->key, 'name' => $v->name, 'compliance_notes' => $v->compliance_notes]
+            ->map(fn (Vertical $v) => ['id' => $v->id, 'key' => $v->key, 'name' => $v->name, 'compliance_notes' => $v->compliance_notes, 'messaging' => $v->messaging]
                 + $this->verticalCoverage($v))
             ->sortBy('pages')->values()->all();
     }

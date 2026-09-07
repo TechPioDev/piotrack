@@ -51,17 +51,23 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
     return 'secondary';
 }
 
-function NewAccountDialog({ companies }: { companies: Company[] }) {
+function NewAccountDialog({ companies, verticals }: { companies: Company[]; verticals: { id: number; name: string }[] }) {
     const [open, setOpen] = useState(false);
-    const form = useForm<{ company_id: string; tier: (typeof TIERS)[number]; notes: string }>({
+    const form = useForm<{ company_id: string; tier: (typeof TIERS)[number]; notes: string; vertical_id: string }>({
         company_id: '',
         tier: '1',
         notes: '',
+        vertical_id: '',
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        form.transform((data) => ({ ...data, company_id: Number(data.company_id), tier: Number(data.tier) }));
+        form.transform((data) => ({
+            ...data,
+            company_id: Number(data.company_id),
+            tier: Number(data.tier),
+            vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id),
+        }));
         form.post(route('sales.accounts.store'), {
             preserveScroll: true,
             onSuccess: () => {
@@ -95,6 +101,24 @@ function NewAccountDialog({ companies }: { companies: Company[] }) {
                         </Select>
                         <InputError message={form.errors.company_id} />
                     </div>
+                    {verticals.length > 0 && (
+                        <div className="grid gap-1">
+                            <Label htmlFor="account_vertical">Vertical (optional)</Label>
+                            <Select value={form.data.vertical_id} onValueChange={(v) => form.setData('vertical_id', v)}>
+                                <SelectTrigger id="account_vertical">
+                                    <SelectValue placeholder="Not bound to one vertical" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {verticals.map((vertical) => (
+                                        <SelectItem key={vertical.id} value={String(vertical.id)}>
+                                            {vertical.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.vertical_id} />
+                        </div>
+                    )}
                     <div className="grid gap-1">
                         <Label htmlFor="account_tier">Tier</Label>
                         <Select value={form.data.tier} onValueChange={(v) => form.setData('tier', v as (typeof TIERS)[number])}>
@@ -253,7 +277,15 @@ function AccountPageDialog({ account }: { account: Account }) {
     );
 }
 
-export default function Accounts({ accounts, companies }: { accounts: Account[]; companies: Company[] }) {
+export default function Accounts({
+    accounts,
+    companies,
+    verticals,
+}: {
+    accounts: Account[];
+    companies: Company[];
+    verticals: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('sales.accounts.manage');
 
@@ -284,7 +316,7 @@ export default function Accounts({ accounts, companies }: { accounts: Account[];
                                 <a href={route('sales.accounts.linkedin-export')}>LinkedIn company list</a>
                             </Button>
                         )}
-                        {canManage && <NewAccountDialog companies={companies} />}
+                        {canManage && <NewAccountDialog companies={companies} verticals={verticals} />}
                     </div>
                 </div>
 

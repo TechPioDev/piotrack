@@ -40,6 +40,7 @@ type Campaign = {
     body_text: string | null;
     status: string;
     marketing_list_id: number | null;
+    vertical_id: number | null;
     stats: CampaignStats;
 };
 
@@ -57,7 +58,15 @@ const STAT_CARDS: { key: keyof CampaignStats; label: string }[] = [
 const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-28 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
 
-export default function CampaignShow({ campaign, lists }: { campaign: Campaign; lists: ListOption[] }) {
+export default function CampaignShow({
+    campaign,
+    lists,
+    verticals,
+}: {
+    campaign: Campaign;
+    lists: ListOption[];
+    verticals: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('marketing.campaigns.manage');
     const canSend = can('marketing.campaigns.send');
@@ -71,6 +80,7 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
         body_html: string;
         body_text: string;
         marketing_list_id: string;
+        vertical_id: string;
     }>({
         name: campaign.name,
         subject: campaign.subject ?? '',
@@ -80,6 +90,7 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
         body_html: campaign.body_html ?? '',
         body_text: campaign.body_text ?? '',
         marketing_list_id: campaign.marketing_list_id ? String(campaign.marketing_list_id) : '',
+        vertical_id: campaign.vertical_id ? String(campaign.vertical_id) : '',
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -205,6 +216,23 @@ export default function CampaignShow({ campaign, lists }: { campaign: Campaign; 
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {verticals.length > 0 && (
+                                <div className="grid gap-1">
+                                    <Label htmlFor="campaign_vertical">Vertical (optional)</Label>
+                                    <Select value={form.data.vertical_id} onValueChange={(v) => form.setData('vertical_id', v)}>
+                                        <SelectTrigger id="campaign_vertical">
+                                            <SelectValue placeholder="Not bound to one vertical" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {verticals.map((vertical) => (
+                                                <SelectItem key={vertical.id} value={String(vertical.id)}>
+                                                    {vertical.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                             <div className="grid gap-1">
                                 <Label htmlFor="body_html">Body HTML</Label>
                                 <textarea

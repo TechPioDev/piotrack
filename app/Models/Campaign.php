@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sent_at
  * @property string $channel
  * @property string $status
+ * @property int|null $vertical_id
  * @property int $stat_recipients
  * @property int $stat_sent
  * @property int $stat_opened
@@ -27,7 +28,7 @@ class Campaign extends Model
     protected $fillable = [
         'organization_id', 'name', 'channel', 'type', 'subject', 'subject_b', 'preheader',
         'from_name', 'from_email', 'body_html', 'body_text', 'marketing_list_id',
-        'status', 'scheduled_at', 'sent_at',
+        'status', 'scheduled_at', 'sent_at', 'vertical_id',
         'stat_recipients', 'stat_sent', 'stat_opened', 'stat_clicked', 'stat_bounced', 'stat_unsubscribed',
     ];
 
