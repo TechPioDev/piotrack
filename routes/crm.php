@@ -34,6 +34,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         Route::delete('contacts/views/{view}', [ContactController::class, 'destroyView'])->middleware('can:crm.contact.read')->name('contacts.views.destroy');
         Route::get('contacts/{contact}', [ContactController::class, 'show'])->middleware('can:crm.contact.read')->name('contacts.show');
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:crm.contact.update')->name('contacts.update');
+        // VID-016: personalized sales video over the real dispatcher.
+        Route::post('contacts/{contact}/video-message', [ContactController::class, 'videoMessage'])->middleware('can:crm.contact.update')->name('contacts.video-message');
         Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:crm.contact.delete')->name('contacts.destroy');
 
         // Import/export breadth (IMEX): companies, leads, deals on the shared
@@ -79,5 +81,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         // Activities (polymorphic timeline).
         Route::post('activities', [ActivityController::class, 'store'])->middleware('can:crm.activity.manage')->name('activities.store');
         Route::patch('activities/{activity}/complete', [ActivityController::class, 'complete'])->middleware('can:crm.activity.manage')->name('activities.complete');
+        // PORTAL-014: toggle whether a meeting note is visible in the client portal.
+        Route::patch('activities/{activity}/visibility', [ActivityController::class, 'visibility'])->middleware('can:crm.activity.manage')->name('activities.visibility');
         Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->middleware('can:crm.activity.manage')->name('activities.destroy');
     });

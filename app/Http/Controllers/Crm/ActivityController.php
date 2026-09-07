@@ -73,6 +73,16 @@ class ActivityController extends Controller
         return back();
     }
 
+    /** PORTAL-014: flip whether this meeting note shows in the client portal. */
+    public function visibility(Activity $activity): RedirectResponse
+    {
+        $activity->update(['client_visible' => ! $activity->client_visible]);
+
+        return back()->with('status', $activity->client_visible
+            ? __('Visible in the client portal.')
+            : __('Hidden from the client portal.'));
+    }
+
     public function destroy(Activity $activity): RedirectResponse
     {
         $activity->delete();

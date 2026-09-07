@@ -57,6 +57,8 @@ class CampaignController extends Controller
                 'status' => $campaign->status,
                 'marketing_list_id' => $campaign->marketing_list_id,
                 'vertical_id' => $campaign->vertical_id,
+                'video_url' => $campaign->video_url,
+                'video_title' => $campaign->video_title,
                 // EMAIL-015/019: split results + post-send conversions.
                 'ab' => app(CampaignService::class)->abResults($campaign),
                 'conversions' => app(CampaignService::class)->conversions($campaign),
@@ -126,6 +128,9 @@ class CampaignController extends Controller
             'marketing_list_id' => ['nullable', TenantExists::in('marketing_lists')],
             // VERT-018: vertical the campaign targets; coverage joins on it.
             'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
+            // VID-017: the video block appended at send, click-tracked.
+            'video_url' => ['nullable', 'url', 'starts_with:https://', 'max:500'],
+            'video_title' => ['nullable', 'string', 'max:200'],
         ]);
     }
 }

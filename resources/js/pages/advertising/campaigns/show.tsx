@@ -530,7 +530,8 @@ export default function CampaignShow({
     const [audienceId, setAudienceId] = useState('');
     const isLinkedIn = campaign.platform === 'linkedin';
     const isMeta = campaign.platform === 'meta';
-    const isSocialAds = isLinkedIn || isMeta;
+    const isYouTube = campaign.platform === 'youtube';
+    const isSocialAds = isLinkedIn || isMeta || isYouTube;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Campaigns', href: '/ads/campaigns' },
@@ -601,7 +602,7 @@ export default function CampaignShow({
                     <Card>
                         <CardContent className="space-y-2 p-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-medium">{isMeta ? 'Custom audience' : 'Matched audience'}</h3>
+                                <h3 className="text-sm font-medium">{isLinkedIn ? 'Matched audience' : 'Custom audience'}</h3>
                                 {canManage && audiences.length > 0 && (
                                     <div className="flex items-center gap-2">
                                         <Select value={audienceId} onValueChange={setAudienceId}>

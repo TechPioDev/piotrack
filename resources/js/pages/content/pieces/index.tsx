@@ -33,7 +33,27 @@ function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'published' ? 'default' : 'secondary';
 }
 
-export default function ContentPieces({ pieces, types, verticals }: { pieces: Piece[]; types: string[]; verticals: { id: number; name: string }[] }) {
+type VideoStrategy = {
+    pieces: number;
+    published: number;
+    per_month: number;
+    mix: Record<string, number>;
+    funnel: Record<string, number>;
+    sufficient: boolean;
+    recommendations: string[];
+};
+
+export default function ContentPieces({
+    pieces,
+    types,
+    verticals,
+    video_strategy,
+}: {
+    pieces: Piece[];
+    types: string[];
+    verticals: { id: number; name: string }[];
+    video_strategy: VideoStrategy;
+}) {
     const { can } = usePermissions();
     const canManage = can('content.pieces.manage');
     const [open, setOpen] = useState(false);
@@ -167,6 +187,32 @@ export default function ContentPieces({ pieces, types, verticals }: { pieces: Pi
                         </Dialog>
                     )}
                 </div>
+
+                {video_strategy.pieces > 0 && (
+                    <div className="space-y-2 rounded-lg border p-4">
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                            <span className="font-medium">Video strategy</span>
+                            <span className="text-muted-foreground">
+                                {video_strategy.pieces} video pieces · {video_strategy.published} published · {video_strategy.per_month}/month (90d) ·
+                                funnel {video_strategy.funnel.tof ?? 0} TOF / {video_strategy.funnel.mof ?? 0} MOF / {video_strategy.funnel.bof ?? 0}{' '}
+                                BOF
+                            </span>
+                        </div>
+                        {!video_strategy.sufficient ? (
+                            <p className="text-muted-foreground text-sm">
+                                Not enough video history yet to recommend anything — the report fills in from your own records.
+                            </p>
+                        ) : video_strategy.recommendations.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">Cadence, funnel coverage and publishing all look healthy.</p>
+                        ) : (
+                            <ul className="list-disc space-y-1 pl-5 text-sm">
+                                {video_strategy.recommendations.map((rec) => (
+                                    <li key={rec}>{rec}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
 
                 {pieces.length === 0 ? (
                     <p className="text-muted-foreground text-sm">No content yet. Create a piece to start planning.</p>

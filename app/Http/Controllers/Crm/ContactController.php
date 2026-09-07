@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Crm;
 use App\Billing\Limit;
 use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\SavedView;
+use App\Services\Marketing\MessageDispatcher;
 use App\Services\Sales\LeadScoringService;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -126,6 +128,41 @@ class ContactController extends Controller
         };
 
         return back()->with('status', $status);
+    }
+
+    /**
+     * VID-016: send a personalized sales video — recorded on any host, the
+     * link rides a real dispatcher email (merge-tag personalized,
+     * suppression-honoring, click-tracked CTA) and lands on the timeline.
+     */
+    public function videoMessage(Request $request, Contact $contact, MessageDispatcher $dispatcher): RedirectResponse
+    {
+        $data = $request->validate([
+            'video_url' => ['required', 'url', 'starts_with:https://', 'max:500'],
+            'subject' => ['required', 'string', 'max:200'],
+            'message' => ['required', 'string', 'max:2000'],
+        ]);
+
+        if ($contact->email === null || $contact->email === '') {
+            return back()->withErrors(['video_url' => __('This contact has no email address.')]);
+        }
+
+        $body = '<p>'.nl2br(e($data['message'])).'</p>'
+            .'<p><a href="'.e($data['video_url']).'" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;border-radius:6px;text-decoration:none">▶ '.__('Watch your video').'</a></p>';
+
+        $message = $dispatcher->sendEmail($contact, $data['subject'], $body, source: 'sales_video');
+
+        Activity::create([
+            'subject_type' => 'contact', 'subject_id' => $contact->id, 'type' => 'email',
+            'user_id' => $request->user()->id,
+            'title' => __('Sales video sent'),
+            'body' => $data['video_url'],
+            'occurred_at' => now(),
+        ]);
+
+        return back()->with('status', $message->status === 'sent'
+            ? __('Video message sent — the click lands in engagement tracking.')
+            : __('Video message could not be sent (:reason).', ['reason' => (string) $message->error]));
     }
 
     /** Save the current filter set as a personal view (CRM-030). */
@@ -288,6 +325,7 @@ class ContactController extends Controller
                 'body' => $a->body,
                 'due_at' => $a->due_at,
                 'completed_at' => $a->completed_at,
+                'client_visible' => $a->client_visible,
                 'user' => $a->user?->name,
                 'created_at' => $a->created_at,
             ])->all();

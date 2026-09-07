@@ -17,6 +17,7 @@ type FileRow = {
     size: number;
     uploaded_by: string | null;
     attached_to: string | null;
+    client_visible: boolean;
     created_at: string;
 };
 
@@ -80,6 +81,15 @@ export default function Files({ files }: { files: FileRow[] }) {
                                                 <Button asChild variant="ghost" size="sm">
                                                     <a href={route('files.download', file.id)}>Download</a>
                                                 </Button>
+                                                {can('files.manage') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => router.patch(route('files.visibility', file.id), {}, { preserveScroll: true })}
+                                                    >
+                                                        {file.client_visible ? 'Portal ✓' : 'Share to portal'}
+                                                    </Button>
+                                                )}
                                                 {can('files.manage') && (
                                                     <Button
                                                         variant="ghost"

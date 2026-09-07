@@ -2,10 +2,13 @@
 
 namespace App\Services\Delivery;
 
+use App\Models\Activity;
+use App\Models\Campaign;
 use App\Models\Deliverable;
 use App\Models\File;
 use App\Models\Project;
 use App\Models\ProjectTask;
+use App\Models\StrategyItem;
 use App\Models\Ticket;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Strategy\KpiTargetService;
@@ -134,11 +137,68 @@ class PortalService
      */
     public function files(): array
     {
-        return File::latest('id')->limit(100)->get()->map(fn (File $f) => [
+        // PORTAL-012: only files explicitly flagged client-visible reach the
+        // portal — the tenant file store stays internal by default.
+        return File::where('client_visible', true)->latest('id')->limit(100)->get()->map(fn (File $f) => [
             'id' => $f->id,
             'name' => $f->name,
             'size' => $f->size,
             'created_at' => $f->created_at?->toIso8601String(),
         ])->all();
+    }
+
+    /**
+     * PORTAL-003: campaign status — names, channels, lifecycle and topline
+     * stats only; audiences, bodies and internal settings stay out.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function campaigns(): array
+    {
+        return Campaign::latest('id')->limit(25)->get()->map(fn (Campaign $c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'channel' => $c->channel,
+            'status' => $c->status,
+            'sent_at' => $c->sent_at?->toIso8601String(),
+            'sent' => $c->stat_sent,
+            'opened' => $c->stat_opened,
+            'clicked' => $c->stat_clicked,
+        ])->all();
+    }
+
+    /**
+     * PORTAL-015: the strategy roadmap — items of type `roadmap` from the
+     * strategy plans, title/status/priority only.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function roadmap(): array
+    {
+        return StrategyItem::where('type', 'roadmap')->orderBy('due_on')->limit(50)->get()
+            ->map(fn (StrategyItem $i) => [
+                'id' => $i->id,
+                'title' => $i->title,
+                'status' => $i->status,
+                'priority' => $i->priority,
+                'due_on' => $i->due_on?->toDateString(),
+            ])->all();
+    }
+
+    /**
+     * PORTAL-014: meeting notes explicitly flagged client-visible.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function meetingNotes(): array
+    {
+        return Activity::where('type', 'meeting')->where('client_visible', true)
+            ->orderByDesc('occurred_at')->limit(50)->get()
+            ->map(fn (Activity $a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'body' => $a->body,
+                'occurred_at' => $a->occurred_at?->toIso8601String(),
+            ])->all();
     }
 }

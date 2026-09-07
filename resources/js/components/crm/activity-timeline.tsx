@@ -11,6 +11,7 @@ export type Activity = {
     body: string | null;
     due_at: string | null;
     completed_at: string | null;
+    client_visible: boolean;
     user: string | null;
     created_at: string;
 };
@@ -95,6 +96,15 @@ export function ActivityTimeline({
                                                 onClick={() => router.patch(route('crm.activities.complete', a.id), {}, { preserveScroll: true })}
                                             >
                                                 {a.completed_at ? 'Reopen' : 'Complete'}
+                                            </Button>
+                                        )}
+                                        {a.type === 'meeting' && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => router.patch(route('crm.activities.visibility', a.id), {}, { preserveScroll: true })}
+                                            >
+                                                {a.client_visible ? 'Portal ✓' : 'Share to portal'}
                                             </Button>
                                         )}
                                         <Button

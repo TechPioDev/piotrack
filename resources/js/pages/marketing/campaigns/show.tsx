@@ -41,6 +41,8 @@ type Campaign = {
     status: string;
     marketing_list_id: number | null;
     vertical_id: number | null;
+    video_url: string | null;
+    video_title: string | null;
     stats: CampaignStats;
 };
 
@@ -81,6 +83,8 @@ export default function CampaignShow({
         body_text: string;
         marketing_list_id: string;
         vertical_id: string;
+        video_url: string;
+        video_title: string;
     }>({
         name: campaign.name,
         subject: campaign.subject ?? '',
@@ -91,6 +95,8 @@ export default function CampaignShow({
         body_text: campaign.body_text ?? '',
         marketing_list_id: campaign.marketing_list_id ? String(campaign.marketing_list_id) : '',
         vertical_id: campaign.vertical_id ? String(campaign.vertical_id) : '',
+        video_url: campaign.video_url ?? '',
+        video_title: campaign.video_title ?? '',
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -233,6 +239,31 @@ export default function CampaignShow({
                                     </Select>
                                 </div>
                             )}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-1">
+                                    <Label htmlFor="video_url">Video URL (optional)</Label>
+                                    <Input
+                                        id="video_url"
+                                        type="url"
+                                        value={form.data.video_url}
+                                        onChange={(e) => form.setData('video_url', e.target.value)}
+                                        placeholder="https://youtu.be/…"
+                                    />
+                                    <InputError message={form.errors.video_url} />
+                                    <p className="text-muted-foreground text-xs">
+                                        Appended as a click-tracked watch button — email clients never play video inline, so plays are measured as
+                                        clicks.
+                                    </p>
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label htmlFor="video_title">Video title</Label>
+                                    <Input
+                                        id="video_title"
+                                        value={form.data.video_title}
+                                        onChange={(e) => form.setData('video_title', e.target.value)}
+                                    />
+                                </div>
+                            </div>
                             <div className="grid gap-1">
                                 <Label htmlFor="body_html">Body HTML</Label>
                                 <textarea

@@ -7,6 +7,7 @@ use App\Http\Controllers\Advertising\LinkedInAdsController;
 use App\Http\Controllers\Advertising\MetaAdsController;
 use App\Http\Controllers\Advertising\PpcController;
 use App\Http\Controllers\Advertising\RetargetingController;
+use App\Http\Controllers\Advertising\VideoAdsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,6 +66,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
             Route::post('meta/promote-content', [MetaAdsController::class, 'promoteContent'])->name('meta.promote-content');
             Route::post('meta/proof', [MetaAdsController::class, 'proofCampaign'])->name('meta.proof');
             Route::post('meta/leads', [MetaAdsController::class, 'importLeads'])->name('meta.leads');
+            // VID-014: YouTube video-ad drafts.
+            Route::post('youtube/promote-content', [VideoAdsController::class, 'promoteContent'])->name('youtube.promote-content');
         });
 
         // Retargeting audiences.

@@ -7,6 +7,7 @@ use App\Models\ContentPiece;
 use App\Models\Vertical;
 use App\Services\Content\ContentService;
 use App\Services\Content\MultimediaPromotion;
+use App\Services\Content\VideoStrategy;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,8 @@ class ContentPieceController extends Controller
             ]),
             'types' => self::TYPES,
             'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            // VID-001: the video strategy report from the tenant's own records.
+            'video_strategy' => app(VideoStrategy::class)->report(),
         ]);
     }
 

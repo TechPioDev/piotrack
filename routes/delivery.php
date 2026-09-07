@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Analytics\ReportExportController;
 use App\Http\Controllers\Delivery\PortalController;
 use App\Http\Controllers\Delivery\ProjectController;
 use App\Http\Controllers\Delivery\SupportController;
@@ -98,6 +99,8 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
      */
     Route::prefix('portal')->name('portal.')->middleware('can:portal.access')->group(function () {
         Route::get('/', [PortalController::class, 'dashboard'])->name('dashboard');
+        // PORTAL-013: the downloadable PDF performance report (P21 machinery).
+        Route::get('report', ReportExportController::class)->name('report');
         Route::get('projects', [PortalController::class, 'projects'])->name('projects');
         Route::get('support', [PortalController::class, 'support'])->name('support');
         Route::post('support/tickets', [PortalController::class, 'openTicket'])->name('support.tickets.store');

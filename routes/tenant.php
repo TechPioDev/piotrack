@@ -108,6 +108,9 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
         ->middleware('can:files.manage')->name('files.store');
     Route::delete('settings/files/{file}', [FileController::class, 'destroy'])
         ->middleware('can:files.manage')->name('files.destroy');
+    // PORTAL-012: toggle whether the client portal can see the file.
+    Route::patch('settings/files/{file}/visibility', [FileController::class, 'visibility'])
+        ->middleware('can:files.manage')->name('files.visibility');
 
     // Integrations / connectors (INTG). Viewing is read-only; connect/sync/
     // disconnect require integrations.manage.

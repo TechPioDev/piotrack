@@ -9,7 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property bool $client_visible
+ * @property string|null $title
+ * @property string|null $body
+ * @property Carbon|null $occurred_at
+ */
 class Activity extends Model
 {
     /** @use HasFactory<ActivityFactory> */
@@ -19,7 +26,7 @@ class Activity extends Model
 
     protected $fillable = [
         'organization_id', 'subject_type', 'subject_id', 'type', 'user_id',
-        'title', 'body', 'due_at', 'completed_at', 'occurred_at',
+        'title', 'body', 'due_at', 'completed_at', 'occurred_at', 'client_visible',
     ];
 
     protected function casts(): array
@@ -28,6 +35,7 @@ class Activity extends Model
             'due_at' => 'datetime',
             'completed_at' => 'datetime',
             'occurred_at' => 'datetime',
+            'client_visible' => 'boolean',
         ];
     }
 

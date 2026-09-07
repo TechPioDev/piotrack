@@ -1,6 +1,7 @@
 import Heading from '@/components/heading';
 import { PortalDeliverableActions, type PortalDeliverable } from '@/components/portal-deliverable-actions';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -84,14 +85,46 @@ function KpiRow({ kpi }: { kpi: Kpi }) {
     );
 }
 
+type PortalCampaign = {
+    id: number;
+    name: string;
+    channel: string;
+    status: string;
+    sent_at: string | null;
+    sent: number;
+    opened: number;
+    clicked: number;
+};
+
+type RoadmapItem = {
+    id: number;
+    title: string;
+    status: string;
+    priority: string | null;
+    due_on: string | null;
+};
+
+type MeetingNote = {
+    id: number;
+    title: string | null;
+    body: string | null;
+    occurred_at: string | null;
+};
+
 export default function PortalDashboard({
     metrics,
     projects,
     deliverables,
+    campaigns,
+    roadmap,
+    meeting_notes,
 }: {
     metrics: Metrics;
     projects: Project[];
     deliverables: PortalDeliverable[];
+    campaigns: PortalCampaign[];
+    roadmap: RoadmapItem[];
+    meeting_notes: MeetingNote[];
 }) {
     const counters: { label: string; value: string | number }[] = [
         { label: 'Active projects', value: metrics.projects },
@@ -271,6 +304,80 @@ export default function PortalDashboard({
                 </div>
 
                 <div>
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Monthly performance report</h3>
+                        <Button asChild size="sm" variant="outline">
+                            <a href={route('portal.report')}>Download PDF</a>
+                        </Button>
+                    </div>
+
+                    <h3 className="mb-2 text-sm font-medium">Campaign status</h3>
+                    {campaigns.length === 0 ? (
+                        <p className="text-muted-foreground mb-4 text-sm">No campaigns yet.</p>
+                    ) : (
+                        <div className="mb-4 overflow-x-auto rounded-lg border">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                    <tr>
+                                        <th className="p-3 font-medium">Campaign</th>
+                                        <th className="p-3 font-medium">Channel</th>
+                                        <th className="p-3 font-medium">Status</th>
+                                        <th className="p-3 text-center font-medium">Sent</th>
+                                        <th className="p-3 text-center font-medium">Opened</th>
+                                        <th className="p-3 text-center font-medium">Clicked</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {campaigns.map((campaign) => (
+                                        <tr key={campaign.id}>
+                                            <td className="p-3 font-medium">{campaign.name}</td>
+                                            <td className="text-muted-foreground p-3">{campaign.channel}</td>
+                                            <td className="p-3">
+                                                <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>{campaign.status}</Badge>
+                                            </td>
+                                            <td className="p-3 text-center">{campaign.sent}</td>
+                                            <td className="p-3 text-center">{campaign.opened}</td>
+                                            <td className="p-3 text-center">{campaign.clicked}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    <h3 className="mb-2 text-sm font-medium">Strategy roadmap</h3>
+                    {roadmap.length === 0 ? (
+                        <p className="text-muted-foreground mb-4 text-sm">No roadmap items yet.</p>
+                    ) : (
+                        <ul className="mb-4 divide-y rounded-lg border">
+                            {roadmap.map((item) => (
+                                <li key={item.id} className="flex flex-wrap items-center gap-2 p-3 text-sm">
+                                    <span className="font-medium">{item.title}</span>
+                                    <Badge variant={item.status === 'done' ? 'default' : 'secondary'}>{item.status}</Badge>
+                                    {item.priority && <span className="text-muted-foreground text-xs">priority {item.priority}</span>}
+                                    {item.due_on && <span className="text-muted-foreground text-xs">due {item.due_on}</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <h3 className="mb-2 text-sm font-medium">Meeting notes</h3>
+                    {meeting_notes.length === 0 ? (
+                        <p className="text-muted-foreground mb-4 text-sm">No shared meeting notes yet.</p>
+                    ) : (
+                        <ul className="mb-4 divide-y rounded-lg border">
+                            {meeting_notes.map((note) => (
+                                <li key={note.id} className="space-y-1 p-3 text-sm">
+                                    <p className="font-medium">{note.title ?? 'Meeting'}</p>
+                                    {note.body && <p className="text-muted-foreground whitespace-pre-wrap">{note.body}</p>}
+                                    {note.occurred_at && (
+                                        <p className="text-muted-foreground text-xs">{new Date(note.occurred_at).toLocaleString()}</p>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
                     <h3 className="mb-2 text-sm font-medium">Recent deliverables</h3>
                     {deliverables.length === 0 ? (
                         <p className="text-muted-foreground text-sm">Nothing has been shared with you yet.</p>

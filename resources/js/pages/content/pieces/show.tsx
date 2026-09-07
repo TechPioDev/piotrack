@@ -149,6 +149,21 @@ export default function ContentPieceShow({ piece, statuses }: { piece: Piece; st
                                         ? 'Run as Meta video ad'
                                         : 'Amplify on Facebook'}
                                 </Button>
+                                {['video', 'webinar', 'podcast', 'interview'].includes(piece.content_type) && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.post(
+                                                route('ads.youtube.promote-content'),
+                                                { content_piece_id: piece.id },
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        Run as YouTube ad
+                                    </Button>
+                                )}
                                 <p className="text-muted-foreground text-xs">
                                     Creates a draft campaign with creative from this piece
                                     {piece.content_type === 'case_study' ? ' — case studies promote for conversions.' : '.'}

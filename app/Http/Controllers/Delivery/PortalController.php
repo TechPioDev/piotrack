@@ -33,6 +33,10 @@ class PortalController extends Controller
             'metrics' => $this->portal->dashboard(),
             'projects' => $this->portal->projects(),
             'deliverables' => $this->portal->deliverables(),
+            // PORTAL-003/014/015: campaign status, meeting notes, roadmap.
+            'campaigns' => $this->portal->campaigns(),
+            'roadmap' => $this->portal->roadmap(),
+            'meeting_notes' => $this->portal->meetingNotes(),
         ]);
     }
 

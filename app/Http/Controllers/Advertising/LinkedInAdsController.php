@@ -9,6 +9,7 @@ use App\Models\RetargetingAudience;
 use App\Services\Advertising\LinkedInAdsService;
 use App\Services\Advertising\MetaAdsService;
 use App\Services\Advertising\RetargetingService;
+use App\Services\Advertising\VideoAdsService;
 use App\Services\Sales\AccountService;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +49,13 @@ class LinkedInAdsController extends Controller
             $meta->attachAudience($campaign, $audience);
 
             return back()->with('status', __('Audience attached — upload its export CSV in Ads Manager (Audiences → Customer list) and select it as the custom audience.'));
+        }
+
+        // VID-015: YouTube retargeting rides Google Ads Customer Match.
+        if ($campaign->platform === 'youtube') {
+            app(VideoAdsService::class)->attachAudience($campaign, $audience);
+
+            return back()->with('status', __('Audience attached — upload its google export CSV in Google Ads (Audience Manager → Customer list) and target it on the video campaign.'));
         }
 
         $this->linkedin->attachAudience($campaign, $audience);

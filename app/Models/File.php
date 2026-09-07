@@ -10,19 +10,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property bool $client_visible
+ * @property string $name
+ */
 class File extends Model
 {
     /** @use HasFactory<FileFactory> */
     use BelongsToTenant, HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'organization_id', 'uploaded_by', 'disk', 'path', 'name', 'mime', 'size',
+        'organization_id', 'uploaded_by', 'disk', 'path', 'name', 'mime', 'size', 'client_visible',
         'attachable_type', 'attachable_id',
     ];
 
     protected function casts(): array
     {
-        return ['size' => 'integer'];
+        return ['size' => 'integer', 'client_visible' => 'boolean'];
     }
 
     /**

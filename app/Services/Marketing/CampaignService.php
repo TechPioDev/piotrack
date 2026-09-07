@@ -128,7 +128,17 @@ class CampaignService
 
     private function buildEmail(Campaign $campaign, Contact $contact, CampaignRecipient $recipient): EmailMessage
     {
-        $html = EmailBody::withTracking(MergeTags::render((string) $campaign->body_html, $contact), $recipient->token);
+        $body = (string) $campaign->body_html;
+
+        // VID-017: the video block — a linked CTA, because no email client
+        // plays inline video; the link rides the click tracker, so plays are
+        // measured as clicks.
+        if ($campaign->video_url !== null && $campaign->video_url !== '') {
+            $body .= '<p style="margin-top:16px"><a href="'.e($campaign->video_url).'" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;border-radius:6px;text-decoration:none">▶ '
+                .e($campaign->video_title ?: __('Watch the video')).'</a></p>';
+        }
+
+        $html = EmailBody::withTracking(MergeTags::render($body, $contact), $recipient->token);
 
         // EMAIL-015: the B half of a split gets the B subject.
         $subject = $recipient->variant === 'b' && $campaign->subject_b !== null && $campaign->subject_b !== ''

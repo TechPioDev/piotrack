@@ -58,6 +58,7 @@ class FileController extends Controller
                     'size' => $f->size,
                     'uploaded_by' => $f->uploader?->name,
                     'created_at' => $f->created_at,
+                    'client_visible' => $f->client_visible,
                     // FILE-002: what this document is attached to, if anything.
                     'attached_to' => $f->attachable_type !== null
                         ? array_search($f->attachable_type, self::ATTACHABLES, true).' #'.$f->attachable_id
@@ -124,6 +125,16 @@ class FileController extends Controller
         abort_unless(Storage::disk($file->disk)->exists($file->path), 404);
 
         return Storage::disk($file->disk)->download($file->path, $file->name);
+    }
+
+    /** PORTAL-012: flip whether the client portal can see this file. */
+    public function visibility(File $file): RedirectResponse
+    {
+        $file->update(['client_visible' => ! $file->client_visible]);
+
+        return back()->with('status', $file->client_visible
+            ? __(':name is now visible in the client portal.', ['name' => $file->name])
+            : __(':name is hidden from the client portal.', ['name' => $file->name]));
     }
 
     public function destroy(File $file): RedirectResponse
