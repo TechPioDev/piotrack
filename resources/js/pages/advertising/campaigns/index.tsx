@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Campaigns', href: '/ads/campaigns' }];
@@ -42,6 +42,61 @@ type AuditFinding = {
     severity: string;
     finding: string;
 };
+
+function LinkedInLeadsDialog() {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ file: File | null; campaign: string }>({ file: null, campaign: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('ads.linkedin.leads'), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    Import LinkedIn leads
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Import LinkedIn lead-gen leads</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    Export leads from LinkedIn Campaign Manager (Account Assets → Lead Gen Forms → Download leads) and upload the CSV unchanged.
+                    Contacts are matched by email; a lead&rsquo;s original source is never overwritten.
+                </p>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor="leads_file">Leads CSV</Label>
+                        <Input
+                            id="leads_file"
+                            type="file"
+                            accept=".csv,text/csv"
+                            onChange={(e) => form.setData('file', e.target.files?.[0] ?? null)}
+                        />
+                        <InputError message={form.errors.file} />
+                    </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor="leads_campaign">Campaign name (optional fallback)</Label>
+                        <Input id="leads_campaign" value={form.data.campaign} onChange={(e) => form.setData('campaign', e.target.value)} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing || !form.data.file}>
+                            Import
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function Campaigns({
     campaigns,
@@ -180,6 +235,23 @@ export default function Campaigns({
                         </Dialog>
                     )}
                 </div>
+
+                {canManage && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-muted-foreground text-xs font-medium uppercase">LinkedIn</span>
+                        {[1, 2, 3].map((tier) => (
+                            <Button
+                                key={tier}
+                                size="sm"
+                                variant="outline"
+                                onClick={() => router.post(route('ads.linkedin.abm'), { tier }, { preserveScroll: true })}
+                            >
+                                ABM Tier {tier} campaign
+                            </Button>
+                        ))}
+                        <LinkedInLeadsDialog />
+                    </div>
+                )}
 
                 {audit.length > 0 && (
                     <div className="space-y-2">

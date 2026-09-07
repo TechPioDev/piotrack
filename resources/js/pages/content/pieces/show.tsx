@@ -127,6 +127,23 @@ export default function ContentPieceShow({ piece, statuses }: { piece: Piece; st
                                 </p>
                             </div>
                         )}
+                        {can('ads.campaigns.manage') && (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(route('ads.linkedin.promote-content'), { content_piece_id: piece.id }, { preserveScroll: true })
+                                    }
+                                >
+                                    Promote on LinkedIn
+                                </Button>
+                                <p className="text-muted-foreground text-xs">
+                                    Creates a draft sponsored-content campaign with creative from this piece
+                                    {piece.content_type === 'case_study' ? ' — case studies promote for conversions.' : '.'}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 

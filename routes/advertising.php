@@ -3,6 +3,7 @@
 use App\Http\Controllers\Advertising\AdDashboardController;
 use App\Http\Controllers\Advertising\AdGroupController;
 use App\Http\Controllers\Advertising\CampaignController;
+use App\Http\Controllers\Advertising\LinkedInAdsController;
 use App\Http\Controllers\Advertising\PpcController;
 use App\Http\Controllers\Advertising\RetargetingController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,16 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
             Route::delete('extensions/{extension}', [PpcController::class, 'destroyExtension'])->name('extensions.destroy');
             Route::post('campaigns/{campaign}/tracking-number', [PpcController::class, 'attachTrackingNumber'])->name('campaigns.tracking-number');
             Route::post('campaigns/{campaign}/landing-page', [PpcController::class, 'createLandingPage'])->name('campaigns.landing-page');
+        });
+
+        // LinkedIn Advertising (Phase 37): drafts, briefs and imports only —
+        // no Marketing API calls (ADR-0006).
+        Route::middleware('can:ads.campaigns.manage')->group(function () {
+            Route::post('linkedin/promote-content', [LinkedInAdsController::class, 'promoteContent'])->name('linkedin.promote-content');
+            Route::post('linkedin/abm', [LinkedInAdsController::class, 'abmCampaign'])->name('linkedin.abm');
+            Route::post('linkedin/leads', [LinkedInAdsController::class, 'importLeads'])->name('linkedin.leads');
+            Route::post('campaigns/{campaign}/audience', [LinkedInAdsController::class, 'attachAudience'])->name('campaigns.audience');
+            Route::get('campaigns/{campaign}/brief', [LinkedInAdsController::class, 'brief'])->name('campaigns.brief');
         });
 
         // Retargeting audiences.

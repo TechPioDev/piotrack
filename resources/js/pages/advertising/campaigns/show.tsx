@@ -506,6 +506,8 @@ export default function CampaignShow({
     calls,
     available_numbers,
     export_formats,
+    audiences,
+    attached_audience,
 }: {
     campaign: Campaign;
     groups: Group[];
@@ -517,12 +519,16 @@ export default function CampaignShow({
     calls: CallStats;
     available_numbers: TrackingNumber[];
     export_formats: string[];
+    audiences: { id: number; name: string; member_count: number }[];
+    attached_audience: string | null;
 }) {
     const { can } = usePermissions();
     const canManage = can('ads.campaigns.manage');
     const page = usePage<SharedData>();
     const aiResult = (page.props.flash as { ai_result?: string } | undefined)?.ai_result ?? null;
     const [numberId, setNumberId] = useState('');
+    const [audienceId, setAudienceId] = useState('');
+    const isLinkedIn = campaign.platform === 'linkedin';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Campaigns', href: '/ads/campaigns' },
@@ -537,6 +543,11 @@ export default function CampaignShow({
     const linkNumber = () => {
         if (numberId !== '') {
             router.post(route('ads.campaigns.tracking-number', campaign.id), { call_tracking_number_id: Number(numberId) }, { preserveScroll: true });
+        }
+    };
+    const attachAudience = () => {
+        if (audienceId !== '') {
+            router.post(route('ads.campaigns.audience', campaign.id), { audience_id: Number(audienceId) }, { preserveScroll: true });
         }
     };
 
@@ -564,19 +575,59 @@ export default function CampaignShow({
                             <Button size="sm" onClick={refreshMetrics}>
                                 Refresh metrics
                             </Button>
-                            {export_formats.map((format) => (
-                                <Button key={format} size="sm" variant="outline" asChild>
-                                    <a href={`${route('ads.campaigns.export', campaign.id)}?format=${format}`}>
-                                        {format === 'google' ? 'Google Ads Editor CSV' : 'Microsoft Ads CSV'}
-                                    </a>
+                            {!isLinkedIn &&
+                                export_formats.map((format) => (
+                                    <Button key={format} size="sm" variant="outline" asChild>
+                                        <a href={`${route('ads.campaigns.export', campaign.id)}?format=${format}`}>
+                                            {format === 'google' ? 'Google Ads Editor CSV' : 'Microsoft Ads CSV'}
+                                        </a>
+                                    </Button>
+                                ))}
+                            {isLinkedIn && (
+                                <Button size="sm" variant="outline" asChild>
+                                    <a href={route('ads.campaigns.brief', campaign.id)}>Campaign Manager brief</a>
                                 </Button>
-                            ))}
+                            )}
                             <Button size="sm" variant="outline" onClick={createLandingPage}>
                                 Create landing page
                             </Button>
                         </div>
                     )}
                 </div>
+
+                {isLinkedIn && (
+                    <Card>
+                        <CardContent className="space-y-2 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="text-sm font-medium">Matched audience</h3>
+                                {canManage && audiences.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Select value={audienceId} onValueChange={setAudienceId}>
+                                            <SelectTrigger className="h-8 w-56">
+                                                <SelectValue placeholder="Choose an audience" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {audiences.map((a) => (
+                                                    <SelectItem key={a.id} value={String(a.id)}>
+                                                        {a.name} ({a.member_count})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button size="sm" variant="outline" onClick={attachAudience} disabled={audienceId === ''}>
+                                            Attach
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-muted-foreground text-sm">
+                                {attached_audience
+                                    ? `Attached: ${attached_audience}. Upload its export CSV in Campaign Manager (Plan → Audiences) and select it there — live audience push needs the LinkedIn API.`
+                                    : 'Attach a retargeting audience, then upload its export CSV in Campaign Manager as the matched audience.'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {aiResult && (
                     <Card>

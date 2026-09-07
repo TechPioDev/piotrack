@@ -11,6 +11,7 @@ use App\Models\AdKeyword;
 use App\Models\AdMetric;
 use App\Models\Call;
 use App\Models\CallTrackingNumber;
+use App\Models\RetargetingAudience;
 use App\Models\ServiceLine;
 use App\Services\Advertising\AdCampaignService;
 use App\Services\Advertising\AdExportService;
@@ -109,6 +110,11 @@ class CampaignController extends Controller
             'available_numbers' => CallTrackingNumber::whereNull('ad_campaign_id')->where('is_active', true)
                 ->get()->map(fn (CallTrackingNumber $n) => ['id' => $n->id, 'phone_number' => $n->phone_number, 'label' => $n->label])->all(),
             'export_formats' => AdExportService::FORMATS,
+            // LIAD-013: matched audiences attachable to LinkedIn campaigns.
+            'audiences' => $campaign->platform === 'linkedin'
+                ? RetargetingAudience::orderBy('name')->get()->map(fn (RetargetingAudience $a) => ['id' => $a->id, 'name' => $a->name, 'member_count' => $a->member_count])->all()
+                : [],
+            'attached_audience' => $campaign->targeting['audience_name'] ?? null,
         ]);
     }
 
