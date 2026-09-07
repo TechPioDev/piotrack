@@ -24,6 +24,20 @@ type Citation = {
     listed_phone: string | null;
 };
 
+type GbpCheck = { key: string; label: string; ok: boolean; detail: string };
+
+type Gbp = { score: number; checks: GbpCheck[] };
+
+type Placement = { name: string; domain: string | null; url: string | null; domain_authority: number | null };
+
+type Authority = {
+    citations: number;
+    consistent_citations: number;
+    placements: Placement[];
+    avg_da: number | null;
+    recommendations: string[];
+};
+
 type Location = {
     id: number;
     name: string;
@@ -31,6 +45,8 @@ type Location = {
     phone: string | null;
     website: string | null;
     citations: Citation[];
+    gbp: Gbp;
+    authority: Authority;
 };
 
 function citationVariant(status: string): 'default' | 'secondary' | 'destructive' {
@@ -202,6 +218,59 @@ function LocationCard({ location, canManage }: { location: Location; canManage: 
                                 Delete
                             </Button>
                         </div>
+                    )}
+                </div>
+
+                <div className="space-y-2 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-medium">Map Pack readiness</span>
+                        <Badge variant={location.gbp.score >= 80 ? 'default' : 'secondary'}>{location.gbp.score}/100</Badge>
+                        <span className="text-muted-foreground text-xs">
+                            Computed from your own records — pushing the profile to Google itself needs the GBP API connection.
+                        </span>
+                    </div>
+                    <ul className="divide-y rounded border">
+                        {location.gbp.checks.map((check) => (
+                            <li key={check.key} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                                <Badge variant={check.ok ? 'default' : 'destructive'}>{check.ok ? '✓' : '✗'}</Badge>
+                                <span className="font-medium">{check.label}</span>
+                                <span className="text-muted-foreground">{check.detail}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="space-y-2 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-medium">Local authority</span>
+                        <span className="text-muted-foreground text-xs">
+                            {location.authority.consistent_citations}/{location.authority.citations} citations consistent ·{' '}
+                            {location.authority.placements.length} local placement{location.authority.placements.length === 1 ? '' : 's'}
+                            {location.authority.avg_da !== null ? ` · avg DA ${location.authority.avg_da}` : ''}
+                        </span>
+                    </div>
+                    {location.authority.placements.length > 0 && (
+                        <ul className="divide-y rounded border">
+                            {location.authority.placements.map((placement) => (
+                                <li key={placement.name} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                                    <span className="font-medium">{placement.name}</span>
+                                    {placement.domain && <span className="text-muted-foreground text-xs">{placement.domain}</span>}
+                                    {placement.domain_authority !== null && <Badge variant="outline">DA {placement.domain_authority}</Badge>}
+                                    {placement.url && (
+                                        <a href={placement.url} className="text-xs underline" target="_blank" rel="noreferrer">
+                                            placement
+                                        </a>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {location.authority.recommendations.length > 0 && (
+                        <ul className="list-disc space-y-1 pl-5 text-sm">
+                            {location.authority.recommendations.map((rec) => (
+                                <li key={rec}>{rec}</li>
+                            ))}
+                        </ul>
                     )}
                 </div>
 

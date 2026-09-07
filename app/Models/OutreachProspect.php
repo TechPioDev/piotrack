@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property string $status
  * @property string|null $placement_url
+ * @property string $name
+ * @property string|null $domain
+ * @property int|null $domain_authority
  */
 class OutreachProspect extends Model
 {
@@ -17,6 +20,7 @@ class OutreachProspect extends Model
     protected $fillable = [
         'organization_id', 'outreach_campaign_id', 'name', 'domain', 'contact_email',
         'status', 'placement_url', 'domain_authority', 'anchor_text', 'link_type',
+        'seo_location_id',
     ];
 
     public function hasPlacement(): bool

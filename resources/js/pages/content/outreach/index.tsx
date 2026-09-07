@@ -116,13 +116,14 @@ function NewCampaignDialog() {
     );
 }
 
-function AddProspectDialog({ campaignId }: { campaignId: number }) {
+function AddProspectDialog({ campaignId, locations }: { campaignId: number; locations: { id: number; name: string }[] }) {
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; domain: string; contact_email: string; domain_authority: string }>({
+    const form = useForm<{ name: string; domain: string; contact_email: string; domain_authority: string; seo_location_id: string }>({
         name: '',
         domain: '',
         contact_email: '',
         domain_authority: '',
+        seo_location_id: '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -130,6 +131,7 @@ function AddProspectDialog({ campaignId }: { campaignId: number }) {
         form.transform((data) => ({
             ...data,
             domain_authority: data.domain_authority ? Number(data.domain_authority) : null,
+            seo_location_id: data.seo_location_id === '' ? null : Number(data.seo_location_id),
         }));
         form.post(route('content.outreach.prospects.store', campaignId), {
             preserveScroll: true,
@@ -177,6 +179,24 @@ function AddProspectDialog({ campaignId }: { campaignId: number }) {
                             <InputError message={form.errors.domain_authority} />
                         </div>
                     </div>
+                    {locations.length > 0 && (
+                        <div className="grid gap-1">
+                            <Label htmlFor={`prospect_location_${campaignId}`}>Branch (optional — local link building)</Label>
+                            <Select value={form.data.seo_location_id} onValueChange={(v) => form.setData('seo_location_id', v)}>
+                                <SelectTrigger id={`prospect_location_${campaignId}`}>
+                                    <SelectValue placeholder="Not bound to a branch" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {locations.map((location) => (
+                                        <SelectItem key={location.id} value={String(location.id)}>
+                                            {location.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.seo_location_id} />
+                        </div>
+                    )}
                     <div className="grid gap-1">
                         <Label htmlFor={`prospect_email_${campaignId}`}>Contact email</Label>
                         <Input
@@ -307,7 +327,17 @@ function MarkPlacementDialog({ prospectId }: { prospectId: number }) {
     );
 }
 
-function CampaignCard({ campaign, statuses, canManage }: { campaign: Campaign; statuses: string[]; canManage: boolean }) {
+function CampaignCard({
+    campaign,
+    statuses,
+    canManage,
+    locations,
+}: {
+    campaign: Campaign;
+    statuses: string[];
+    canManage: boolean;
+    locations: { id: number; name: string }[];
+}) {
     const setStatus = (prospectId: number, status: string) =>
         router.post(route('content.outreach.prospects.status', prospectId), { status }, { preserveScroll: true });
     const removeProspect = (prospectId: number) => router.delete(route('content.outreach.prospects.destroy', prospectId), { preserveScroll: true });
@@ -329,7 +359,7 @@ function CampaignCard({ campaign, statuses, canManage }: { campaign: Campaign; s
                     </div>
                     {canManage && (
                         <div className="flex flex-wrap gap-2">
-                            <AddProspectDialog campaignId={campaign.id} />
+                            <AddProspectDialog campaignId={campaign.id} locations={locations} />
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={removeCampaign}>
                                 Delete campaign
                             </Button>
@@ -415,7 +445,15 @@ function CampaignCard({ campaign, statuses, canManage }: { campaign: Campaign; s
     );
 }
 
-export default function Outreach({ campaigns, statuses }: { campaigns: Campaign[]; statuses: string[] }) {
+export default function Outreach({
+    campaigns,
+    statuses,
+    locations,
+}: {
+    campaigns: Campaign[];
+    statuses: string[];
+    locations: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('content.outreach.manage');
 
@@ -433,7 +471,7 @@ export default function Outreach({ campaigns, statuses }: { campaigns: Campaign[
                 ) : (
                     <div className="space-y-4">
                         {campaigns.map((campaign) => (
-                            <CampaignCard key={campaign.id} campaign={campaign} statuses={statuses} canManage={canManage} />
+                            <CampaignCard key={campaign.id} campaign={campaign} statuses={statuses} canManage={canManage} locations={locations} />
                         ))}
                     </div>
                 )}

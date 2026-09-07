@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Citation;
 use App\Models\LandingPage;
 use App\Models\SeoLocation;
+use App\Services\Seo\LocalAuthorityService;
 use App\Services\Seo\NapConsistencyChecker;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
@@ -39,6 +40,10 @@ class LocalController extends Controller
                     'listed_address' => $c->listed_address,
                     'listed_phone' => $c->listed_phone,
                 ])->all(),
+                // LSEO-001/009/010: the Map-Pack readiness checklist.
+                'gbp' => app(LocalAuthorityService::class)->gbpReadiness($l),
+                // LSEO-015/016: the branch's local authority rollup.
+                'authority' => app(LocalAuthorityService::class)->authority($l),
             ]),
         ]);
     }

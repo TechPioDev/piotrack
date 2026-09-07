@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Content;
 use App\Http\Controllers\Controller;
 use App\Models\OutreachCampaign;
 use App\Models\OutreachProspect;
+use App\Models\SeoLocation;
 use App\Services\Content\OutreachService;
 use App\Support\AuditLogger;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,6 +27,8 @@ class OutreachController extends Controller
     public function index(): Response
     {
         return Inertia::render('content/outreach/index', [
+            // LSEO-015: bindable branches for local link building.
+            'locations' => SeoLocation::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'campaigns' => OutreachCampaign::with('prospects')->latest('id')->get()->map(fn (OutreachCampaign $c) => [
                 'id' => $c->id,
                 'name' => $c->name,
@@ -67,6 +71,8 @@ class OutreachController extends Controller
             'domain' => ['nullable', 'string', 'max:200'],
             'contact_email' => ['nullable', 'email', 'max:200'],
             'domain_authority' => ['nullable', 'integer', 'min:0', 'max:100'],
+            // LSEO-015: a prospect worked for one branch builds ITS link profile.
+            'seo_location_id' => ['nullable', 'integer', TenantExists::in('seo_locations')],
         ]));
 
         return back()->with('status', __('Prospect added.'));
