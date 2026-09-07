@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\LeadReplacement;
 use App\Models\PerformanceAgreement;
+use App\Models\PerformanceReview;
 use App\Services\Strategy\PerformanceService;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,8 @@ class PerformanceController extends Controller
                 'period_start' => $a->period_start?->toDateString(),
                 'period_end' => $a->period_end?->toDateString(),
                 'attainment' => $this->performance->attainment($a),
+                // PERF-004: automatic promised-vs-delivered reconciliation.
+                'reconciliation' => $this->performance->reconcileDeliverables($a),
             ]),
             'replacements' => LeadReplacement::latest('id')->limit(50)->get()->map(fn (LeadReplacement $r) => [
                 'id' => $r->id,
@@ -43,7 +46,30 @@ class PerformanceController extends Controller
                 'replaced_at' => $r->replaced_at?->toIso8601String(),
             ]),
             'models' => PerformanceAgreement::MODELS,
+            // PERF-011: stored ROI review artefacts, newest first.
+            'reviews' => PerformanceReview::with('agreement:id,name')->latest('id')->limit(20)->get()->map(fn (PerformanceReview $r) => [
+                'id' => $r->id,
+                'agreement' => $r->agreement?->name,
+                'period_start' => $r->period_start?->toDateString(),
+                'period_end' => $r->period_end?->toDateString(),
+                'won_revenue' => $r->data['won_revenue'] ?? 0,
+                'ad_spend' => $r->data['ad_spend'] ?? 0,
+                'roi' => $r->data['roi'] ?? null,
+                'all_targets_met' => $r->data['attainment']['all_targets_met'] ?? false,
+                'created_at' => $r->created_at?->toIso8601String(),
+            ]),
         ]);
+    }
+
+    /** PERF-011: generate and store the formal ROI review for an agreement. */
+    public function roiReview(PerformanceAgreement $agreement): RedirectResponse
+    {
+        $review = $this->performance->generateRoiReview($agreement);
+
+        return back()->with('status', __('ROI review stored for ":name" (:period).', [
+            'name' => $agreement->name,
+            'period' => ($review->period_start?->toDateString() ?? '—').' → '.($review->period_end?->toDateString() ?? '—'),
+        ]));
     }
 
     public function store(Request $request): RedirectResponse

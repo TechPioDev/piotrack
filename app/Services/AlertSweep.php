@@ -5,13 +5,16 @@ namespace App\Services;
 use App\Billing\UsageMeter;
 use App\Models\Keyword;
 use App\Models\Organization;
+use App\Models\PerformanceAgreement;
 use App\Models\User;
 use App\Notifications\AiVisibilityChangeNotification;
 use App\Notifications\CompetitorOutrankNotification;
 use App\Notifications\PlatformNotification;
 use App\Notifications\RankingDropNotification;
+use App\Notifications\SlaBreachNotification;
 use App\Notifications\UsageLimitApproachingNotification;
 use App\Services\Ai\AiVisibilityDashboard;
+use App\Services\Strategy\PerformanceService;
 use App\Support\NotificationDispatcher;
 
 /**
@@ -32,6 +35,7 @@ class AlertSweep
         private UsageMeter $usage,
         private AiVisibilityDashboard $aiVisibility,
         private NotificationDispatcher $notifier,
+        private PerformanceService $performance,
     ) {}
 
     /**
@@ -44,7 +48,45 @@ class AlertSweep
             'rankings' => $this->checkRankingDrops($organization),
             'ai_visibility' => $this->checkAiVisibility($organization),
             'competitors' => $this->checkCompetitorOutranks($organization),
+            'sla' => $this->checkSlaBreaches($organization),
         ];
+    }
+
+    /**
+     * PERF-010: a live agreement whose window closed with targets missed is
+     * BREACHED — the owners hear about it without opening the report. Deduped
+     * per agreement per day.
+     */
+    private function checkSlaBreaches(Organization $organization): int
+    {
+        $sent = 0;
+
+        $agreements = PerformanceAgreement::where('status', 'active')
+            ->whereNotNull('period_end')->whereDate('period_end', '<', now()->toDateString())
+            ->get();
+
+        foreach ($agreements as $agreement) {
+            $attainment = $this->performance->attainment($agreement);
+            if ($attainment['status'] !== 'breached') {
+                continue;
+            }
+
+            $parts = [];
+            /** @var array<string, array{actual: int, target: int, met: bool}> $targets */
+            $targets = $attainment['targets'];
+            foreach ($targets as $key => $row) {
+                if (! $row['met']) {
+                    $parts[] = sprintf('%s %d/%d', $key, $row['actual'], $row['target']);
+                }
+            }
+            $missed = implode(', ', $parts);
+
+            $sent += $this->notifyOwners($organization, new SlaBreachNotification(
+                $agreement->name, $agreement->id, $missed !== '' ? $missed : 'targets under plan',
+            ));
+        }
+
+        return $sent;
     }
 
     /**

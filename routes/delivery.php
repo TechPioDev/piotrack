@@ -85,6 +85,8 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
             Route::patch('engagements/{engagement}', [StrategyController::class, 'updateEngagement'])->name('engagements.update');
             Route::post('performance', [PerformanceController::class, 'store'])->name('performance.store');
             Route::post('performance/{agreement}/replace-lead', [PerformanceController::class, 'replaceLead'])->name('performance.replace-lead');
+            // PERF-011: generate the stored ROI review artefact.
+            Route::post('performance/{agreement}/roi-review', [PerformanceController::class, 'roiReview'])->name('performance.roi-review');
             Route::delete('performance/{agreement}', [PerformanceController::class, 'destroy'])->name('performance.destroy');
         });
     });

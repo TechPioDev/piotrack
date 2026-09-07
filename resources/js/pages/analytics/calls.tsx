@@ -40,6 +40,7 @@ type Call = {
     occurred_at: string | null;
     has_transcript: boolean;
     summary: string | null;
+    recording_url: string | null;
 };
 
 type Direction = 'inbound' | 'outbound';
@@ -246,6 +247,55 @@ function LogCallDialog({ numbers }: { numbers: TrackingNumber[] }) {
     );
 }
 
+/** CALL-003: attach the recording; the row then plays it and can transcribe. */
+function RecordingDialog({ call }: { call: Call }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ recording_url: string }>({ recording_url: call.recording_url ?? '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.patch(route('analytics.calls.recording', call.id), {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="ghost">
+                    {call.recording_url ? 'Recording ✓' : 'Recording'}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Call recording</DialogTitle>
+                {call.recording_url && <audio controls className="w-full" src={call.recording_url} />}
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor={`recording_${call.id}`}>Recording URL (https)</Label>
+                        <Input
+                            id={`recording_${call.id}`}
+                            type="url"
+                            value={form.data.recording_url}
+                            onChange={(e) => form.setData('recording_url', e.target.value)}
+                            placeholder="https://…/call-recording.mp3"
+                        />
+                        <InputError message={form.errors.recording_url} />
+                        <p className="text-muted-foreground text-xs">
+                            Paste the recording link from your phone system. Automatic capture arrives with a telephony-provider connection.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Attach recording
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 /** AISA-014: paste the real transcript so the AI summary works on what was said. */
 function TranscriptDialog({ call }: { call: Call }) {
     const [open, setOpen] = useState(false);
@@ -440,6 +490,22 @@ export default function Calls({ numbers, calls, breakdown }: { numbers: Tracking
                                             {canManage && (
                                                 <td className="p-3">
                                                     <div className="flex justify-end gap-1">
+                                                        <RecordingDialog call={call} />
+                                                        {call.recording_url !== null && !call.has_transcript && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        route('analytics.calls.transcribe', call.id),
+                                                                        {},
+                                                                        { preserveScroll: true },
+                                                                    )
+                                                                }
+                                                            >
+                                                                Transcribe
+                                                            </Button>
+                                                        )}
                                                         <TranscriptDialog call={call} />
                                                         <Button size="sm" variant="outline" onClick={() => summarize(call.id)}>
                                                             Summarize

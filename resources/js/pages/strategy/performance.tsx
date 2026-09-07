@@ -36,6 +36,34 @@ type Attainment = {
     period: { start: string | null; end: string | null };
 };
 
+type ReconItem = {
+    promised: string;
+    matched: string | null;
+    status: string | null;
+    approved: boolean;
+    delivered: boolean;
+};
+
+type Reconciliation = {
+    items: ReconItem[];
+    promised: number;
+    delivered: number;
+    approved: number;
+    all_delivered: boolean;
+};
+
+type Review = {
+    id: number;
+    agreement: string | null;
+    period_start: string | null;
+    period_end: string | null;
+    won_revenue: number;
+    ad_spend: number;
+    roi: number | null;
+    all_targets_met: boolean;
+    created_at: string | null;
+};
+
 type Agreement = {
     id: number;
     name: string;
@@ -50,6 +78,7 @@ type Agreement = {
     period_start: string | null;
     period_end: string | null;
     attainment: Attainment;
+    reconciliation: Reconciliation;
 };
 
 type Replacement = {
@@ -357,10 +386,12 @@ export default function StrategyPerformance({
     agreements,
     replacements,
     models,
+    reviews,
 }: {
     agreements: Agreement[];
     replacements: Replacement[];
     models: string[];
+    reviews: Review[];
 }) {
     const { can } = usePermissions();
     const canManage = can('strategy.manage');
@@ -439,15 +470,46 @@ export default function StrategyPerformance({
                                             </div>
                                         </div>
 
-                                        {agreement.deliverables !== null && agreement.deliverables.length > 0 && (
-                                            <div className="flex flex-wrap items-center gap-2 text-sm">
-                                                <span className="font-medium">Deliverables:</span>
-                                                {agreement.deliverables.map((deliverable) => (
-                                                    <Badge key={deliverable} variant="outline">
-                                                        {deliverable}
+                                        {agreement.reconciliation.promised > 0 && (
+                                            <div className="space-y-2 rounded-lg border p-3">
+                                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                                    <span className="font-medium">Guaranteed deliverables</span>
+                                                    <Badge variant={agreement.reconciliation.all_delivered ? 'default' : 'secondary'}>
+                                                        {agreement.reconciliation.delivered}/{agreement.reconciliation.promised} delivered
                                                     </Badge>
-                                                ))}
+                                                    <span className="text-muted-foreground text-xs">
+                                                        Reconciled automatically against project deliverables and approvals.
+                                                    </span>
+                                                </div>
+                                                <ul className="divide-y rounded border">
+                                                    {agreement.reconciliation.items.map((item) => (
+                                                        <li key={item.promised} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                                                            <span className="font-medium">{item.promised}</span>
+                                                            {item.delivered ? (
+                                                                <Badge>{item.approved ? 'approved' : 'delivered'}</Badge>
+                                                            ) : item.matched ? (
+                                                                <Badge variant="secondary">{item.status ?? 'in progress'}</Badge>
+                                                            ) : (
+                                                                <Badge variant="destructive">missing</Badge>
+                                                            )}
+                                                            {item.matched && item.matched !== item.promised && (
+                                                                <span className="text-muted-foreground text-xs">matched: {item.matched}</span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
+                                        )}
+                                        {canManage && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    router.post(route('strategy.performance.roi-review', agreement.id), {}, { preserveScroll: true })
+                                                }
+                                            >
+                                                Generate ROI review
+                                            </Button>
                                         )}
 
                                         {agreement.quality_criteria !== null && Object.keys(agreement.quality_criteria).length > 0 && (
@@ -499,6 +561,48 @@ export default function StrategyPerformance({
                                             <td className="p-3 font-medium">Contact #{replacement.contact_id}</td>
                                             <td className="text-muted-foreground max-w-96 p-3">{replacement.reason}</td>
                                             <td className="text-muted-foreground p-3">{formatTime(replacement.replaced_at)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <h3 className="mb-2 text-sm font-medium">ROI reviews</h3>
+                    {reviews.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No reviews stored yet. Generate one on an agreement to snapshot attainment, revenue and spend for its period.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-muted/50 text-muted-foreground">
+                                    <tr>
+                                        <th className="p-3 font-medium">Agreement</th>
+                                        <th className="p-3 font-medium">Period</th>
+                                        <th className="p-3 text-center font-medium">Won revenue</th>
+                                        <th className="p-3 text-center font-medium">Ad spend</th>
+                                        <th className="p-3 text-center font-medium">ROI</th>
+                                        <th className="p-3 font-medium">Targets</th>
+                                        <th className="p-3 font-medium">Generated</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {reviews.map((review) => (
+                                        <tr key={review.id} className="hover:bg-muted/40">
+                                            <td className="p-3 font-medium">{review.agreement ?? '—'}</td>
+                                            <td className="text-muted-foreground p-3">
+                                                {review.period_start ?? '—'} → {review.period_end ?? '—'}
+                                            </td>
+                                            <td className="p-3 text-center">${(review.won_revenue / 100).toFixed(2)}</td>
+                                            <td className="p-3 text-center">${(review.ad_spend / 100).toFixed(2)}</td>
+                                            <td className="p-3 text-center">{review.roi !== null ? `${review.roi}x` : 'no spend recorded'}</td>
+                                            <td className="p-3">
+                                                {review.all_targets_met ? <Badge>met</Badge> : <Badge variant="destructive">missed</Badge>}
+                                            </td>
+                                            <td className="text-muted-foreground p-3">{formatTime(review.created_at)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

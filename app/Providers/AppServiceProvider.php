@@ -8,6 +8,8 @@ use App\Analytics\CallProviderManager;
 use App\Analytics\Contracts\CallProvider;
 use App\Billing\Contracts\PaymentProvider;
 use App\Billing\PaymentProviderManager;
+use App\Calls\FixtureTranscriptionProvider;
+use App\Calls\TranscriptionProvider;
 use App\Content\ContentProviderManager;
 use App\Content\Contracts\ReviewProvider;
 use App\Content\Contracts\SocialProvider;
@@ -79,6 +81,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             CallProvider::class,
             fn ($app) => $app->make(CallProviderManager::class)->driver(),
+        );
+
+        // Resolve the speech-to-text driver (CALL-004). Only the fixture ships;
+        // a live driver is credentials + a class implementing the contract.
+        $this->app->bind(
+            TranscriptionProvider::class,
+            fn () => match ((string) config('services.transcription.driver', 'fixture')) {
+                default => new FixtureTranscriptionProvider,
+            },
         );
 
         // Resolve the active language-model driver (ADR-0008). Feature code never

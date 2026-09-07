@@ -35,6 +35,12 @@ return [
         ],
     ],
 
+    // CALL-004: speech-to-text driver ('fixture' ships; live drivers are
+    // credentials + a TranscriptionProvider implementation).
+    'transcription' => [
+        'driver' => env('TRANSCRIPTION_DRIVER', 'fixture'),
+    ],
+
     // PRIV-006: shared secret the ESP bounce/complaint webhook must present.
     // Unset = the endpoint refuses everything.
     'email_webhook' => [

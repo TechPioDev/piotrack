@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property int $score
  * @property bool $is_qualified
  * @property bool $converted
+ * @property string|null $recording_url
+ * @property string|null $transcript
  * @property Carbon|null $occurred_at
  */
 class Call extends Model

@@ -49,6 +49,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:analytics'])
             // AISA-014: real transcripts in, AI summaries out.
             Route::patch('calls/{call}/transcript', [CallController::class, 'transcript'])->name('calls.transcript');
             Route::post('calls/{call}/summarize', [CallController::class, 'summarize'])->name('calls.summarize');
+            // CALL-003/004: recording attachment + provider-seam transcription.
+            Route::patch('calls/{call}/recording', [CallController::class, 'recording'])->name('calls.recording');
+            Route::post('calls/{call}/transcribe', [CallController::class, 'transcribe'])->name('calls.transcribe');
         });
 
         // CRO experiments.

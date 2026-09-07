@@ -2,9 +2,13 @@
 
 namespace App\Services\Strategy;
 
+use App\Models\AdMetric;
 use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Deliverable;
 use App\Models\LeadReplacement;
 use App\Models\PerformanceAgreement;
+use App\Models\PerformanceReview;
 use App\Services\Analytics\AnalyticsService;
 use App\Support\AuditLogger;
 
@@ -137,6 +141,93 @@ class PerformanceService
             // A target of zero is not a promise, so it cannot be missed.
             'met' => $target === 0 || $actual >= $target,
         ];
+    }
+
+    /**
+     * PERF-004: promised deliverables (stored on the agreement) reconciled
+     * against real project deliverables by normalized title. Automatic — the
+     * report says per item whether something matching was delivered and
+     * whether it cleared approval.
+     *
+     * @return array{items: list<array{promised: string, matched: string|null, status: string|null, approved: bool, delivered: bool}>, promised: int, delivered: int, approved: int, all_delivered: bool}
+     */
+    public function reconcileDeliverables(PerformanceAgreement $agreement): array
+    {
+        $promised = $agreement->deliverables ?? [];
+        $actual = Deliverable::orderBy('id')->get();
+
+        $items = [];
+        foreach ($promised as $title) {
+            $needle = mb_strtolower(trim($title));
+            $match = $actual->first(function (Deliverable $d) use ($needle) {
+                $have = mb_strtolower(trim($d->title));
+
+                return $have === $needle || str_contains($have, $needle) || str_contains($needle, $have);
+            });
+
+            $delivered = $match !== null && in_array($match->status, ['delivered', 'complete', 'completed'], true);
+            $approved = $match !== null && $match->approval_status === 'approved';
+
+            $items[] = [
+                'promised' => $title,
+                'matched' => $match?->title,
+                'status' => $match?->status,
+                'approved' => $approved,
+                // An approved deliverable counts as delivered even if its
+                // status label lags — the client sign-off is the stronger fact.
+                'delivered' => $delivered || $approved,
+            ];
+        }
+
+        $deliveredCount = count(array_filter($items, fn (array $i) => $i['delivered']));
+
+        return [
+            'items' => $items,
+            'promised' => count($items),
+            'delivered' => $deliveredCount,
+            'approved' => count(array_filter($items, fn (array $i) => $i['approved'])),
+            'all_delivered' => $items !== [] && $deliveredCount === count($items),
+        ];
+    }
+
+    /**
+     * PERF-011: generate and store the formal ROI review for the agreement's
+     * period — attainment, deliverable reconciliation, revenue closed in the
+     * window, ad spend in the window, and the guarded ROI ratio.
+     */
+    public function generateRoiReview(PerformanceAgreement $agreement): PerformanceReview
+    {
+        $start = $agreement->period_start;
+        $endOfDay = $agreement->period_end?->copy()->endOfDay();
+        $endDate = $agreement->period_end?->toDateString();
+
+        $revenue = (int) Deal::where('status', 'won')
+            ->when($start !== null, fn ($q) => $q->where('closed_at', '>=', $start))
+            ->when($endOfDay !== null, fn ($q) => $q->where('closed_at', '<=', $endOfDay))
+            ->sum('value');
+
+        $spend = (int) AdMetric::query()
+            ->when($start !== null, fn ($q) => $q->where('date', '>=', $start?->toDateString()))
+            ->when($endDate !== null, fn ($q) => $q->where('date', '<=', $endDate))
+            ->sum('spend');
+
+        $review = PerformanceReview::create([
+            'performance_agreement_id' => $agreement->id,
+            'period_start' => $start?->toDateString(),
+            'period_end' => $endDate,
+            'data' => [
+                'attainment' => $this->attainment($agreement),
+                'deliverables' => $this->reconcileDeliverables($agreement),
+                'won_revenue' => $revenue,
+                'ad_spend' => $spend,
+                // Guarded: no spend recorded means no ratio, never infinity.
+                'roi' => $spend > 0 ? round($revenue / $spend, 2) : null,
+            ],
+        ]);
+
+        $this->audit->log('strategy.performance.roi_review', context: ['agreement' => $agreement->name, 'revenue' => $revenue, 'spend' => $spend], resourceType: 'performance_review', resourceId: (string) $review->id, organizationId: $review->organization_id);
+
+        return $review;
     }
 
     private function status(PerformanceAgreement $agreement, bool $met): string

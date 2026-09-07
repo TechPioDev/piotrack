@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Analytics;
 
 use App\Ai\Exceptions\AiCreditsExhaustedException;
 use App\Ai\Exceptions\AiProviderException;
+use App\Calls\TranscriptionProvider;
 use App\Http\Controllers\Controller;
 use App\Models\Call;
 use App\Models\CallTrackingNumber;
@@ -47,6 +48,7 @@ class CallController extends Controller
                     'occurred_at' => $c->occurred_at?->toIso8601String(),
                     'has_transcript' => $c->transcript !== null && $c->transcript !== '',
                     'summary' => $c->summary,
+                    'recording_url' => $c->recording_url,
                 ]),
             'breakdown' => $this->calls->sourceBreakdown(),
         ]);
@@ -90,6 +92,28 @@ class CallController extends Controller
         ]));
 
         return back()->with('status', __('Transcript attached.'));
+    }
+
+    /** CALL-003: attach the call recording; the calls page plays it inline. */
+    public function recording(Request $request, Call $call): RedirectResponse
+    {
+        $call->update($request->validate([
+            'recording_url' => ['required', 'url', 'starts_with:https://', 'max:500'],
+        ]));
+
+        return back()->with('status', __('Recording attached.'));
+    }
+
+    /** CALL-004: fill the transcript from the recording via the provider seam. */
+    public function transcribe(Call $call, TranscriptionProvider $transcription): RedirectResponse
+    {
+        if ($call->recording_url === null || $call->recording_url === '') {
+            return back()->withErrors(['recording_url' => __('Attach a recording first — transcription reads the audio.')]);
+        }
+
+        $call->update(['transcript' => $transcription->transcribe($call->recording_url)]);
+
+        return back()->with('status', __('Transcribed via the :name driver — review, then summarize.', ['name' => $transcription->name()]));
     }
 
     /**
