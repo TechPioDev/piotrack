@@ -63,6 +63,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
             // LLMO: knowledge graph + retrieval readiness + content scoring.
             Route::get('llmo', [LlmoController::class, 'index'])->middleware('can:seo.view')->name('llmo.index');
             Route::post('llmo/entity', [LlmoController::class, 'updateEntity'])->middleware('can:seo.ai.manage')->name('llmo.entity');
+            // AEO-001: mined questions land in the prompt library.
+            Route::post('llmo/questions', [LlmoController::class, 'storeQuestion'])->middleware('can:seo.ai.manage')->name('llmo.questions.store');
             Route::post('llmo/experts', [LlmoController::class, 'storeExpert'])->middleware('can:seo.ai.manage')->name('llmo.experts.store');
             Route::delete('llmo/experts/{expert}', [LlmoController::class, 'destroyExpert'])->middleware('can:seo.ai.manage')->name('llmo.experts.destroy');
             Route::post('llmo/graph', [LlmoController::class, 'publishGraph'])->middleware('can:seo.ai.manage')->name('llmo.graph');

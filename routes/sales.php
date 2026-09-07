@@ -58,6 +58,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
         Route::get('enablement', [EnablementController::class, 'index'])->middleware('can:sales.view')->name('enablement.index');
         Route::middleware('can:sales.enablement.manage')->group(function () {
             Route::post('enablement/assets', [EnablementController::class, 'storeAsset'])->name('enablement.assets.store');
+            // ENAB-008/014: the ROI calculator + proposal generation.
+            Route::post('enablement/roi', [EnablementController::class, 'roi'])->name('enablement.roi');
+            Route::post('enablement/proposal', [EnablementController::class, 'generateProposal'])->name('enablement.proposal');
             Route::delete('enablement/assets/{asset}', [EnablementController::class, 'destroyAsset'])->name('enablement.assets.destroy');
             Route::post('enablement/plays', [EnablementController::class, 'storePlay'])->name('enablement.plays.store');
             Route::delete('enablement/plays/{play}', [EnablementController::class, 'destroyPlay'])->name('enablement.plays.destroy');

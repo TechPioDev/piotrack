@@ -29,8 +29,16 @@ type Expert = {
     is_active: boolean;
 };
 
+type Aeo = {
+    mined_questions: { question: string; source: string }[];
+    snippet_targets: { page: string; slug: string; question: string; ok: boolean; issue: string | null }[];
+    conversational: { total: number; conversational: number; long_tail: number; recommendations: string[] };
+    ai_overview: { page: string; slug: string; score: number; weakest: string | null }[];
+};
+
 type Props = {
     completeness: { score: number; items: CheckItem[] };
+    aeo: Aeo;
     entity: {
         legal_name: string | null;
         alternate_names: string[];
@@ -73,7 +81,7 @@ const splitList = (value: string): string[] =>
         .map((line) => line.trim())
         .filter((line) => line !== '');
 
-export default function Llmo({ completeness, entity, experts, graphJson, nodeCount, published, scoreResult }: Props) {
+export default function Llmo({ completeness, aeo, entity, experts, graphJson, nodeCount, published, scoreResult }: Props) {
     const { can } = usePermissions();
     const canManage = can('seo.ai.manage');
 
@@ -138,6 +146,96 @@ export default function Llmo({ completeness, entity, experts, graphJson, nodeCou
                             <Badge variant={completeness.score >= 80 ? 'default' : 'secondary'}>{completeness.score}/100</Badge>
                         </div>
                         <Checklist items={completeness.items} />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent className="space-y-4 p-4">
+                        <div>
+                            <h3 className="mb-1 text-sm font-medium">Question research</h3>
+                            <p className="text-muted-foreground mb-2 text-xs">
+                                Mined from what your audience already asks — visitor chat questions and question-shaped tracked keywords not yet in
+                                the prompt library.
+                            </p>
+                            {aeo.mined_questions.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">Nothing new to mine — the library covers what your audience asks.</p>
+                            ) : (
+                                <ul className="divide-y rounded-lg border">
+                                    {aeo.mined_questions.slice(0, 10).map((q) => (
+                                        <li key={q.question} className="flex flex-wrap items-center justify-between gap-2 p-2 text-sm">
+                                            <span>
+                                                {q.question} <Badge variant="outline">{q.source}</Badge>
+                                            </span>
+                                            {canManage && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        router.post(route('seo.llmo.questions.store'), { text: q.question }, { preserveScroll: true })
+                                                    }
+                                                >
+                                                    Add to library
+                                                </Button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        <div>
+                            <h3 className="mb-1 text-sm font-medium">Featured-snippet targets</h3>
+                            {aeo.snippet_targets.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">
+                                    No question headings on published pages yet — a question heading with a concise answer is the format Google lifts.
+                                </p>
+                            ) : (
+                                <ul className="divide-y rounded-lg border">
+                                    {aeo.snippet_targets.map((t) => (
+                                        <li key={`${t.slug}:${t.question}`} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                                            <Badge variant={t.ok ? 'default' : 'destructive'}>{t.ok ? 'ready' : 'fix'}</Badge>
+                                            <span className="font-medium">{t.question}</span>
+                                            <span className="text-muted-foreground text-xs">/{t.slug}</span>
+                                            {t.issue && <span className="text-muted-foreground">{t.issue}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        <div>
+                            <h3 className="mb-1 text-sm font-medium">Conversational coverage</h3>
+                            <p className="text-muted-foreground mb-1 text-xs">
+                                {aeo.conversational.conversational}/{aeo.conversational.total} conversational · {aeo.conversational.long_tail}/
+                                {aeo.conversational.total} long-tail
+                            </p>
+                            {aeo.conversational.recommendations.map((rec) => (
+                                <p key={rec} className="text-sm">
+                                    {rec}
+                                </p>
+                            ))}
+                        </div>
+
+                        <div>
+                            <h3 className="mb-1 text-sm font-medium">AI Overview readiness</h3>
+                            <p className="text-muted-foreground mb-2 text-xs">
+                                The LLMO scorer over each published page, weakest first — extractable, structured, fact-rich content is what AI
+                                Overviews cite. Live Overview presence rides the AI-visibility checks.
+                            </p>
+                            {aeo.ai_overview.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">No published pages to score yet.</p>
+                            ) : (
+                                <ul className="divide-y rounded-lg border">
+                                    {aeo.ai_overview.slice(0, 8).map((pageRow) => (
+                                        <li key={pageRow.slug} className="flex flex-wrap items-center gap-2 p-2 text-sm">
+                                            <Badge variant={pageRow.score >= 70 ? 'default' : 'secondary'}>{pageRow.score}/100</Badge>
+                                            <span className="font-medium">{pageRow.page}</span>
+                                            {pageRow.weakest && <span className="text-muted-foreground">{pageRow.weakest}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 

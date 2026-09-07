@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Seo;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiPrompt;
 use App\Models\BrandProfile;
 use App\Models\ExpertProfile;
 use App\Models\StructuredData;
+use App\Services\Seo\AnswerEngineOptimizer;
 use App\Services\Seo\KnowledgeGraphService;
 use App\Services\Seo\LlmoContentScorer;
 use App\Support\AuditLogger;
@@ -28,13 +30,20 @@ class LlmoController extends Controller
         private AuditLogger $audit,
     ) {}
 
-    public function index(): Response
+    public function index(AnswerEngineOptimizer $aeo): Response
     {
         $brand = BrandProfile::first();
         $graph = $this->graph->build();
 
         return Inertia::render('seo/llmo/index', [
             'completeness' => $this->graph->completeness(),
+            // AEO-001/004/006/019: the answer-engine optimization layer.
+            'aeo' => [
+                'mined_questions' => $aeo->mineQuestions(),
+                'snippet_targets' => $aeo->snippetTargets(),
+                'conversational' => $aeo->conversationalCoverage(),
+                'ai_overview' => $aeo->aiOverviewReadiness(),
+            ],
             'entity' => [
                 'legal_name' => $brand?->legal_name,
                 'alternate_names' => $brand->alternate_names ?? [],
@@ -58,6 +67,16 @@ class LlmoController extends Controller
                 ->first(['id', 'created_at'])?->only(['id', 'created_at']),
             'scoreResult' => session('llmo_score'),
         ]);
+    }
+
+    /** AEO-001: add a mined question straight into the prompt library. */
+    public function storeQuestion(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['text' => ['required', 'string', 'max:255']]);
+
+        AiPrompt::firstOrCreate(['text' => $data['text']], ['category' => 'mined', 'is_active' => true]);
+
+        return back()->with('status', __('Question added to the prompt library — the next visibility run includes it.'));
     }
 
     public function updateEntity(Request $request): RedirectResponse

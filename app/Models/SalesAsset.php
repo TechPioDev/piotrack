@@ -15,6 +15,7 @@ class SalesAsset extends Model
 
     protected $fillable = [
         'organization_id', 'type', 'title', 'description', 'content', 'url', 'tags',
+        'vertical_id', 'service_line_id',
     ];
 
     protected function casts(): array
