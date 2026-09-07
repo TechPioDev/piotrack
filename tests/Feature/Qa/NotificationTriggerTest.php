@@ -96,14 +96,16 @@ it('has no notification for workflow failure, integration disconnect or usage th
 |--------------------------------------------------------------------------
 */
 
-it('offers only the in-app and email channels, never a channel it cannot deliver', function () {
-    // SMS, Slack and Teams are Planned. Unlike the booking reminder, the product
-    // does not let a user pick them, so nothing is silently dropped.
-    expect(NotificationPreference::CHANNELS)->toBe(['in_app', 'email']);
+it('offers only the channels it can deliver', function () {
+    // SMS became deliverable in Phase 40 (opt-in, over the provider seam), so
+    // it joined the user-facing channels. Slack/Teams are ORGANIZATION-level
+    // channels (notification_channels), not per-user toggles, so a user still
+    // cannot pick them here — nothing offered is ever silently dropped.
+    expect(NotificationPreference::CHANNELS)->toBe(['in_app', 'email', 'sms']);
 
-    foreach (['sms', 'slack', 'teams'] as $planned) {
+    foreach (['slack', 'teams'] as $orgLevel) {
         $this->actingAs($this->owner)->patch(route('notifications.preferences'), [
-            'category' => 'members', 'channel' => $planned, 'enabled' => true,
+            'category' => 'members', 'channel' => $orgLevel, 'enabled' => true,
         ])->assertSessionHasErrors('channel');
     }
 });

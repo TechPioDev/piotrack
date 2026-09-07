@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Support\CurrentOrganization;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +57,14 @@ class SetApiOrganization
         }
 
         $this->currentOrganization->set($organization);
+
+        // ENTL-004: API-call metering. Over-limit requests get a 429 and are
+        // not counted (the caller pays for served requests only).
+        $meter = app(UsageMeter::class);
+        if (! $meter->withinLimit($organization, Limit::ApiCalls)) {
+            return $this->error(__('API call limit for the current period reached.'), 429);
+        }
+        $meter->increment($organization, Limit::ApiCalls);
 
         return $next($request);
     }

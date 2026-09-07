@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Notifications\Channels\SmsChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -52,6 +53,11 @@ abstract class PlatformNotification extends Notification implements ShouldQueue
 
         if ($emailOn) {
             $channels[] = 'mail';
+        }
+
+        // NOTIF-003: SMS is opt-in per category and needs a phone on file.
+        if ($notifiable instanceof User && $notifiable->smsOptedIn($this->category())) {
+            $channels[] = SmsChannel::class;
         }
 
         return $channels;

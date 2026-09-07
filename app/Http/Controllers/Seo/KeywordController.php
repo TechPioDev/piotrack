@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Seo;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\Keyword;
 use App\Seo\SeoProviderManager;
@@ -9,6 +11,7 @@ use App\Services\Analytics\CompetitiveService;
 use App\Services\Seo\KeywordService;
 use App\Services\Seo\RankTracker;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -69,6 +72,11 @@ class KeywordController extends Controller
         if (Keyword::where('phrase', $data['phrase'])->exists()) {
             return back()->withErrors(['phrase' => __('That keyword is already tracked.')]);
         }
+
+        // ENTL-004: plan keyword limit.
+        app(UsageMeter::class)->assertWithin(
+            app(CurrentOrganization::class)->get(), Limit::Keywords, errorKey: 'phrase',
+        );
 
         $keyword = Keyword::create($data);
         $this->audit->log('seo.keyword.created', context: ['phrase' => $keyword->phrase], resourceType: 'keyword', resourceId: (string) $keyword->id, organizationId: $keyword->organization_id);

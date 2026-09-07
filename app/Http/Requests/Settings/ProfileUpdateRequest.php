@@ -19,6 +19,9 @@ class ProfileUpdateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
 
+            // NOTIF-003: SMS notifications go to this number (opt-in).
+            'phone' => ['nullable', 'string', 'max:30'],
+
             'email' => [
                 'required',
                 'string',

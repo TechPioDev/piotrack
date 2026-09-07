@@ -16,6 +16,10 @@ Route::middleware(['auth', 'verified'])->prefix('platform')->name('platform.')->
         Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
         Route::get('flags', [PlatformController::class, 'flags'])->name('flags');
         Route::post('flags', [PlatformController::class, 'saveFlag'])->name('flags.save');
+
+        // ENTL-002: the plan x entitlement matrix editor.
+        Route::get('plans', [PlatformController::class, 'plans'])->name('plans');
+        Route::post('plans/{plan}/entitlements', [PlatformController::class, 'savePlanEntitlement'])->name('plans.entitlements');
         Route::get('announcements', [PlatformController::class, 'announcements'])->name('announcements');
         Route::post('announcements', [PlatformController::class, 'storeAnnouncement'])->name('announcements.store');
 

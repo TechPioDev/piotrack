@@ -31,6 +31,12 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
     Route::delete('settings/organization', [OrganizationSettingsController::class, 'destroy'])
         ->middleware('can:organization.delete')->name('organization.destroy');
 
+    // NOTIF-004/005: outbound Slack/Teams/webhook notification channels.
+    Route::post('settings/organization/channels', [OrganizationSettingsController::class, 'storeChannel'])
+        ->middleware('can:organization.update')->name('organization.channels.store');
+    Route::delete('settings/organization/channels/{channel}', [OrganizationSettingsController::class, 'destroyChannel'])
+        ->middleware('can:organization.update')->name('organization.channels.destroy');
+
     // Guided setup wizard (ONBD-006..012). Setup decides taxonomy, goals,
     // scoring and competitors for the whole tenant, so it is an admin act.
     Route::prefix('onboarding')->middleware('can:organization.update')->group(function () {

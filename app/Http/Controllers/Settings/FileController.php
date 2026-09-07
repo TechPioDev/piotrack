@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Deal;
@@ -83,6 +85,12 @@ class FileController extends Controller
 
         $organizationId = $this->currentOrganization->id();
         $upload = $request->file('file');
+
+        // ENTL-004: plan storage limit, size-aware (MB, rounded up).
+        app(UsageMeter::class)->assertWithin(
+            $this->currentOrganization->get(), Limit::StorageMb,
+            additional: max(1, (int) ceil($upload->getSize() / 1_048_576)), errorKey: 'file',
+        );
 
         // SEC-003: content scanning before anything touches storage.
         app(UploadScanner::class)->scan($upload);

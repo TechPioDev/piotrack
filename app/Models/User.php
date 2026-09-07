@@ -29,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'phone',
     ];
 
     /**
@@ -167,6 +168,23 @@ class User extends Authenticatable implements MustVerifyEmail
             ->first(fn (NotificationPreference $p) => $p->category === $category && $p->channel === $channel);
 
         return $preference === null || $preference->enabled;
+    }
+
+    /**
+     * SMS notifications are OPT-IN (NOTIF-003) — unlike email's opt-out,
+     * nobody gets surprise texts: only an explicit enabled preference (and a
+     * phone number on file) turns the channel on.
+     */
+    public function smsOptedIn(string $category): bool
+    {
+        if ($this->phone === null || $this->phone === '') {
+            return false;
+        }
+
+        $preference = $this->notificationPreferences
+            ->first(fn (NotificationPreference $p) => $p->category === $category && $p->channel === 'sms');
+
+        return $preference !== null && $preference->enabled;
     }
 
     public function platformRole(): ?Role

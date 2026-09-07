@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\FeatureFlag;
 use App\Models\ImpersonationSession;
+use App\Models\Plan;
+use App\Models\PlanEntitlement;
 use App\Services\Platform\FeatureFlagService;
 use App\Services\Platform\PlatformAdminService;
 use Illuminate\Http\RedirectResponse;
@@ -39,6 +41,49 @@ class PlatformController extends Controller
                     'ended_at' => $s->ended_at?->toIso8601String(),
                 ]),
         ]);
+    }
+
+    /**
+     * ENTL-002: the plan × entitlement matrix — every feature and limit each
+     * plan grants, editable in place. Tenants pick up changes on their next
+     * request (entitlements resolve per request).
+     */
+    public function plans(): Response
+    {
+        return Inertia::render('platform/plans', [
+            'plans' => Plan::with('entitlements')->orderBy('sort_order')->get()->map(fn (Plan $p) => [
+                'id' => $p->id,
+                'code' => $p->code,
+                'name' => $p->name,
+                'is_active' => $p->is_active,
+                'entitlements' => $p->entitlements->map(fn (PlanEntitlement $e) => [
+                    'key' => $e->key, 'kind' => $e->kind, 'bool_value' => $e->bool_value, 'int_value' => $e->int_value,
+                ])->all(),
+            ]),
+        ]);
+    }
+
+    /** ENTL-002: upsert one cell of the matrix. */
+    public function savePlanEntitlement(Request $request, Plan $plan): RedirectResponse
+    {
+        $data = $request->validate([
+            'key' => ['required', 'string', 'max:100'],
+            'kind' => ['required', Rule::in(['feature', 'limit'])],
+            'bool_value' => ['nullable', 'boolean'],
+            // null = unlimited for limits.
+            'int_value' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $plan->entitlements()->updateOrCreate(
+            ['key' => $data['key']],
+            [
+                'kind' => $data['kind'],
+                'bool_value' => $data['kind'] === 'feature' ? (bool) ($data['bool_value'] ?? false) : null,
+                'int_value' => $data['kind'] === 'limit' ? ($data['int_value'] ?? null) : null,
+            ],
+        );
+
+        return back()->with('status', __(':plan — :key saved.', ['plan' => $plan->name, 'key' => $data['key']]));
     }
 
     public function flags(): Response

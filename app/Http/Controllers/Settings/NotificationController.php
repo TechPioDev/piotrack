@@ -60,8 +60,8 @@ class NotificationController extends Controller
             'enabled' => ['required', 'boolean'],
         ]);
 
-        // Security notices cannot be disabled.
-        if ($validated['category'] === 'security') {
+        // Security notices cannot be disabled (SMS stays opt-in everywhere).
+        if ($validated['category'] === 'security' && $validated['channel'] !== 'sms') {
             return back();
         }
 
@@ -84,7 +84,9 @@ class NotificationController extends Controller
         foreach (NotificationPreference::CATEGORIES as $category) {
             foreach (NotificationPreference::CHANNELS as $channel) {
                 $pref = $existing->get($category.':'.$channel);
-                $matrix[$category][$channel] = $pref === null ? true : (bool) $pref->enabled;
+                // SMS is opt-in (NOTIF-003): off unless explicitly enabled.
+                $default = $channel !== 'sms';
+                $matrix[$category][$channel] = $pref === null ? $default : (bool) $pref->enabled;
             }
         }
 

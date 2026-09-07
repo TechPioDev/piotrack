@@ -2,8 +2,11 @@
 
 namespace App\Services\Marketing;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Jobs\RunWorkflowStep;
 use App\Models\Contact;
+use App\Models\Organization;
 use App\Models\Workflow;
 use App\Models\WorkflowEnrollment;
 
@@ -31,6 +34,13 @@ class WorkflowEngine
             return null;
         }
 
+        // ENTL-004: the plan's workflow-execution allowance for the period.
+        $organization = Organization::find($workflow->organization_id);
+        $meter = app(UsageMeter::class);
+        if ($organization !== null && ! $meter->withinLimit($organization, Limit::WorkflowExecutions)) {
+            return null;
+        }
+
         $enrollment = WorkflowEnrollment::create([
             'workflow_id' => $workflow->id,
             'contact_id' => $contact->id,
@@ -41,6 +51,10 @@ class WorkflowEngine
         ]);
 
         $workflow->increment('enrolled_count');
+
+        if ($organization !== null) {
+            $meter->increment($organization, Limit::WorkflowExecutions);
+        }
 
         return $enrollment;
     }

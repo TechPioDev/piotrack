@@ -2,6 +2,8 @@
 
 namespace App\Services\Marketing;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Marketing\EmailBody;
 use App\Marketing\MergeTags;
 use App\Messaging\Contracts\MailProvider;
@@ -9,6 +11,7 @@ use App\Messaging\Contracts\SmsProvider;
 use App\Messaging\EmailMessage;
 use App\Messaging\SmsMessage;
 use App\Models\Contact;
+use App\Models\Organization;
 use App\Models\OutboundMessage;
 use Illuminate\Support\Str;
 
@@ -83,6 +86,15 @@ class MessageDispatcher
             return $message;
         }
 
+        // ENTL-004: the plan's SMS allowance for the period.
+        $organization = Organization::find($contact->organization_id);
+        $meter = app(UsageMeter::class);
+        if ($organization !== null && ! $meter->withinLimit($organization, Limit::Sms)) {
+            $message->update(['status' => 'failed', 'error' => 'limit_reached']);
+
+            return $message;
+        }
+
         $result = $this->sms->send(new SmsMessage(
             toPhone: (string) $contact->phone,
             body: MergeTags::render($body, $contact),
@@ -91,6 +103,10 @@ class MessageDispatcher
         $message->update($result->accepted
             ? ['status' => 'sent', 'sent_at' => now(), 'provider_message_id' => $result->messageId]
             : ['status' => 'failed', 'error' => $result->error]);
+
+        if ($result->accepted && $organization !== null) {
+            $meter->increment($organization, Limit::Sms);
+        }
 
         return $message;
     }

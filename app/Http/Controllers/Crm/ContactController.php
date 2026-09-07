@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Crm;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Contact;
@@ -192,6 +194,13 @@ class ContactController extends Controller
         if (! empty($data['email']) && Contact::where('email', $data['email'])->exists()) {
             return back()->withErrors(['email' => __('A contact with this email already exists.')]);
         }
+
+        // ENTL-004: plan contact limit at the human-driven creation point.
+        // Public capture endpoints are deliberately never blocked - a lead is
+        // never dropped over a plan limit.
+        app(UsageMeter::class)->assertWithin(
+            app(CurrentOrganization::class)->get(), Limit::Contacts, errorKey: 'email',
+        );
 
         $data['owner_id'] ??= $request->user()->id;
         $contact = Contact::create($data);

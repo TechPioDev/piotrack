@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Marketing;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\MarketingList;
 use App\Models\Vertical;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,6 +83,11 @@ class WorkflowController extends Controller
             // VERT-018: vertical the sequence targets; coverage joins on it.
             'vertical_id' => ['nullable', 'integer', TenantExists::in('verticals')],
         ]);
+
+        // ENTL-004: plan automation limit.
+        app(UsageMeter::class)->assertWithin(
+            app(CurrentOrganization::class)->get(), Limit::Automations, errorKey: 'name',
+        );
 
         $workflow = Workflow::create($data);
         $this->audit->log('workflow.created', context: ['name' => $workflow->name], resourceType: 'workflow', resourceId: (string) $workflow->id, organizationId: $workflow->organization_id);

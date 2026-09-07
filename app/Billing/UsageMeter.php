@@ -2,9 +2,17 @@
 
 namespace App\Billing;
 
+use App\Models\Competitor;
+use App\Models\Contact;
+use App\Models\File;
+use App\Models\Keyword;
 use App\Models\Organization;
+use App\Models\SeoLocation;
 use App\Models\UsageCounter;
+use App\Models\Workflow;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Usage metering & reporting (ENTL-005/006/007). Two kinds of meter:
@@ -21,10 +29,30 @@ class UsageMeter
     {
         $key = $key instanceof Limit ? $key->value : $key;
 
+        // ENTL-004: stock resources meter LIVE from current state — the truth
+        // is the row count, not an accumulator that can drift. Flow resources
+        // (emails, sms, api_calls, ai_credits, workflow_executions) stay on
+        // period counters.
         return match ($key) {
             Limit::Members->value => $this->memberSeatsUsed($organization),
+            Limit::Contacts->value => $this->tenantCount($organization, Contact::class),
+            Limit::Keywords->value => $this->tenantCount($organization, Keyword::class),
+            Limit::Competitors->value => $this->tenantCount($organization, Competitor::class),
+            Limit::Locations->value => $this->tenantCount($organization, SeoLocation::class),
+            Limit::Automations->value => $this->tenantCount($organization, Workflow::class),
+            Limit::StorageMb->value => (int) ceil((float) File::withoutGlobalScope('tenant')
+                ->where('organization_id', $organization->id)->sum('size') / 1_048_576),
             default => $this->counterUsage($organization, $key),
         };
+    }
+
+    /**
+     * @param  class-string<Model>  $model
+     */
+    private function tenantCount(Organization $organization, string $model): int
+    {
+        return $model::withoutGlobalScope('tenant')
+            ->where('organization_id', $organization->id)->count();
     }
 
     /**
@@ -53,6 +81,26 @@ class UsageMeter
         }
 
         return $this->usage($organization, $key) + $additional <= $limit;
+    }
+
+    /**
+     * ENTL-004/007: the choke-point guard — refuses the action with a clear,
+     * plan-upgrade-pointing message when it would exceed the limit.
+     *
+     * @throws ValidationException
+     */
+    public function assertWithin(Organization $organization, Limit $key, int $additional = 1, string $errorKey = 'limit'): void
+    {
+        if ($this->withinLimit($organization, $key, $additional)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            $errorKey => __('The plan\'s :limit limit (:n) is reached — upgrade the plan or remove unused items.', [
+                'limit' => str_replace('_', ' ', $key->value),
+                'n' => (int) $this->entitlements->limit($organization, $key),
+            ]),
+        ]);
     }
 
     public function increment(Organization $organization, Limit|string $key, int $by = 1): void

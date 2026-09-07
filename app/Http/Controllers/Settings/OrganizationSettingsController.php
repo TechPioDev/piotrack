@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\NotificationChannel;
 use App\Services\OrganizationService;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
@@ -28,7 +29,33 @@ class OrganizationSettingsController extends Controller
                 'name' => $organization->name,
                 'slug' => $organization->slug,
             ],
+            // NOTIF-004/005: outbound Slack/Teams/webhook channels.
+            'notification_channels' => NotificationChannel::orderBy('id')->get()->map(fn (NotificationChannel $c) => [
+                'id' => $c->id, 'kind' => $c->kind, 'url' => $c->url, 'has_secret' => $c->secret !== null && $c->secret !== '', 'is_active' => $c->is_active,
+            ])->all(),
+            'channel_kinds' => NotificationChannel::KINDS,
         ]);
+    }
+
+    /** NOTIF-004/005: add an outbound notification channel. */
+    public function storeChannel(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(NotificationChannel::KINDS)],
+            'url' => ['required', 'url', 'starts_with:https://', 'max:500'],
+            'secret' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        NotificationChannel::create($data);
+
+        return back()->with('status', __('Notification channel added — the next organization alert will post to it.'));
+    }
+
+    public function destroyChannel(NotificationChannel $channel): RedirectResponse
+    {
+        $channel->delete();
+
+        return back()->with('status', __('Notification channel removed.'));
     }
 
     public function update(Request $request): RedirectResponse

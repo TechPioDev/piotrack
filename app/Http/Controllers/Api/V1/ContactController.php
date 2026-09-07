@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Models\Contact;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -70,6 +72,10 @@ class ContactController extends ApiController
         }
 
         $data['owner_id'] ??= $request->user()->getAuthIdentifier();
+        app(UsageMeter::class)->assertWithin(
+            $this->currentOrganization->get(), Limit::Contacts, errorKey: 'email',
+        );
+
         $contact = Contact::create($data);
 
         $this->audit->log('crm.contact.created', context: ['name' => $contact->fullName(), 'via' => 'api'], resourceType: 'contact', resourceId: (string) $contact->id, organizationId: $contact->organization_id);

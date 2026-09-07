@@ -119,7 +119,8 @@ export default function Notifications({ notifications, preferences, categories, 
                                         <tr key={category}>
                                             <td className="p-3 font-medium">{humanizeKey(category)}</td>
                                             {channels.map((channel) => {
-                                                const locked = category === 'security';
+                                                // Security in-app/email cannot be disabled; SMS stays opt-in everywhere.
+                                                const locked = category === 'security' && channel !== 'sms';
                                                 return (
                                                     <td key={channel} className="p-3 text-center">
                                                         <Checkbox

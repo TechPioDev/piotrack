@@ -10,8 +10,8 @@ class NotificationPreference extends Model
     /** Notification categories. */
     public const CATEGORIES = ['billing', 'members', 'operations', 'security', 'sales', 'marketing'];
 
-    /** Channels a user can toggle. Security notices ignore opt-out. */
-    public const CHANNELS = ['in_app', 'email'];
+    /** Channels a user can toggle. Security notices ignore opt-out; SMS is opt-in. */
+    public const CHANNELS = ['in_app', 'email', 'sms'];
 
     protected $fillable = ['user_id', 'category', 'channel', 'enabled'];
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Billing\Limit;
+use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\Form;
 use App\Models\PageSection;
@@ -279,6 +281,11 @@ class SiteController extends Controller
 
     public function storeLocation(Request $request, LocationService $locations): RedirectResponse
     {
+        // ENTL-004: plan location limit.
+        app(UsageMeter::class)->assertWithin(
+            app(CurrentOrganization::class)->get(), Limit::Locations, errorKey: 'name',
+        );
+
         $locations->create($request->validate([
             'name' => ['required', 'string', 'max:150'],
             'street' => ['nullable', 'string', 'max:255'],
