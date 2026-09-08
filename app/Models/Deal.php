@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property Carbon|null $expected_close_date
  * @property Carbon|null $closed_at
+ * @property int|null $service_line_id
  */
 class Deal extends Model implements HasActivities
 {
@@ -44,6 +45,7 @@ class Deal extends Model implements HasActivities
         'organization_id', 'pipeline_id', 'stage_id', 'name', 'contact_id', 'company_id',
         'value', 'mrr', 'arr', 'contract_term_months', 'ltv', 'currency', 'status',
         'lead_source', 'campaign', 'owner_id', 'marketing_owner_id', 'expected_close_date', 'closed_at', 'proposal_sent_at',
+        'service_line_id',
     ];
 
     protected function casts(): array
@@ -66,6 +68,16 @@ class Deal extends Model implements HasActivities
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class);
+    }
+
+    /**
+     * STRAT-014: the service line this deal sells (hard binding, not name matching).
+     *
+     * @return BelongsTo<ServiceLine, $this>
+     */
+    public function serviceLine(): BelongsTo
+    {
+        return $this->belongsTo(ServiceLine::class);
     }
 
     /**

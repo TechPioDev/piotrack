@@ -5,6 +5,7 @@ use App\Http\Controllers\Delivery\PortalController;
 use App\Http\Controllers\Delivery\ProjectController;
 use App\Http\Controllers\Delivery\SupportController;
 use App\Http\Controllers\Strategy\PerformanceController;
+use App\Http\Controllers\Strategy\ResearchController;
 use App\Http\Controllers\Strategy\StrategyController;
 use App\Http\Controllers\Strategy\TrainingController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,8 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
     Route::prefix('strategy')->name('strategy.')->group(function () {
         Route::middleware('can:strategy.view')->group(function () {
             Route::get('/', [StrategyController::class, 'index'])->name('index');
+            // STRAT research close-out: computed research over first-party records.
+            Route::get('research', [ResearchController::class, 'index'])->name('research');
             Route::get('brand', [StrategyController::class, 'brand'])->name('brand');
             Route::get('brand/style-guide.pdf', [StrategyController::class, 'styleGuide'])->name('brand.style-guide');
             Route::get('performance', [PerformanceController::class, 'index'])->name('performance');
@@ -72,6 +75,12 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
             Route::delete('training/{course}', [TrainingController::class, 'destroy'])->name('training.destroy');
             Route::post('training/{course}/lessons', [TrainingController::class, 'storeLesson'])->name('training.lessons.store');
             Route::delete('training/lessons/{lesson}', [TrainingController::class, 'destroyLesson'])->name('training.lessons.destroy');
+
+            // STRAT-005/007: market sizing + persona development.
+            Route::post('research/tam', [ResearchController::class, 'storeTam'])->name('research.tam');
+            Route::post('research/personas', [ResearchController::class, 'storePersona'])->name('research.personas.store');
+            Route::patch('research/personas/{persona}', [ResearchController::class, 'updatePersona'])->name('research.personas.update');
+            Route::delete('research/personas/{persona}', [ResearchController::class, 'destroyPersona'])->name('research.personas.destroy');
 
             Route::post('plans', [StrategyController::class, 'storePlan'])->name('plans.store');
             Route::post('items', [StrategyController::class, 'storeItem'])->name('items.store');

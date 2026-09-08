@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Deal;
 use App\Models\Pipeline;
 use App\Models\PipelineStage;
+use App\Models\ServiceLine;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -59,6 +60,8 @@ class DealController extends Controller
             'pipeline' => ['id' => $pipeline->id, 'name' => $pipeline->name],
             'stages' => $stages,
             'owners' => $this->memberOptions(),
+            // STRAT-014: deals bind to service lines for opportunity analysis.
+            'service_lines' => ServiceLine::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -173,6 +176,7 @@ class DealController extends Controller
             'stage_id' => ['nullable', Rule::exists('pipeline_stages', 'id')->where('pipeline_id', $pipeline->id)],
             'lead_source' => ['nullable', 'string', 'max:120'],
             'campaign' => ['nullable', 'string', 'max:120'],
+            'service_line_id' => ['nullable', TenantExists::in('service_lines')],
             'expected_close_date' => ['nullable', 'date'],
             'owner_id' => ['nullable', Rule::exists('organization_user', 'user_id')->where('organization_id', $this->currentOrganization->id())],
         ]);
@@ -200,6 +204,7 @@ class DealController extends Controller
             'contact' => $deal->contact?->fullName(),
             'company' => $deal->company?->name,
             'owner' => $deal->owner?->name,
+            'service_line_id' => $deal->service_line_id,
         ];
     }
 

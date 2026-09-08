@@ -15,13 +15,31 @@ import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Deals', href: '/crm/deals' }];
 
-type DealCard = { id: number; name: string; value: number; status: string; contact: string | null; company: string | null; owner: string | null };
+type DealCard = {
+    id: number;
+    name: string;
+    value: number;
+    status: string;
+    contact: string | null;
+    company: string | null;
+    owner: string | null;
+    service_line_id: number | null;
+};
 type Stage = { id: number; name: string; is_won: boolean; is_lost: boolean; deals: DealCard[]; total: number };
+type ServiceLineOption = { id: number; name: string };
 
-export default function Deals({ pipeline, stages }: { pipeline: { id: number; name: string }; stages: Stage[] }) {
+export default function Deals({
+    pipeline,
+    stages,
+    service_lines,
+}: {
+    pipeline: { id: number; name: string };
+    stages: Stage[];
+    service_lines: ServiceLineOption[];
+}) {
     const { can } = usePermissions();
     const [open, setOpen] = useState(false);
-    const form = useForm({ name: '', value: '', stage_id: '' });
+    const form = useForm({ name: '', value: '', stage_id: '', service_line_id: '' });
 
     const create: FormEventHandler = (e) => {
         e.preventDefault();
@@ -91,6 +109,26 @@ export default function Deals({ pipeline, stages }: { pipeline: { id: number; na
                                                     </SelectContent>
                                                 </Select>
                                             </div>
+                                            {service_lines.length > 0 && (
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="service-line">Service line</Label>
+                                                    <Select
+                                                        value={form.data.service_line_id}
+                                                        onValueChange={(v) => form.setData('service_line_id', v)}
+                                                    >
+                                                        <SelectTrigger id="service-line">
+                                                            <SelectValue placeholder="What this deal sells" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {service_lines.map((line) => (
+                                                                <SelectItem key={line.id} value={String(line.id)}>
+                                                                    {line.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
                                             <DialogFooter>
                                                 <Button type="submit" disabled={form.processing}>
                                                     Create
@@ -149,6 +187,29 @@ export default function Deals({ pipeline, stages }: { pipeline: { id: number; na
                                                     {stages.map((s) => (
                                                         <SelectItem key={s.id} value={String(s.id)}>
                                                             {s.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                        {can('crm.deal.update') && service_lines.length > 0 && (
+                                            <Select
+                                                value={deal.service_line_id !== null ? String(deal.service_line_id) : undefined}
+                                                onValueChange={(v) =>
+                                                    router.patch(
+                                                        route('crm.deals.update', deal.id),
+                                                        { name: deal.name, service_line_id: Number(v) },
+                                                        { preserveScroll: true },
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger className="h-7 text-xs">
+                                                    <SelectValue placeholder="Service line" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {service_lines.map((line) => (
+                                                        <SelectItem key={line.id} value={String(line.id)}>
+                                                            {line.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
