@@ -14,6 +14,22 @@ use App\Support\AuditLogger;
  */
 class OutreachService
 {
+    /**
+     * DPR-004: real MSP-industry publications a rep would actually pitch —
+     * the curated starter list (the P17 directory-checklist precedent).
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    public const PUBLICATIONS = [
+        ['CRN', 'crn.com'],
+        ['ChannelE2E', 'channele2e.com'],
+        ['MSSP Alert', 'msspalert.com'],
+        ['ChannelPro Network', 'channelpronetwork.com'],
+        ['MSP Success', 'mspsuccess.com'],
+        ['Channel Futures', 'channelfutures.com'],
+        ['SmarterMSP', 'smartermsp.com'],
+    ];
+
     public function __construct(private AuditLogger $audit) {}
 
     public function setStatus(OutreachProspect $prospect, string $status): OutreachProspect

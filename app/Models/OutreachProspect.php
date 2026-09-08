@@ -20,7 +20,7 @@ class OutreachProspect extends Model
     protected $fillable = [
         'organization_id', 'outreach_campaign_id', 'name', 'domain', 'contact_email',
         'status', 'placement_url', 'domain_authority', 'anchor_text', 'link_type',
-        'seo_location_id',
+        'seo_location_id', 'pitch',
     ];
 
     public function hasPlacement(): bool

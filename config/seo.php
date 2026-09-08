@@ -11,6 +11,9 @@ return [
     | require credentials.
     */
     'rank_provider' => env('SEO_RANK_PROVIDER', 'fixture'),
+
+    // LINK: link-index driver ('fixture' ships; live = Ahrefs/GSC credentials + a class).
+    'link_provider' => env('SEO_LINK_PROVIDER', 'fixture'),
     'ai_provider' => env('SEO_AI_PROVIDER', 'fixture'),
 
     'serpapi' => [

@@ -23,6 +23,7 @@ type Prospect = {
     placement_url: string | null;
     domain_authority: number | null;
     anchor_text: string | null;
+    pitch: string | null;
 };
 
 type Rollup = {
@@ -41,7 +42,7 @@ type Campaign = {
     prospects: Prospect[];
 };
 
-const CAMPAIGN_TYPES = ['digital_pr', 'link_building'];
+const CAMPAIGN_TYPES = ['digital_pr', 'link_building', 'podcast_booking', 'expert_commentary'];
 const LINK_TYPES = ['dofollow', 'nofollow'];
 
 const textareaClass =
@@ -218,6 +219,65 @@ function AddProspectDialog({ campaignId, locations }: { campaignId: number; loca
     );
 }
 
+function PitchDialog({ prospect, experts }: { prospect: Prospect; experts: { id: number; name: string }[] }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<{ expert_profile_id: string }>({ expert_profile_id: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.transform((data) => ({ expert_profile_id: Number(data.expert_profile_id) }));
+        form.post(route('content.outreach.prospects.pitch', prospect.id), {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="ghost">
+                    {prospect.pitch ? 'Pitch ✓' : 'Pitch'}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Expert-commentary pitch</DialogTitle>
+                {prospect.pitch && (
+                    <pre className="bg-muted/50 max-h-56 overflow-auto rounded-md p-3 text-sm whitespace-pre-wrap">{prospect.pitch}</pre>
+                )}
+                {experts.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">
+                        No expert profiles yet — add them under SEO → LLMO; the pitch is drafted from their real credentials.
+                    </p>
+                ) : (
+                    <form onSubmit={submit} className="space-y-3">
+                        <div className="grid gap-1">
+                            <Label htmlFor={`pitch_expert_${prospect.id}`}>Expert to offer</Label>
+                            <Select value={form.data.expert_profile_id} onValueChange={(v) => form.setData('expert_profile_id', v)}>
+                                <SelectTrigger id={`pitch_expert_${prospect.id}`}>
+                                    <SelectValue placeholder="Pick an expert profile" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {experts.map((expert) => (
+                                        <SelectItem key={expert.id} value={String(expert.id)}>
+                                            {expert.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.expert_profile_id} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={form.processing || form.data.expert_profile_id === ''}>
+                                {prospect.pitch ? 'Redraft pitch' : 'Draft pitch'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function MarkPlacementDialog({ prospectId }: { prospectId: number }) {
     const [open, setOpen] = useState(false);
     const form = useForm<{ placement_url: string; domain_authority: string; anchor_text: string; link_type: string; placement_kind: string }>({
@@ -332,11 +392,13 @@ function CampaignCard({
     statuses,
     canManage,
     locations,
+    experts,
 }: {
     campaign: Campaign;
     statuses: string[];
     canManage: boolean;
     locations: { id: number; name: string }[];
+    experts: { id: number; name: string }[];
 }) {
     const setStatus = (prospectId: number, status: string) =>
         router.post(route('content.outreach.prospects.status', prospectId), { status }, { preserveScroll: true });
@@ -360,6 +422,26 @@ function CampaignCard({
                     {canManage && (
                         <div className="flex flex-wrap gap-2">
                             <AddProspectDialog campaignId={campaign.id} locations={locations} />
+                            {['digital_pr', 'expert_commentary'].includes(campaign.type) && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(route('content.outreach.seed-publications', campaign.id), {}, { preserveScroll: true })
+                                    }
+                                >
+                                    Seed industry publications
+                                </Button>
+                            )}
+                            {campaign.type === 'digital_pr' && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => router.post(route('content.outreach.research-story'), {}, { preserveScroll: true })}
+                                >
+                                    Draft research story
+                                </Button>
+                            )}
                             <Button size="sm" variant="ghost" className="text-destructive" onClick={removeCampaign}>
                                 Delete campaign
                             </Button>
@@ -422,6 +504,7 @@ function CampaignCard({
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
+                                                    <PitchDialog prospect={prospect} experts={experts} />
                                                     <MarkPlacementDialog prospectId={prospect.id} />
                                                     <Button
                                                         size="sm"
@@ -449,10 +532,12 @@ export default function Outreach({
     campaigns,
     statuses,
     locations,
+    experts,
 }: {
     campaigns: Campaign[];
     statuses: string[];
     locations: { id: number; name: string }[];
+    experts: { id: number; name: string }[];
 }) {
     const { can } = usePermissions();
     const canManage = can('content.outreach.manage');
@@ -471,7 +556,14 @@ export default function Outreach({
                 ) : (
                     <div className="space-y-4">
                         {campaigns.map((campaign) => (
-                            <CampaignCard key={campaign.id} campaign={campaign} statuses={statuses} canManage={canManage} locations={locations} />
+                            <CampaignCard
+                                key={campaign.id}
+                                campaign={campaign}
+                                statuses={statuses}
+                                canManage={canManage}
+                                locations={locations}
+                                experts={experts}
+                            />
                         ))}
                     </div>
                 )}

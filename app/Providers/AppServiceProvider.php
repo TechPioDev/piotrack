@@ -21,6 +21,7 @@ use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Seo\Contracts\AiSearchProvider;
+use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\SeoProviderManager;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -65,6 +66,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             AiSearchProvider::class,
             fn ($app) => $app->make(SeoProviderManager::class)->ai(),
+        );
+        $this->app->bind(
+            LinkDataProvider::class,
+            fn ($app) => $app->make(SeoProviderManager::class)->links(),
         );
 
         // Resolve the active social / review drivers (ADR-0007).

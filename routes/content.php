@@ -59,6 +59,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:content'])
             Route::post('outreach', [OutreachController::class, 'storeCampaign'])->name('outreach.store');
             Route::delete('outreach/{campaign}', [OutreachController::class, 'destroyCampaign'])->name('outreach.destroy');
             Route::post('outreach/{campaign}/prospects', [OutreachController::class, 'storeProspect'])->name('outreach.prospects.store');
+            // DPR-003/004: publication seeding + expert-commentary pitch drafts.
+            Route::post('outreach/{campaign}/seed-publications', [OutreachController::class, 'seedPublications'])->name('outreach.seed-publications');
+            // DPR-009: draft a research story from the tenant's own aggregates.
+            Route::post('outreach/research-story', [OutreachController::class, 'researchStory'])->name('outreach.research-story');
+            Route::post('outreach/prospects/{prospect}/pitch', [OutreachController::class, 'draftPitch'])->name('outreach.prospects.pitch');
             Route::post('outreach/prospects/{prospect}/status', [OutreachController::class, 'prospectStatus'])->name('outreach.prospects.status');
             Route::post('outreach/prospects/{prospect}/placement', [OutreachController::class, 'markPlacement'])->name('outreach.prospects.placement');
             Route::delete('outreach/prospects/{prospect}', [OutreachController::class, 'destroyProspect'])->name('outreach.prospects.destroy');

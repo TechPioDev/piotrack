@@ -3,8 +3,10 @@
 namespace App\Seo;
 
 use App\Seo\Contracts\AiSearchProvider;
+use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\Providers\FixtureAiSearchProvider;
+use App\Seo\Providers\FixtureLinkDataProvider;
 use App\Seo\Providers\FixtureRankProvider;
 use App\Seo\Providers\GeminiAiSearchProvider;
 use App\Seo\Providers\OpenAiSearchProvider;
@@ -26,6 +28,17 @@ class SeoProviderManager
             'fixture' => new FixtureRankProvider,
             'serpapi' => new SerpApiRankProvider,
             default => throw new InvalidArgumentException("Unknown rank provider [{$name}]."),
+        };
+    }
+
+    /** LINK-001..003: the link-index driver (fixture default). */
+    public function links(?string $name = null): LinkDataProvider
+    {
+        $name ??= (string) config('seo.link_provider', 'fixture');
+
+        return match ($name) {
+            'fixture' => new FixtureLinkDataProvider,
+            default => throw new InvalidArgumentException("Unknown link data provider [{$name}]."),
         };
     }
 

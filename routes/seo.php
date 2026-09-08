@@ -4,6 +4,7 @@ use App\Http\Controllers\Crm\EntityExportController;
 use App\Http\Controllers\Seo\AiVisibilityController;
 use App\Http\Controllers\Seo\AuditController;
 use App\Http\Controllers\Seo\KeywordController;
+use App\Http\Controllers\Seo\LinkController;
 use App\Http\Controllers\Seo\LlmoController;
 use App\Http\Controllers\Seo\LocalController;
 use App\Http\Controllers\Seo\SchemaController;
@@ -40,6 +41,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::delete('keywords/{keyword}', [KeywordController::class, 'destroy'])->middleware('can:seo.keywords.manage')->name('keywords.destroy');
 
         // Local SEO.
+        // LINK-001..003: backlink audit over the link-index seam.
+        Route::get('links', [LinkController::class, 'index'])->middleware('can:seo.view')->name('links.index');
+        Route::get('links/disavow.txt', [LinkController::class, 'disavow'])->middleware('can:seo.keywords.manage')->name('links.disavow');
+        Route::post('links/prospect', [LinkController::class, 'prospectFromGap'])->middleware('can:seo.keywords.manage')->name('links.prospect');
+
         Route::get('local', [LocalController::class, 'index'])->middleware('can:seo.view')->name('local.index');
         Route::post('local', [LocalController::class, 'storeLocation'])->middleware('can:seo.local.manage')->name('local.store');
         Route::delete('local/{location}', [LocalController::class, 'destroyLocation'])->middleware('can:seo.local.manage')->name('local.destroy');
