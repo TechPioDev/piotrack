@@ -39,16 +39,36 @@ export default function Automation({
     const { can } = usePermissions();
     const canManage = can('marketing.automation.manage');
     const [open, setOpen] = useState(false);
-    const form = useForm<{ name: string; description: string; trigger_type: string; vertical_id: string }>({
+    const form = useForm<{
+        name: string;
+        description: string;
+        trigger_type: string;
+        vertical_id: string;
+        path_contains: string;
+        min_intent_score: string;
+    }>({
         name: '',
         description: '',
         trigger_type: triggers[0] ?? '',
         vertical_id: '',
+        path_contains: '',
+        min_intent_score: '',
     });
 
     const create: FormEventHandler = (e) => {
         e.preventDefault();
-        form.transform((data) => ({ ...data, vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id) }));
+        form.transform((data) => {
+            const trigger_config: Record<string, string | number> = {};
+            if (data.trigger_type === 'page_visit' && data.path_contains) trigger_config.path_contains = data.path_contains;
+            if (data.trigger_type === 'intent_threshold' && data.min_intent_score) trigger_config.min_intent_score = Number(data.min_intent_score);
+            return {
+                name: data.name,
+                description: data.description,
+                trigger_type: data.trigger_type,
+                trigger_config,
+                vertical_id: data.vertical_id === '' ? null : Number(data.vertical_id),
+            };
+        });
         form.post(route('marketing.automation.store'), {
             preserveScroll: true,
             onSuccess: () => {
@@ -102,6 +122,37 @@ export default function Automation({
                                         </Select>
                                         <InputError message={form.errors.trigger_type} />
                                     </div>
+                                    {form.data.trigger_type === 'page_visit' && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="path_contains">Path contains (optional)</Label>
+                                            <Input
+                                                id="path_contains"
+                                                value={form.data.path_contains}
+                                                onChange={(e) => form.setData('path_contains', e.target.value)}
+                                                placeholder="/pricing"
+                                            />
+                                            <p className="text-muted-foreground text-xs">
+                                                Fires when an identified contact views a matching page (via your own tracking pixel). Blank = any
+                                                page.
+                                            </p>
+                                        </div>
+                                    )}
+                                    {form.data.trigger_type === 'intent_threshold' && (
+                                        <div className="grid gap-1">
+                                            <Label htmlFor="min_intent_score">Minimum intent score</Label>
+                                            <Input
+                                                id="min_intent_score"
+                                                type="number"
+                                                min="1"
+                                                value={form.data.min_intent_score}
+                                                onChange={(e) => form.setData('min_intent_score', e.target.value)}
+                                                placeholder="20"
+                                            />
+                                            <p className="text-muted-foreground text-xs">
+                                                Fires when a contact's rolling 30-day intent score reaches this floor.
+                                            </p>
+                                        </div>
+                                    )}
                                     {verticals.length > 0 && (
                                         <div className="grid gap-1">
                                             <Label htmlFor="workflow_vertical">Vertical (optional)</Label>

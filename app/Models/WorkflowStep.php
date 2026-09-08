@@ -18,11 +18,12 @@ class WorkflowStep extends Model
 
     protected $fillable = [
         'organization_id', 'workflow_id', 'position', 'action_type', 'action_config', 'delay_minutes',
+        'condition',
     ];
 
     protected function casts(): array
     {
-        return ['action_config' => 'array'];
+        return ['action_config' => 'array', 'condition' => 'array'];
     }
 
     /**

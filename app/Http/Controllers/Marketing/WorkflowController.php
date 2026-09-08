@@ -6,6 +6,7 @@ use App\Billing\Limit;
 use App\Billing\UsageMeter;
 use App\Http\Controllers\Controller;
 use App\Models\MarketingList;
+use App\Models\RetargetingAudience;
 use App\Models\Vertical;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
@@ -20,11 +21,22 @@ use Inertia\Response;
 
 class WorkflowController extends Controller
 {
-    private const TRIGGERS = ['form_submission', 'lead_stage', 'deal_stage', 'email_engagement', 'list_added', 'booking_no_show', 'booking_completed'];
+    private const TRIGGERS = [
+        'form_submission', 'lead_stage', 'deal_stage', 'email_engagement', 'list_added',
+        'booking_no_show', 'booking_completed',
+        // AUTO-003/005/008: first-party pixel, gated downloads, intent signals.
+        'page_visit', 'content_download', 'intent_threshold',
+    ];
+
+    /** AUTO-029: fields a step condition may test. */
+    private const CONDITION_FIELDS = ['engaged_since_enrollment', 'lead_score', 'lifecycle_stage', 'lead_source', 'buying_role', 'title'];
+
+    private const CONDITION_OPERATORS = ['equals', 'not_equals', 'gte', 'lte', 'contains'];
 
     private const ACTIONS = [
         'send_email', 'send_sms', 'assign', 'create_task', 'update_crm', 'change_score',
         'change_lifecycle', 'notify', 'add_to_list', 'remove_from_list', 'schedule_follow_up',
+        'add_to_audience',
     ];
 
     public function __construct(private AuditLogger $audit) {}
@@ -66,8 +78,15 @@ class WorkflowController extends Controller
                 'action_type' => $s->action_type,
                 'action_config' => $s->action_config,
                 'delay_minutes' => $s->delay_minutes,
+                'condition' => $s->condition,
             ]),
             'actions' => self::ACTIONS,
+            'condition_fields' => self::CONDITION_FIELDS,
+            'condition_operators' => self::CONDITION_OPERATORS,
+            // AUTO-027: only list-sourced audiences accept per-contact adds.
+            'audiences' => RetargetingAudience::where('source', 'list')->whereNotNull('marketing_list_id')
+                ->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($a) => ['id' => $a->id, 'name' => $a->name]),
             'lists' => MarketingList::orderBy('name')->get(['id', 'name'])
                 ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name]),
         ]);
@@ -121,6 +140,12 @@ class WorkflowController extends Controller
             'action_type' => ['required', Rule::in(self::ACTIONS)],
             'action_config' => ['nullable', 'array'],
             'delay_minutes' => ['nullable', 'integer', 'min:0', 'max:525600'],
+            // AUTO-029: an optional condition gates the step per contact.
+            'condition' => ['nullable', 'array'],
+            'condition.field' => ['required_with:condition', Rule::in(self::CONDITION_FIELDS)],
+            'condition.operator' => ['required_with:condition', Rule::in(self::CONDITION_OPERATORS)],
+            'condition.value' => ['nullable', 'string', 'max:200'],
+            'condition.on_fail' => ['required_with:condition', Rule::in(['skip', 'exit'])],
         ]);
 
         $workflow->steps()->create([
@@ -128,6 +153,7 @@ class WorkflowController extends Controller
             'action_type' => $data['action_type'],
             'action_config' => $data['action_config'] ?? [],
             'delay_minutes' => $data['delay_minutes'] ?? 0,
+            'condition' => $data['condition'] ?? null,
         ]);
 
         return back()->with('status', __('Step added.'));

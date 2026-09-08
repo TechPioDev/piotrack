@@ -5,6 +5,7 @@ namespace App\Services\Sales;
 use App\Models\Contact;
 use App\Models\IntentSignal;
 use App\Models\Visitor;
+use App\Services\Marketing\MarketingTrigger;
 use Illuminate\Support\Carbon;
 
 /**
@@ -104,6 +105,14 @@ class VisitorTracker
         // ad engagement — once per session, not per pageview.
         if ($newSession && $visitor->contact !== null && $visitor->channel() === 'paid') {
             $this->intent->record($visitor->contact, 'ad_engagement', 8, $visitor->last_path);
+        }
+
+        // AUTO-003: an identified contact's pageview fires page-visit
+        // workflows (trigger_config.path_contains pins the page).
+        if ($event['type'] === 'pageview' && $visitor->contact !== null) {
+            app(MarketingTrigger::class)->fire('page_visit', $visitor->contact, [
+                'path' => (string) ($event['path'] ?? ''),
+            ]);
         }
 
         $visitor->events()->create([

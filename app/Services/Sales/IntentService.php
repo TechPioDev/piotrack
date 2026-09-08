@@ -4,6 +4,7 @@ namespace App\Services\Sales;
 
 use App\Models\Contact;
 use App\Models\IntentSignal;
+use App\Services\Marketing\MarketingTrigger;
 
 /**
  * Buyer-intent intelligence (INTENT). Records first-party intent signals and
@@ -18,13 +19,22 @@ class IntentService
 
     public function record(Contact $contact, string $type, int $weight = 1, ?string $url = null): IntentSignal
     {
-        return IntentSignal::create([
+        $signal = IntentSignal::create([
             'contact_id' => $contact->id,
             'type' => $type,
             'weight' => $weight,
             'url' => $url,
             'occurred_at' => now(),
         ]);
+
+        // AUTO-008: every recorded signal re-evaluates buyer-intent workflows
+        // against the contact's CURRENT score (trigger_config.min_intent_score
+        // gates enrollment; active enrollments never duplicate).
+        app(MarketingTrigger::class)->fire('intent_threshold', $contact, [
+            'intent_score' => $this->intentScore($contact),
+        ]);
+
+        return $signal;
     }
 
     public function intentScore(Contact $contact, int $days = 30): int

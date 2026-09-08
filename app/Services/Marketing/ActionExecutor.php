@@ -5,9 +5,11 @@ namespace App\Services\Marketing;
 use App\Models\Activity;
 use App\Models\Contact;
 use App\Models\MarketingList;
+use App\Models\RetargetingAudience;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Notifications\WorkflowNotification;
+use App\Services\Advertising\RetargetingService;
 use App\Support\NotificationDispatcher;
 
 /**
@@ -49,8 +51,38 @@ class ActionExecutor
             'notify' => $this->notify($workflow, $config),
             'add_to_list' => $this->listMembership($contact, $config, add: true),
             'remove_from_list' => $this->listMembership($contact, $config, add: false),
+            'add_to_audience' => $this->addToAudience($contact, $config),
             default => null,
         };
+    }
+
+    /**
+     * AUTO-027: drop the contact into a LIST-sourced retargeting audience —
+     * membership is list-derived, so every export (CSV, customer match)
+     * includes them immediately. Rule-sourced audiences compute membership
+     * from their rules; faking a per-contact add there would lie, so the
+     * action only touches list-backed audiences.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private function addToAudience(Contact $contact, array $config): void
+    {
+        if (! isset($config['audience_id'])) {
+            return;
+        }
+
+        $audience = RetargetingAudience::find((int) $config['audience_id']);
+        if ($audience === null || $audience->source !== 'list' || $audience->marketing_list_id === null) {
+            return;
+        }
+
+        $list = MarketingList::find((int) $audience->marketing_list_id);
+        if ($list === null) {
+            return;
+        }
+
+        $this->lists->addContact($list, $contact);
+        app(RetargetingService::class)->rebuild($audience);
     }
 
     /**

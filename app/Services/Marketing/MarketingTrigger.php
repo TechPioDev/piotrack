@@ -40,6 +40,9 @@ class MarketingTrigger
     /**
      * A workflow's trigger_config may pin the trigger to a specific target
      * (e.g. {form_id: 5} or {stage: 'qualified'}). Empty config matches any.
+     * Two config-key shapes carry semantics beyond equality: `path_contains`
+     * substring-matches the visited path (AUTO-003) and `min_*` keys are
+     * numeric floors against the same-named context value (AUTO-008).
      *
      * @param  array<string, mixed>  $context
      */
@@ -49,6 +52,22 @@ class MarketingTrigger
 
         foreach ($config as $key => $value) {
             if ($value === null || $value === '') {
+                continue;
+            }
+
+            if ($key === 'path_contains') {
+                if (! str_contains(mb_strtolower((string) ($context['path'] ?? '')), mb_strtolower((string) $value))) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (str_starts_with((string) $key, 'min_')) {
+                if ((float) ($context[substr((string) $key, 4)] ?? 0) < (float) $value) {
+                    return false;
+                }
+
                 continue;
             }
 

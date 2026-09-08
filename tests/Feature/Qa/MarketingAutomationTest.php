@@ -11,10 +11,11 @@ declare(strict_types=1);
  *
  *   "Add Tag"          - there is no tag concept; segmentation is list-based,
  *                        so add_to_list stands in and is exercised as such.
- *   "Check Engagement" - WorkflowStep carries position, action, config and
- *                        delay only. Sequences are strictly linear: there is no
- *                        condition, branch or split, so every enrolled contact
- *                        runs every step. Nothing in the register tracks this.
+ *   "Check Engagement" - CLOSED in Phase 50 (AUTO-029): workflow_steps gained
+ *                        a condition column ({field, operator, value, on_fail})
+ *                        including a real engaged_since_enrollment check; the
+ *                        pin test below now asserts the shipped shape and the
+ *                        semantics live in MarketingAutomationCloseoutTest.
  *
  * Prospect: Michael Rodriguez, CFO, Precision Manufacturing Group.
  */
@@ -225,18 +226,17 @@ it('isolates a failing enrolment behind its own job rather than one batch', func
 |--------------------------------------------------------------------------
 */
 
-it('confirms the workflow engine has no conditional branching', function () {
-    // §21 step 6 is "Check Engagement", which needs a condition. A WorkflowStep
-    // carries only position, action_type, action_config and delay_minutes, so
-    // every enrolled contact runs every step in order. If branching is ever
-    // added this fails, and the gap note at the top must be revisited.
+it('confirms the workflow engine now supports conditional branching (AUTO-029, closed Phase 50)', function () {
+    // This test originally pinned the ABSENCE of branching (QA gap of
+    // 2026-08-19): §21 step 6 is "Check Engagement", which needs a condition.
+    // Phase 50 shipped workflow_steps.condition ({field, operator, value,
+    // on_fail}) with the engaged_since_enrollment check reading real
+    // open/click timestamps — so the pin flips to assert the shipped shape.
+    // Semantics are covered in MarketingAutomationCloseoutTest.
     $columns = Schema::getColumnListing('workflow_steps');
 
-    foreach (['condition', 'conditions', 'branch', 'yes_step_id', 'no_step_id', 'criteria'] as $branching) {
-        expect($columns)->not->toContain($branching);
-    }
-
-    expect($columns)->toContain('position')
+    expect($columns)->toContain('condition')
+        ->and($columns)->toContain('position')
         ->and($columns)->toContain('action_type')
         ->and($columns)->toContain('delay_minutes');
 });

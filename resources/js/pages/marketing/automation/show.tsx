@@ -23,12 +23,15 @@ type Workflow = {
     completed_count: number;
 };
 
+type Condition = { field: string; operator: string; value?: string; on_fail: string };
+
 type Step = {
     id: number;
     position: number;
     action_type: string;
     action_config: Record<string, unknown> | null;
     delay_minutes: number;
+    condition: Condition | null;
 };
 
 type ListOption = { id: number; name: string };
@@ -45,11 +48,17 @@ export default function WorkflowShow({
     steps,
     actions,
     lists,
+    audiences,
+    condition_fields,
+    condition_operators,
 }: {
     workflow: Workflow;
     steps: Step[];
     actions: string[];
     lists: ListOption[];
+    audiences: ListOption[];
+    condition_fields: string[];
+    condition_operators: string[];
 }) {
     const { can } = usePermissions();
     const canManage = can('marketing.automation.manage');
@@ -64,6 +73,11 @@ export default function WorkflowShow({
         delta: string;
         list_id: string;
         title: string;
+        audience_id: string;
+        condition_field: string;
+        condition_operator: string;
+        condition_value: string;
+        condition_on_fail: string;
     }>({
         action_type: actions[0] ?? '',
         delay_minutes: '0',
@@ -74,6 +88,11 @@ export default function WorkflowShow({
         delta: '',
         list_id: '',
         title: '',
+        audience_id: '',
+        condition_field: '',
+        condition_operator: 'equals',
+        condition_value: '',
+        condition_on_fail: 'skip',
     });
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -92,10 +111,19 @@ export default function WorkflowShow({
             if (data.delta) config.delta = Number(data.delta);
             if (data.list_id) config.list_id = data.list_id;
             if (data.title) config.title = data.title;
+            if (data.audience_id) config.audience_id = Number(data.audience_id);
             return {
                 action_type: data.action_type,
                 delay_minutes: Number(data.delay_minutes),
                 action_config: config,
+                condition: data.condition_field
+                    ? {
+                          field: data.condition_field,
+                          operator: data.condition_operator,
+                          value: data.condition_value,
+                          on_fail: data.condition_on_fail,
+                      }
+                    : null,
             };
         });
         form.post(route('marketing.automation.steps.add', workflow.id), {
@@ -246,6 +274,97 @@ export default function WorkflowShow({
                                                 <Label htmlFor="title">Title (create task)</Label>
                                                 <Input id="title" value={form.data.title} onChange={(e) => form.setData('title', e.target.value)} />
                                             </div>
+                                            {audiences.length > 0 && (
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="audience_id">Audience (add to audience)</Label>
+                                                    <Select value={form.data.audience_id} onValueChange={(v) => form.setData('audience_id', v)}>
+                                                        <SelectTrigger id="audience_id">
+                                                            <SelectValue placeholder="None" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {audiences.map((audience) => (
+                                                                <SelectItem key={audience.id} value={String(audience.id)}>
+                                                                    {audience.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="text-muted-foreground text-xs">
+                                                        List-backed retargeting audiences only — rule-based membership stays rule-owned.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-3 rounded-md border p-3">
+                                            <p className="text-muted-foreground text-xs">
+                                                Only run when… (optional) — the check runs against the contact's real record when the step is due
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="cond-field">Field</Label>
+                                                    <Select
+                                                        value={form.data.condition_field}
+                                                        onValueChange={(v) => form.setData('condition_field', v === 'none' ? '' : v)}
+                                                    >
+                                                        <SelectTrigger id="cond-field">
+                                                            <SelectValue placeholder="No condition" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">No condition</SelectItem>
+                                                            {condition_fields.map((field) => (
+                                                                <SelectItem key={field} value={field}>
+                                                                    {field.replace(/_/g, ' ')}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="cond-op">Operator</Label>
+                                                    <Select
+                                                        value={form.data.condition_operator}
+                                                        onValueChange={(v) => form.setData('condition_operator', v)}
+                                                    >
+                                                        <SelectTrigger id="cond-op">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {condition_operators.map((op) => (
+                                                                <SelectItem key={op} value={op}>
+                                                                    {op.replace(/_/g, ' ')}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="cond-value">Value</Label>
+                                                    <Input
+                                                        id="cond-value"
+                                                        value={form.data.condition_value}
+                                                        onChange={(e) => form.setData('condition_value', e.target.value)}
+                                                        placeholder="e.g. yes / 50 / customer"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1">
+                                                    <Label htmlFor="cond-fail">When it fails</Label>
+                                                    <Select
+                                                        value={form.data.condition_on_fail}
+                                                        onValueChange={(v) => form.setData('condition_on_fail', v)}
+                                                    >
+                                                        <SelectTrigger id="cond-fail">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="skip">Skip this step</SelectItem>
+                                                            <SelectItem value="exit">Exit the workflow</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <DialogFooter>
@@ -275,6 +394,12 @@ export default function WorkflowShow({
                                                 Delay {step.delay_minutes} min
                                                 {describeConfig(step.action_config) && ` · ${describeConfig(step.action_config)}`}
                                             </p>
+                                            {step.condition && (
+                                                <p className="text-muted-foreground text-xs">
+                                                    Only when {step.condition.field.replace(/_/g, ' ')} {step.condition.operator.replace(/_/g, ' ')}{' '}
+                                                    {step.condition.value ?? ''} · else {step.condition.on_fail === 'exit' ? 'exit workflow' : 'skip'}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     {canManage && (

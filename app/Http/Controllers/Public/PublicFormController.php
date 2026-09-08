@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
 use App\Models\File;
 use App\Models\Form;
+use App\Models\Organization;
 use App\Services\Marketing\LeadCaptureService;
+use App\Services\Marketing\MarketingTrigger;
 use App\Services\Web\PageExperiments;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
@@ -46,7 +49,7 @@ class PublicFormController extends Controller
 
         $data = $request->validate($this->rulesFor($form));
 
-        $this->capture->capture($form, $data, $request->ip(), $request->userAgent(), $request->cookie('_pt_vid'));
+        $contact = $this->capture->capture($form, $data, $request->ip(), $request->userAgent(), $request->cookie('_pt_vid'));
 
         // WEB-037: an experiment cookie riding the submission converts the
         // variant the visitor was exposed to.
@@ -66,7 +69,9 @@ class PublicFormController extends Controller
                 return view('public.message', [
                     'title' => __('Thank you'),
                     'message' => __('Your download is ready.'),
-                    'downloadUrl' => URL::temporarySignedRoute('public.magnet', now()->addDays(7), ['file' => $file->id]),
+                    // AUTO-005: the signed URL carries the capturing contact,
+                    // tamper-proof, so redemption can fire download workflows.
+                    'downloadUrl' => URL::temporarySignedRoute('public.magnet', now()->addDays(7), ['file' => $file->id, 'contact' => $contact->id]),
                     'downloadName' => $file->name,
                 ]);
             }
@@ -111,6 +116,19 @@ class PublicFormController extends Controller
         abort_if($record === null, 404);
 
         $record->increment('download_count');
+
+        // AUTO-005: an actual redemption by the captured contact fires
+        // content-download workflows. The contact id rides the SIGNED url, so
+        // it cannot be forged; the file's own org scopes the workflow lookup.
+        $contactId = (int) $request->query('contact', 0);
+        if ($contactId > 0) {
+            $organization = Organization::find($record->organization_id);
+            $contact = Contact::withoutGlobalScope('tenant')->find($contactId);
+            if ($organization !== null && $contact !== null && (int) $contact->organization_id === (int) $organization->id) {
+                $this->currentOrganization->set($organization);
+                app(MarketingTrigger::class)->fire('content_download', $contact, ['file_id' => $record->id]);
+            }
+        }
 
         return Storage::disk($record->disk)->download($record->path, $record->name);
     }
