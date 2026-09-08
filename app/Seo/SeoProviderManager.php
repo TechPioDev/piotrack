@@ -7,6 +7,7 @@ use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\Contracts\SearchConsoleProvider;
 use App\Seo\Contracts\WebVitalsProvider;
+use App\Seo\Providers\CopilotAiSearchProvider;
 use App\Seo\Providers\FixtureAiSearchProvider;
 use App\Seo\Providers\FixtureLinkDataProvider;
 use App\Seo\Providers\FixtureRankProvider;
@@ -14,6 +15,8 @@ use App\Seo\Providers\FixtureSearchConsoleProvider;
 use App\Seo\Providers\FixtureWebVitalsProvider;
 use App\Seo\Providers\GeminiAiSearchProvider;
 use App\Seo\Providers\OpenAiSearchProvider;
+use App\Seo\Providers\PerplexityAiSearchProvider;
+use App\Seo\Providers\SerpApiAiOverviewProvider;
 use App\Seo\Providers\SerpApiRankProvider;
 use InvalidArgumentException;
 
@@ -76,21 +79,29 @@ class SeoProviderManager
             'fixture' => new FixtureAiSearchProvider,
             'openai' => new OpenAiSearchProvider(new AnswerAnalyzer),
             'gemini' => new GeminiAiSearchProvider(new AnswerAnalyzer),
+            'perplexity' => new PerplexityAiSearchProvider(new AnswerAnalyzer),
             default => throw new InvalidArgumentException("Unknown AI search provider [{$name}]."),
         };
     }
 
     /**
      * Engine label -> the driver that can actually ask that engine (AIVM).
-     * ChatGPT and Gemini have wired APIs and go live the moment a key exists
-     * (env or the platform AI console's); every other engine label runs on the
-     * configured default so its numbers stay clearly simulated.
+     * ChatGPT, Gemini and Perplexity have wired public APIs; Google AI
+     * Overview rides the SerpApi key the rank driver already uses; Copilot
+     * targets the Microsoft-supported programmatic surface behind it (a
+     * configurable OpenAI-compatible endpoint — consumer Copilot publishes no
+     * API). Each goes live the moment its credentials exist; otherwise the
+     * engine runs on the configured default so its numbers stay clearly
+     * simulated.
      */
     public function aiFor(string $engine): AiSearchProvider
     {
         return match ($this->aiProviderNameFor($engine)) {
             'openai' => new OpenAiSearchProvider(new AnswerAnalyzer),
             'gemini' => new GeminiAiSearchProvider(new AnswerAnalyzer),
+            'perplexity' => new PerplexityAiSearchProvider(new AnswerAnalyzer),
+            'serpapi_overview' => new SerpApiAiOverviewProvider(new AnswerAnalyzer),
+            'copilot_endpoint' => new CopilotAiSearchProvider(new AnswerAnalyzer),
             default => $this->ai(),
         };
     }
@@ -103,6 +114,15 @@ class SeoProviderManager
         }
         if ($engine === 'gemini' && GeminiAiSearchProvider::key() !== '') {
             return 'gemini';
+        }
+        if ($engine === 'perplexity' && PerplexityAiSearchProvider::key() !== '') {
+            return 'perplexity';
+        }
+        if ($engine === 'ai_overview' && SerpApiAiOverviewProvider::key() !== '') {
+            return 'serpapi_overview';
+        }
+        if ($engine === 'copilot' && CopilotAiSearchProvider::available()) {
+            return 'copilot_endpoint';
         }
 
         return $this->aiProviderName();

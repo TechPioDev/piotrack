@@ -36,6 +36,21 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
     ],
 
+    // AIVIS-004: Perplexity's public OpenAI-compatible API.
+    'perplexity' => [
+        'key' => env('PERPLEXITY_API_KEY'),
+        'model' => env('PERPLEXITY_MODEL', 'sonar'),
+    ],
+
+    // AIVIS-005: consumer Copilot has no public API; point this at the
+    // Microsoft-supported OpenAI-compatible surface behind it (an Azure
+    // OpenAI deployment, or a gateway to the M365 Copilot Chat API).
+    'copilot' => [
+        'endpoint' => env('SEO_COPILOT_ENDPOINT'),
+        'key' => env('SEO_COPILOT_KEY'),
+        'model' => env('SEO_COPILOT_MODEL', 'gpt-4o'),
+    ],
+
     // AI engines surfaced for visibility tracking.
     'ai_engines' => ['chatgpt', 'gemini', 'perplexity', 'copilot', 'ai_overview'],
 ];

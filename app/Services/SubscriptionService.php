@@ -327,6 +327,36 @@ class SubscriptionService
     /**
      * A failed payment opens a grace period (BILL-016).
      */
+    /**
+     * ADMIN-002: a manual payment action — retry collecting an unpaid invoice
+     * through the provider seam. On success the invoice settles and a
+     * past-due subscription comes back to active; on failure nothing is
+     * invented and the failure is audited.
+     */
+    public function retryInvoice(Invoice $invoice): bool
+    {
+        if ($invoice->status === 'paid') {
+            return true;
+        }
+
+        if (! $this->provider->payInvoice($invoice)) {
+            $this->audit->log('invoice.payment_failed', context: ['number' => $invoice->number, 'retry' => true], resourceType: 'invoice', resourceId: (string) $invoice->id, organizationId: $invoice->organization_id);
+
+            return false;
+        }
+
+        $invoice->forceFill(['status' => 'paid', 'amount_paid' => (int) $invoice->total, 'paid_at' => now()])->save();
+        $this->audit->log('invoice.paid', context: ['number' => $invoice->number, 'retry' => true], resourceType: 'invoice', resourceId: (string) $invoice->id, organizationId: $invoice->organization_id);
+
+        $subscription = $invoice->subscription_id !== null ? Subscription::find($invoice->subscription_id) : null;
+        if ($subscription !== null && $subscription->status === 'past_due') {
+            $subscription->forceFill(['status' => 'active', 'ends_at' => null])->save();
+            $this->audit->log('subscription.reactivated', resourceType: 'subscription', resourceId: (string) $subscription->id, organizationId: $subscription->organization_id);
+        }
+
+        return true;
+    }
+
     public function markPastDue(Subscription $subscription): void
     {
         $subscription->forceFill([

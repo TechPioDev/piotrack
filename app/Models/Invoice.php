@@ -9,6 +9,11 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property Carbon|null $paid_at
+ * @property string $status
+ * @property string $number
+ * @property int $total
+ * @property int|null $subscription_id
+ * @property int|null $organization_id
  */
 class Invoice extends Model
 {

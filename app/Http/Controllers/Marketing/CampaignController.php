@@ -90,6 +90,8 @@ class CampaignController extends Controller
     {
         abort_if($campaign->isSent(), 403, __('A sent campaign cannot be edited.'));
         $campaign->update($this->validateData($request));
+        // AUDIT-004: campaign changes are data events.
+        $this->audit->log('campaign.updated', context: ['name' => $campaign->name], resourceType: 'campaign', resourceId: (string) $campaign->id, organizationId: $campaign->organization_id);
 
         return back()->with('status', __('Campaign saved.'));
     }
@@ -97,6 +99,7 @@ class CampaignController extends Controller
     public function send(Campaign $campaign): RedirectResponse
     {
         $this->campaigns->send($campaign);
+        $this->audit->log('campaign.sent', context: ['name' => $campaign->name], resourceType: 'campaign', resourceId: (string) $campaign->id, organizationId: $campaign->organization_id);
 
         return back()->with('status', __('Campaign sent.'));
     }

@@ -20,6 +20,10 @@ Route::middleware(['auth', 'verified'])->prefix('platform')->name('platform.')->
         // ENTL-002: the plan x entitlement matrix editor.
         Route::get('plans', [PlatformController::class, 'plans'])->name('plans');
         Route::post('plans/{plan}/entitlements', [PlatformController::class, 'savePlanEntitlement'])->name('plans.entitlements');
+        // ADMIN-002: coupons + manual payment actions.
+        Route::post('coupons', [PlatformController::class, 'storeCoupon'])->name('coupons.store');
+        Route::patch('coupons/{coupon}/toggle', [PlatformController::class, 'toggleCoupon'])->name('coupons.toggle');
+        Route::post('invoices/{invoice}/retry', [PlatformController::class, 'retryInvoice'])->name('invoices.retry');
         Route::get('announcements', [PlatformController::class, 'announcements'])->name('announcements');
         Route::post('announcements', [PlatformController::class, 'storeAnnouncement'])->name('announcements.store');
 

@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\Coupon;
 use App\Models\FeatureFlag;
 use App\Models\ImpersonationSession;
+use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PlanEntitlement;
 use App\Services\Platform\FeatureFlagService;
 use App\Services\Platform\PlatformAdminService;
+use App\Services\SubscriptionService;
+use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -60,7 +64,63 @@ class PlatformController extends Controller
                     'key' => $e->key, 'kind' => $e->kind, 'bool_value' => $e->bool_value, 'int_value' => $e->int_value,
                 ])->all(),
             ]),
+            // ADMIN-002: coupon management + manual payment actions.
+            'coupons' => Coupon::orderBy('code')->get()->map(fn (Coupon $c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'type' => $c->type,
+                'value' => $c->value,
+                'duration' => $c->duration,
+                'max_redemptions' => $c->max_redemptions,
+                'times_redeemed' => $c->times_redeemed,
+                'expires_at' => $c->expires_at?->toDateString(),
+                'is_active' => $c->is_active,
+            ]),
+            'unpaid_invoices' => Invoice::with('organization:id,name')->where('status', '!=', 'paid')
+                ->latest('id')->limit(25)->get()
+                ->map(fn (Invoice $i) => [
+                    'id' => $i->id,
+                    'number' => $i->number,
+                    'organization' => $i->organization?->name,
+                    'total' => $i->total,
+                    'status' => $i->status,
+                    'due_at' => $i->due_at?->toDateString(),
+                ]),
         ]);
+    }
+
+    /** ADMIN-002: create a coupon (platform-global; redemption is Stage-3 tested). */
+    public function storeCoupon(Request $request, AuditLogger $audit): RedirectResponse
+    {
+        $coupon = Coupon::create($request->validate([
+            'code' => ['required', 'string', 'max:50', 'alpha_dash', Rule::unique('coupons', 'code')],
+            'type' => ['required', Rule::in(['percent', 'fixed'])],
+            'value' => ['required', 'integer', 'min:1'],
+            'duration' => ['nullable', Rule::in(['once', 'forever'])],
+            'max_redemptions' => ['nullable', 'integer', 'min:1'],
+            'expires_at' => ['nullable', 'date'],
+        ]) + ['is_active' => true]);
+
+        $audit->log('platform.coupon.created', context: ['code' => $coupon->code], resourceType: 'coupon', resourceId: (string) $coupon->id);
+
+        return back()->with('status', __('Coupon created.'));
+    }
+
+    /** ADMIN-002: deactivate / reactivate a coupon. */
+    public function toggleCoupon(Coupon $coupon, AuditLogger $audit): RedirectResponse
+    {
+        $coupon->update(['is_active' => ! $coupon->is_active]);
+        $audit->log('platform.coupon.toggled', context: ['code' => $coupon->code, 'is_active' => $coupon->is_active], resourceType: 'coupon', resourceId: (string) $coupon->id);
+
+        return back()->with('status', $coupon->is_active ? __('Coupon reactivated.') : __('Coupon deactivated.'));
+    }
+
+    /** ADMIN-002: manual payment action — retry an unpaid invoice via the provider seam. */
+    public function retryInvoice(Invoice $invoice, SubscriptionService $subscriptions): RedirectResponse
+    {
+        return $subscriptions->retryInvoice($invoice)
+            ? back()->with('status', __('Invoice :number collected.', ['number' => $invoice->number]))
+            : back()->with('status', __('Payment for :number failed again - see the audit log.', ['number' => $invoice->number]));
     }
 
     /** ENTL-002: upsert one cell of the matrix. */
