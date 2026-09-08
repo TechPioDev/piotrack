@@ -38,6 +38,14 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:content'])
             // SOC-018/019: boost a post into a draft ad campaign on its network.
             Route::post('social/{post}/sponsor', [SocialController::class, 'sponsor'])->name('social.sponsor');
             Route::delete('social/{post}', [SocialController::class, 'destroy'])->name('social.destroy');
+            // SOC-009: template graphic from the post + brand palette.
+            Route::get('social/{post}/graphic.svg', [SocialController::class, 'graphic'])->name('social.graphic');
+            // SOC-020/021: the engagement queue.
+            Route::post('social/interactions', [SocialController::class, 'storeInteraction'])->name('social.interactions.store');
+            Route::patch('social/interactions/{interaction}', [SocialController::class, 'interactionStatus'])->name('social.interactions.status');
+            // SOC-023: listening terms.
+            Route::post('social/terms', [SocialController::class, 'storeTerm'])->name('social.terms.store');
+            Route::delete('social/terms/{term}', [SocialController::class, 'destroyTerm'])->name('social.terms.destroy');
         });
 
         // Reputation.

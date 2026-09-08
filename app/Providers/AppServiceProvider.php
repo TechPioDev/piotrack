@@ -12,6 +12,7 @@ use App\Calls\FixtureTranscriptionProvider;
 use App\Calls\TranscriptionProvider;
 use App\Content\ContentProviderManager;
 use App\Content\Contracts\ReviewProvider;
+use App\Content\Contracts\SocialListeningProvider;
 use App\Content\Contracts\SocialProvider;
 use App\Messaging\Contracts\MailProvider;
 use App\Messaging\Contracts\SmsProvider;
@@ -80,6 +81,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             ReviewProvider::class,
             fn ($app) => $app->make(ContentProviderManager::class)->review(),
+        );
+        $this->app->bind(
+            SocialListeningProvider::class,
+            fn ($app) => $app->make(ContentProviderManager::class)->listening(),
         );
 
         // Resolve the active call-tracking driver (CALL).
