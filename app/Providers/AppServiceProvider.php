@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Ai\AiProviderManager;
 use App\Ai\Contracts\AiProvider;
 use App\Analytics\CallProviderManager;
+use App\Analytics\Contracts\AdLibraryProvider;
 use App\Analytics\Contracts\CallProvider;
+use App\Analytics\Providers\FixtureAdLibraryProvider;
 use App\Billing\Contracts\PaymentProvider;
 use App\Billing\PaymentProviderManager;
 use App\Calls\FixtureTranscriptionProvider;
@@ -89,6 +91,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             GbpProvider::class,
             fn ($app) => $app->make(SeoProviderManager::class)->gbp(),
+        );
+
+        // Resolve the competitor ad-library driver (CINT-002/003).
+        $this->app->bind(
+            AdLibraryProvider::class,
+            fn () => match ((string) config('competitive.ad_library_provider', 'fixture')) {
+                'fixture' => new FixtureAdLibraryProvider,
+                default => throw new InvalidArgumentException('Unknown ad-library provider ['.config('competitive.ad_library_provider').'].'),
+            },
         );
 
         // Resolve the active contact-enrichment driver (CRM-027).

@@ -7,6 +7,7 @@ use App\Models\Competitor;
 use App\Models\CompetitorSnapshot;
 use App\Services\Analytics\CompetitiveService;
 use App\Services\Analytics\CompetitorContentMonitor;
+use App\Services\Analytics\CompetitorIntelService;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ use Inertia\Response;
 
 class CompetitorController extends Controller
 {
-    public function index(CompetitiveService $competitive): Response
+    public function index(CompetitiveService $competitive, CompetitorIntelService $intel): Response
     {
         $latestSnapshots = CompetitorSnapshot::whereIn(
             'id',
@@ -24,7 +25,7 @@ class CompetitorController extends Controller
         )->get()->keyBy('competitor_id');
 
         return Inertia::render('analytics/competitors', [
-            'competitors' => Competitor::latest('id')->get()->map(function (Competitor $c) use ($latestSnapshots) {
+            'competitors' => Competitor::latest('id')->get()->map(function (Competitor $c) use ($latestSnapshots, $intel) {
                 $snapshot = $latestSnapshots->get($c->id);
 
                 return [
@@ -33,6 +34,9 @@ class CompetitorController extends Controller
                     'domain' => $c->domain,
                     'notes' => $c->notes,
                     'is_tracked' => $c->is_tracked,
+                    // CINT-002/003/004/006/007/009: provider-backed panels,
+                    // each labeled with its driver (tracked competitors only).
+                    'intel' => $c->is_tracked ? $intel->panels($c) : null,
                     // CINT-005: the latest content capture and what changed in it.
                     'content' => $snapshot === null ? null : [
                         'pages' => $snapshot->pages_count,
@@ -47,6 +51,7 @@ class CompetitorController extends Controller
             // CINT-001/011: keyword head-to-head and AI recommendation share.
             'headToHead' => $competitive->keywordHeadToHead(),
             'aiShare' => $competitive->aiRecommendationShare(),
+            'intel_providers' => $intel->providers(),
         ]);
     }
 

@@ -23,6 +23,14 @@ type ContentSnapshot = {
     checked_at: string | null;
 };
 
+type Intel = {
+    ads: { total: number; active: number; sample: { platform: string; headline: string; body: string; status: string; first_seen: string }[] };
+    backlinks: { links: number; referring_domains: number; avg_da: number | null } | null;
+    map: { keyword: string; location: string | null; position: number | null }[];
+    reviews: { count: number; avg_rating: number | null; latest: string | null };
+    social: { mentions: number; by_network: Record<string, number>; negative: number; positive: number };
+};
+
 type Competitor = {
     id: number;
     name: string;
@@ -30,6 +38,7 @@ type Competitor = {
     notes: string | null;
     is_tracked: boolean;
     content: ContentSnapshot | null;
+    intel: Intel | null;
 };
 
 type ShareRow = {
@@ -199,11 +208,13 @@ export default function Competitors({
     share_of_voice,
     headToHead,
     aiShare,
+    intel_providers,
 }: {
     competitors: Competitor[];
     share_of_voice: ShareOfVoice;
     headToHead: HeadToHeadRow[];
     aiShare: AiShare;
+    intel_providers: Record<string, string>;
 }) {
     const competitorDomains = headToHead.length > 0 ? Object.keys(headToHead[0].competitors) : [];
     const { can } = usePermissions();
@@ -451,6 +462,80 @@ export default function Competitors({
                         </div>
                     )}
                 </div>
+
+                {/* CINT-002/003/004/006/007/009: provider-backed intel per tracked competitor */}
+                {competitors.some((c) => c.intel !== null) && (
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-medium">Competitor intel</h3>
+                        {Object.values(intel_providers).includes('fixture') && (
+                            <p className="text-muted-foreground text-xs">
+                                Panels served by the <strong>fixture driver are simulated</strong> — connect the live providers (Meta Ad Library /
+                                SerpApi / link index / review and listening APIs) to replace them with real market data. Each panel names its driver.
+                            </p>
+                        )}
+                        {competitors
+                            .filter((c) => c.intel !== null)
+                            .map((competitor) => (
+                                <div key={competitor.id} className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-5">
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase">Ads ({intel_providers.ads})</p>
+                                        <p className="font-medium">{competitor.name}</p>
+                                        <p className="text-sm tabular-nums">
+                                            {competitor.intel!.ads.active} active of {competitor.intel!.ads.total}
+                                        </p>
+                                        {competitor.intel!.ads.sample.slice(0, 2).map((ad, i) => (
+                                            <p key={i} className="text-muted-foreground text-xs">
+                                                [{ad.platform}] {ad.headline}
+                                            </p>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase">Backlinks ({intel_providers.backlinks})</p>
+                                        {competitor.intel!.backlinks === null ? (
+                                            <p className="text-muted-foreground text-sm">No domain recorded.</p>
+                                        ) : (
+                                            <p className="text-sm tabular-nums">
+                                                {competitor.intel!.backlinks.links} links · {competitor.intel!.backlinks.referring_domains} domains ·
+                                                DA {competitor.intel!.backlinks.avg_da ?? '—'}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase">Map pack ({intel_providers.map})</p>
+                                        {competitor.intel!.map.length === 0 && (
+                                            <p className="text-muted-foreground text-sm">No located tracked keywords.</p>
+                                        )}
+                                        {competitor.intel!.map.map((row) => (
+                                            <p key={`${row.keyword}|${row.location}`} className="text-sm tabular-nums">
+                                                {row.keyword}: {row.position !== null ? `#${row.position}` : 'not in pack'}
+                                            </p>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase">Reviews ({intel_providers.reviews})</p>
+                                        <p className="text-sm tabular-nums">
+                                            {competitor.intel!.reviews.avg_rating ?? '—'}★ · {competitor.intel!.reviews.count} reviews
+                                        </p>
+                                        {competitor.intel!.reviews.latest && (
+                                            <p className="text-muted-foreground text-xs">"{competitor.intel!.reviews.latest}"</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase">Social ({intel_providers.social})</p>
+                                        <p className="text-sm tabular-nums">
+                                            {competitor.intel!.social.mentions} mentions · {competitor.intel!.social.positive} positive ·{' '}
+                                            {competitor.intel!.social.negative} negative
+                                        </p>
+                                        <p className="text-muted-foreground text-xs">
+                                            {Object.entries(competitor.intel!.social.by_network)
+                                                .map(([network, count]) => `${network} ${count}`)
+                                                .join(' · ')}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                    </div>
+                )}
             </div>
         </AppLayout>
     );
