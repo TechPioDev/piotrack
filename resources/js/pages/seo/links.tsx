@@ -35,7 +35,16 @@ type Audit = {
 
 type Gap = { competitor: string; source_domain: string; domain_authority: number; anchor: string };
 
-export default function Links({ audit, gaps }: { audit: Audit; gaps: Gap[] }) {
+type Profile = {
+    total: number;
+    referring_domains: number;
+    avg_da: number | null;
+    toxic_share_pct: number | null;
+    anchors: { branded: number; commercial: number; other: number };
+    top_sources: { source_domain: string; domain_authority: number }[];
+};
+
+export default function Links({ audit, profile, gaps }: { audit: Audit; profile: Profile; gaps: Gap[] }) {
     const { can } = usePermissions();
     const canManage = can('seo.keywords.manage');
 
@@ -80,6 +89,37 @@ export default function Links({ audit, gaps }: { audit: Audit; gaps: Gap[] }) {
                                 </Card>
                             ))}
                         </div>
+
+                        {/* TSEO-026: profile health — the picture a penalty reviewer reads first */}
+                        <Card>
+                            <CardContent className="grid gap-4 p-4 sm:grid-cols-3">
+                                <div>
+                                    <p className="text-muted-foreground text-sm">Anchor-text distribution</p>
+                                    <p className="text-sm">
+                                        branded <span className="font-semibold tabular-nums">{profile.anchors.branded}</span> · commercial{' '}
+                                        <span className="font-semibold tabular-nums">{profile.anchors.commercial}</span> · other{' '}
+                                        <span className="font-semibold tabular-nums">{profile.anchors.other}</span>
+                                    </p>
+                                    <p className="text-muted-foreground mt-1 text-xs">
+                                        A profile heavy on exact-match commercial anchors is the classic penalty pattern.
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground text-sm">Toxic share</p>
+                                    <p className="text-2xl font-semibold tabular-nums">
+                                        {profile.toxic_share_pct !== null ? `${profile.toxic_share_pct}%` : '—'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground text-sm">Strongest sources</p>
+                                    {profile.top_sources.map((s) => (
+                                        <p key={s.source_domain} className="text-sm tabular-nums">
+                                            {s.source_domain} · DA {s.domain_authority}
+                                        </p>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
 
                         <div>
                             <h3 className="mb-2 text-sm font-medium">Link profile — {audit.domain}</h3>

@@ -8,6 +8,7 @@ use App\Http\Controllers\Seo\LinkController;
 use App\Http\Controllers\Seo\LlmoController;
 use App\Http\Controllers\Seo\LocalController;
 use App\Http\Controllers\Seo\SchemaController;
+use App\Http\Controllers\Seo\SearchHealthController;
 use App\Http\Controllers\Seo\SeoDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
 
         // Local SEO.
         // LINK-001..003: backlink audit over the link-index seam.
+        // TSEO-019/023/024/025: Search Console monitoring, CWV audit, penalty audit + recovery.
+        Route::get('health', [SearchHealthController::class, 'index'])->middleware('can:seo.view')->name('health');
+
         Route::get('links', [LinkController::class, 'index'])->middleware('can:seo.view')->name('links.index');
         Route::get('links/disavow.txt', [LinkController::class, 'disavow'])->middleware('can:seo.keywords.manage')->name('links.disavow');
         Route::post('links/prospect', [LinkController::class, 'prospectFromGap'])->middleware('can:seo.keywords.manage')->name('links.prospect');

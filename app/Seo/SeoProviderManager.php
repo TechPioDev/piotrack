@@ -5,9 +5,13 @@ namespace App\Seo;
 use App\Seo\Contracts\AiSearchProvider;
 use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
+use App\Seo\Contracts\SearchConsoleProvider;
+use App\Seo\Contracts\WebVitalsProvider;
 use App\Seo\Providers\FixtureAiSearchProvider;
 use App\Seo\Providers\FixtureLinkDataProvider;
 use App\Seo\Providers\FixtureRankProvider;
+use App\Seo\Providers\FixtureSearchConsoleProvider;
+use App\Seo\Providers\FixtureWebVitalsProvider;
 use App\Seo\Providers\GeminiAiSearchProvider;
 use App\Seo\Providers\OpenAiSearchProvider;
 use App\Seo\Providers\SerpApiRankProvider;
@@ -39,6 +43,28 @@ class SeoProviderManager
         return match ($name) {
             'fixture' => new FixtureLinkDataProvider,
             default => throw new InvalidArgumentException("Unknown link data provider [{$name}]."),
+        };
+    }
+
+    /** TSEO-023: the Search Console driver (fixture default). */
+    public function searchConsole(?string $name = null): SearchConsoleProvider
+    {
+        $name ??= (string) config('seo.search_console_provider', 'fixture');
+
+        return match ($name) {
+            'fixture' => new FixtureSearchConsoleProvider,
+            default => throw new InvalidArgumentException("Unknown Search Console provider [{$name}]."),
+        };
+    }
+
+    /** TSEO-019: the CWV field-data driver (fixture default). */
+    public function vitals(?string $name = null): WebVitalsProvider
+    {
+        $name ??= (string) config('seo.vitals_provider', 'fixture');
+
+        return match ($name) {
+            'fixture' => new FixtureWebVitalsProvider,
+            default => throw new InvalidArgumentException("Unknown web-vitals provider [{$name}]."),
         };
     }
 

@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { type NavItem } from '@/types';
 import { usePage } from '@inertiajs/react';
 import {
+    Activity,
     Bell,
     BookOpen,
     Bot,
@@ -95,6 +96,7 @@ export function AppSidebar() {
         can('seo.view') && { title: 'Keywords', url: '/seo/keywords', icon: KeyRound },
         can('seo.view') && { title: 'Local', url: '/seo/local', icon: MapPin },
         can('seo.view') && { title: 'Links', url: '/seo/links', icon: Link2 },
+        can('seo.view') && { title: 'Search Health', url: '/seo/health', icon: Activity },
         can('seo.view') && { title: 'AI Visibility', url: '/seo/ai-visibility', icon: Sparkles },
         can('seo.view') && { title: 'LLMO', url: '/seo/llmo', icon: Network },
         can('seo.view') && { title: 'Schema', url: '/seo/schema', icon: Code },

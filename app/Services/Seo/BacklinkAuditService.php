@@ -77,6 +77,51 @@ class BacklinkAuditService
     }
 
     /**
+     * TSEO-026: the backlink-profile health audit on top of the link audit —
+     * referring-domain counts, DA, toxic share and the anchor-text
+     * distribution a penalty reviewer reads first. Buckets are transparent:
+     * branded = the anchor names the domain, commercial = exact-match money
+     * anchors, everything else = other.
+     *
+     * @return array{total: int, referring_domains: int, avg_da: int|null, toxic_share_pct: float|null, anchors: array{branded: int, commercial: int, other: int}, top_sources: list<array{source_domain: string, domain_authority: int}>}
+     */
+    public function profile(): array
+    {
+        $audit = $this->audit();
+        $links = $audit['links'];
+        $domain = $audit['domain'];
+        $total = count($links);
+
+        $anchors = ['branded' => 0, 'commercial' => 0, 'other' => 0];
+        foreach ($links as $link) {
+            $anchor = mb_strtolower((string) $link['anchor']);
+            if ($domain !== null && $anchor !== '' && str_contains($anchor, mb_strtolower($domain))) {
+                $anchors['branded']++;
+            } elseif (in_array($anchor, self::MONEY_ANCHORS, true)) {
+                $anchors['commercial']++;
+            } else {
+                $anchors['other']++;
+            }
+        }
+
+        $topSources = collect($links)
+            ->unique('source_domain')
+            ->sortByDesc('domain_authority')
+            ->take(5)
+            ->map(fn (array $l) => ['source_domain' => (string) $l['source_domain'], 'domain_authority' => (int) $l['domain_authority']])
+            ->values()->all();
+
+        return [
+            'total' => $total,
+            'referring_domains' => $audit['referring_domains'],
+            'avg_da' => $audit['avg_da'],
+            'toxic_share_pct' => $total > 0 ? round($audit['toxic'] / $total * 100, 1) : null,
+            'anchors' => $anchors,
+            'top_sources' => $topSources,
+        ];
+    }
+
+    /**
      * LINK-002: Google's disavow file format for every flagged domain.
      */
     public function disavowTxt(): string

@@ -16,6 +16,12 @@ return [
     'link_provider' => env('SEO_LINK_PROVIDER', 'fixture'),
     'ai_provider' => env('SEO_AI_PROVIDER', 'fixture'),
 
+    // TSEO-023: Search Console driver ('fixture' ships; live = Google OAuth + a class).
+    'search_console_provider' => env('SEO_SEARCH_CONSOLE_PROVIDER', 'fixture'),
+
+    // TSEO-019: CWV field-data driver ('fixture' ships; live = PageSpeed Insights key + a class).
+    'vitals_provider' => env('SEO_VITALS_PROVIDER', 'fixture'),
+
     'serpapi' => [
         'key' => env('SERPAPI_KEY'),
     ],

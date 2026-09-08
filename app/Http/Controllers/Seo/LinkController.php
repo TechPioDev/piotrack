@@ -24,6 +24,8 @@ class LinkController extends Controller
     {
         return Inertia::render('seo/links', [
             'audit' => $this->audit->audit(),
+            // TSEO-026: profile health — anchors, DA, toxic share, top sources.
+            'profile' => $this->audit->profile(),
             'gaps' => $this->audit->competitorGaps(),
         ]);
     }
