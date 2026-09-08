@@ -99,7 +99,7 @@ class FunnelService
         $campaignIds = $assets->where('asset_type', 'ad_campaign')->pluck('asset_id')->all();
         $spend = $campaignIds === [] ? 0 : (int) AdMetric::whereIn('ad_campaign_id', $campaignIds)->sum('spend');
 
-        $wonRevenue = (int) $wonDeals->sum('value');
+        $wonRevenue = (int) $wonDeals->sum(fn (Deal $d) => (int) $d->value);
 
         $bands = ['hot' => 0, 'warm' => 0, 'cold' => 0];
         foreach ($contacts as $contact) {
@@ -118,6 +118,9 @@ class FunnelService
         ];
     }
 
+    /**
+     * @return list<array<string, mixed>>
+     */
     public function detail(Funnel $funnel): array
     {
         $order = array_flip(Contact::LIFECYCLE_STAGES);

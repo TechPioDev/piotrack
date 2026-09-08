@@ -27,6 +27,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
             // CRM-025: routing rules ahead of round-robin.
             Route::post('scoring/assignment-rules', [ScoringController::class, 'storeAssignmentRule'])->name('scoring.assignment.store');
             Route::delete('scoring/assignment-rules/{rule}', [ScoringController::class, 'destroyAssignmentRule'])->name('scoring.assignment.destroy');
+            // LSCR-015: advisory AI opinion via the tested agent.
+            Route::post('scoring/{contact}/ai', [ScoringController::class, 'aiScore'])->name('scoring.ai');
             Route::patch('scoring/{rule}', [ScoringController::class, 'update'])->name('scoring.update');
             Route::delete('scoring/{rule}', [ScoringController::class, 'destroy'])->name('scoring.destroy');
             Route::post('scoring/recompute', [ScoringController::class, 'recompute'])->name('scoring.recompute');
@@ -83,6 +85,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
             Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
             Route::patch('accounts/{account}', [AccountController::class, 'update'])->name('accounts.update');
             Route::post('accounts/{account}/rescore', [AccountController::class, 'rescore'])->name('accounts.rescore');
+            // ABM-004: company enrichment through the provider seam.
+            Route::post('accounts/{account}/enrich', [AccountController::class, 'enrich'])->name('accounts.enrich');
             Route::delete('accounts/{account}', [AccountController::class, 'destroy'])->name('accounts.destroy');
         });
     });

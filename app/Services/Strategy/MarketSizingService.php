@@ -62,15 +62,13 @@ class MarketSizingService
         $addressablePct = (float) ($inputs['addressable_pct'] ?? 100);
         $reachablePct = (float) ($inputs['reachable_pct'] ?? 10);
 
-        $avgMrr = isset($inputs['avg_mrr']) && $inputs['avg_mrr'] !== null
-            ? (int) round((float) $inputs['avg_mrr'] * 100)
-            : $defaults['avg_mrr'];
-        $mrrSource = isset($inputs['avg_mrr']) && $inputs['avg_mrr'] !== null ? 'entered' : $defaults['avg_mrr_source'];
+        $enteredMrr = $inputs['avg_mrr'] ?? null;
+        $avgMrr = $enteredMrr !== null ? (int) round((float) $enteredMrr * 100) : $defaults['avg_mrr'];
+        $mrrSource = $enteredMrr !== null ? 'entered' : $defaults['avg_mrr_source'];
 
-        $winRatePct = isset($inputs['win_rate_pct']) && $inputs['win_rate_pct'] !== null
-            ? (float) $inputs['win_rate_pct']
-            : $defaults['win_rate_pct'];
-        $rateSource = isset($inputs['win_rate_pct']) && $inputs['win_rate_pct'] !== null ? 'entered' : $defaults['win_rate_source'];
+        $enteredRate = $inputs['win_rate_pct'] ?? null;
+        $winRatePct = $enteredRate !== null ? (float) $enteredRate : $defaults['win_rate_pct'];
+        $rateSource = $enteredRate !== null ? 'entered' : $defaults['win_rate_source'];
 
         $tamAccounts = $market;
         $samAccounts = (int) round($market * $addressablePct / 100);

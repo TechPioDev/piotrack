@@ -22,6 +22,9 @@ return [
     // TSEO-019: CWV field-data driver ('fixture' ships; live = PageSpeed Insights key + a class).
     'vitals_provider' => env('SEO_VITALS_PROVIDER', 'fixture'),
 
+    // MLOC-002: GBP profile-push driver ('fixture' ships; live = GBP API OAuth + a class).
+    'gbp_provider' => env('SEO_GBP_PROVIDER', 'fixture'),
+
     'serpapi' => [
         'key' => env('SERPAPI_KEY'),
     ],

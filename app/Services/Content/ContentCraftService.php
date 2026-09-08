@@ -56,8 +56,9 @@ class ContentCraftService
                 $reasons[] = __('thin (:words words)', ['words' => $words]);
             }
 
-            if ($piece->optimization_score !== null && (int) $piece->optimization_score < 50) {
-                $reasons[] = __('optimization score :score', ['score' => $piece->optimization_score]);
+            $score = (int) $piece->optimization_score;
+            if ($score > 0 && $score < 50) {
+                $reasons[] = __('optimization score :score', ['score' => $score]);
             }
 
             $drop = $this->rankingDrop((string) $piece->target_keyword);
@@ -134,7 +135,7 @@ class ContentCraftService
 
         // MSP technical craft.
         preg_match_all('/\b([A-Z]{2,6})\b/', $body, $matches);
-        $acronyms = array_unique($matches[1] ?? []);
+        $acronyms = array_unique($matches[1]);
         $unexpanded = array_values(array_filter($acronyms, fn (string $a) => ! str_contains($body, '('.$a.')') && ! preg_match('/'.preg_quote($a, '/').'\s*\(/', $body)));
         $checks[] = ['key' => 'acronyms', 'kind' => 'technical', 'status' => count($unexpanded) <= 2 ? 'pass' : 'warn',
             'detail' => count($unexpanded) <= 2
@@ -163,7 +164,7 @@ class ContentCraftService
             'focus' => $focus === 'technical' ? 'MSP technical' : 'conversion',
             'title' => (string) $piece->title,
             'keyword' => $piece->target_keyword ?: 'none recorded',
-            'vertical' => (string) (Vertical::find($piece->vertical_id)?->name ?? 'MSP buyers in general'),
+            'vertical' => Vertical::find($piece->vertical_id)->name ?? 'MSP buyers in general',
             'excerpt' => $piece->excerpt ?: mb_substr(strip_tags((string) $piece->body), 0, 300),
         ])->text;
     }

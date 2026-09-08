@@ -54,6 +54,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:seo'])
         Route::post('local', [LocalController::class, 'storeLocation'])->middleware('can:seo.local.manage')->name('local.store');
         Route::delete('local/{location}', [LocalController::class, 'destroyLocation'])->middleware('can:seo.local.manage')->name('local.destroy');
         Route::post('local/{location}/page', [LocalController::class, 'createPage'])->middleware('can:seo.local.manage')->name('local.page.create');
+        // MLOC-002: push the branch profile through the GBP seam.
+        Route::post('local/{location}/gbp-push', [LocalController::class, 'pushGbp'])->middleware('can:seo.local.manage')->name('local.gbp.push');
         Route::post('local/{location}/citations', [LocalController::class, 'storeCitation'])->middleware('can:seo.local.manage')->name('local.citations.store');
         Route::post('local/{location}/citations/{citation}/check', [LocalController::class, 'checkCitation'])->middleware('can:seo.local.manage')->name('local.citations.check');
         Route::delete('local/{location}/citations/{citation}', [LocalController::class, 'destroyCitation'])->middleware('can:seo.local.manage')->name('local.citations.destroy');

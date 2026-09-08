@@ -69,7 +69,7 @@ class ReviewPacketService
             ['text' => 'Pipeline', 'size' => 13, 'bold' => true],
             ['text' => 'New leads: '.$newLeads],
             ['text' => 'New MQLs: '.$mqls],
-            ['text' => 'Deals won: '.$wonDeals->count().' ('.$money((int) $wonDeals->sum('value')).' value, '.$money((int) $wonDeals->sum('mrr')).' MRR)'],
+            ['text' => 'Deals won: '.$wonDeals->count().' ('.$money((int) $wonDeals->sum(fn (Deal $d) => (int) $d->value)).' value, '.$money((int) $wonDeals->sum(fn (Deal $d) => (int) $d->mrr)).' MRR)'],
             ['text' => 'Deals lost: '.$lostDeals],
             ['text' => ''],
             ['text' => 'Activity', 'size' => 13, 'bold' => true],

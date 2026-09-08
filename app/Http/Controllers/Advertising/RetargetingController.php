@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Advertising;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContentPiece;
 use App\Models\MarketingList;
 use App\Models\RetargetingAudience;
+use App\Services\Advertising\MetaAdsService;
 use App\Services\Advertising\RetargetingService;
+use App\Services\Advertising\VideoAdsService;
 use App\Services\Marketing\MessageDispatcher;
 use App\Support\AuditLogger;
 use App\Validation\TenantExists;
@@ -38,7 +41,31 @@ class RetargetingController extends Controller
             ]),
             'lists' => MarketingList::orderBy('name')->get(['id', 'name'])
                 ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name]),
+            // RETG-006/007: video-shaped content a video-retargeting draft can promote.
+            'video_pieces' => ContentPiece::whereIn('content_type', MetaAdsService::VIDEO_TYPES)
+                ->latest('id')->get(['id', 'title'])
+                ->map(fn ($p) => ['id' => $p->id, 'title' => $p->title]),
         ]);
+    }
+
+    /**
+     * RETG-006/007: video / YouTube retargeting — the P42 draft video campaign
+     * built from a chosen video piece with THIS audience attached (Customer
+     * Match export ready). Live delivery stays connector-gated (ADR-0006),
+     * exactly like every ads platform.
+     */
+    public function videoCampaign(Request $request, RetargetingAudience $audience, VideoAdsService $video): RedirectResponse
+    {
+        $data = $request->validate([
+            'content_piece_id' => ['required', 'integer', TenantExists::in('content_pieces')],
+        ]);
+
+        $piece = ContentPiece::whereKey($data['content_piece_id'])->firstOrFail();
+        $campaign = $video->youtubeCampaign($piece);
+        $video->attachAudience($campaign, $audience);
+
+        return redirect()->route('ads.campaigns.show', $campaign->id)
+            ->with('status', __('Draft YouTube retargeting campaign ready with ":audience" attached - export its Customer Match CSV and upload in Google Ads.', ['audience' => $audience->name]));
     }
 
     public function store(Request $request): RedirectResponse

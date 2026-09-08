@@ -3,12 +3,14 @@
 namespace App\Seo;
 
 use App\Seo\Contracts\AiSearchProvider;
+use App\Seo\Contracts\GbpProvider;
 use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\Contracts\SearchConsoleProvider;
 use App\Seo\Contracts\WebVitalsProvider;
 use App\Seo\Providers\CopilotAiSearchProvider;
 use App\Seo\Providers\FixtureAiSearchProvider;
+use App\Seo\Providers\FixtureGbpProvider;
 use App\Seo\Providers\FixtureLinkDataProvider;
 use App\Seo\Providers\FixtureRankProvider;
 use App\Seo\Providers\FixtureSearchConsoleProvider;
@@ -68,6 +70,17 @@ class SeoProviderManager
         return match ($name) {
             'fixture' => new FixtureWebVitalsProvider,
             default => throw new InvalidArgumentException("Unknown web-vitals provider [{$name}]."),
+        };
+    }
+
+    /** MLOC-002: the GBP profile-push driver (fixture default). */
+    public function gbp(?string $name = null): GbpProvider
+    {
+        $name ??= (string) config('seo.gbp_provider', 'fixture');
+
+        return match ($name) {
+            'fixture' => new FixtureGbpProvider,
+            default => throw new InvalidArgumentException("Unknown GBP provider [{$name}]."),
         };
     }
 

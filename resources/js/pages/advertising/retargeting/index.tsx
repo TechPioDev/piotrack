@@ -86,7 +86,65 @@ type Source = 'list' | 'behavior' | 'funnel_stage' | 'all_contacts';
 const SOURCES: Source[] = ['list', 'behavior', 'funnel_stage', 'all_contacts'];
 const PLATFORM_OPTIONS = ['google', 'meta', 'linkedin', 'youtube'];
 
-export default function Retargeting({ audiences, lists }: { audiences: Audience[]; lists: ListOption[] }) {
+function VideoCampaignDialog({ audienceId, audienceName, videoPieces }: { audienceId: number; audienceName: string; videoPieces: ListOption[] }) {
+    const [open, setOpen] = useState(false);
+    const [pieceId, setPieceId] = useState('');
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        if (pieceId === '') return;
+        router.post(route('ads.retargeting.video', audienceId), { content_piece_id: Number(pieceId) });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    YouTube campaign
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Video retargeting — {audienceName}</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    Builds a draft YouTube video campaign from the chosen piece with this audience attached (Customer Match export ready). Live
+                    delivery goes out through Google Ads when the connector is wired.
+                </p>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid gap-1">
+                        <Label htmlFor="video-piece">Video content</Label>
+                        <Select value={pieceId} onValueChange={setPieceId}>
+                            <SelectTrigger id="video-piece">
+                                <SelectValue placeholder="Pick a video / webinar / podcast piece" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {videoPieces.map((piece) => (
+                                    <SelectItem key={piece.id} value={String(piece.id)}>
+                                        {piece.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={pieceId === ''}>
+                            Create draft campaign
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function Retargeting({
+    audiences,
+    lists,
+    video_pieces,
+}: {
+    audiences: Audience[];
+    lists: ListOption[];
+    video_pieces: { id: number; title: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('ads.retargeting.manage');
     const [open, setOpen] = useState(false);
@@ -302,6 +360,13 @@ export default function Retargeting({ audiences, lists }: { audiences: Audience[
                                                         </Button>
                                                     ))}
                                                     <SmsDialog audienceId={audience.id} audienceName={audience.name} />
+                                                    {video_pieces.length > 0 && (
+                                                        <VideoCampaignDialog
+                                                            audienceId={audience.id}
+                                                            audienceName={audience.name}
+                                                            videoPieces={video_pieces.map((p) => ({ id: p.id, name: p.title }))}
+                                                        />
+                                                    )}
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"

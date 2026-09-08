@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property Carbon|null $paid_at
+ * @property Carbon|null $due_at
  * @property string $status
  * @property string $number
  * @property int $total

@@ -375,6 +375,15 @@ export default function Accounts({
                                                     </Button>
                                                     <Button
                                                         size="sm"
+                                                        variant="secondary"
+                                                        onClick={() =>
+                                                            router.post(route('sales.accounts.enrich', account.id), {}, { preserveScroll: true })
+                                                        }
+                                                    >
+                                                        Enrich
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
                                                         variant="ghost"
                                                         className="text-destructive"
                                                         onClick={() => removeAccount(account.id)}

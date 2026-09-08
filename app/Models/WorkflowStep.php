@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property array<string, mixed>|null $action_config
+ * @property array<string, mixed>|null $condition
  * @property string $action_type
  * @property int $position
  * @property int $delay_minutes

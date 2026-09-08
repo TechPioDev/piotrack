@@ -27,5 +27,13 @@ interface EnrichmentProvider
      */
     public function identifyCompany(string $ip): ?array;
 
+    /**
+     * ABM-004: firmographics for a company domain (same honesty contract as
+     * enrich()).
+     *
+     * @return array{company_name: string|null, industry: string|null, employee_range: string|null, region: string|null}
+     */
+    public function enrichDomain(string $domain): array;
+
     public function name(): string;
 }

@@ -23,6 +23,9 @@ class AbmPlayRunner
     public const PLAYS = [
         'executive_outreach' => 'Draft a personalized intro for every decision-maker and queue it as a task for the rep — nothing is sent.',
         'account_retargeting' => 'Sync the tier committee list, build the retargeting audience (customers excluded), ready for platform export.',
+        // ABM-017: recording stays external (Loom-class); sending is the tested
+        // click-tracked video-message flow on each contact's page.
+        'video_outreach' => 'Queue a personalized-video task per decision-maker — record anywhere, send click-tracked from the contact page.',
     ];
 
     public function __construct(
@@ -43,6 +46,7 @@ class AbmPlayRunner
 
         $steps = match ($play) {
             'executive_outreach' => $this->executiveOutreach($account, $userId),
+            'video_outreach' => $this->videoOutreach($account, $userId),
             default => $this->accountRetargeting($account),
         };
 
@@ -92,6 +96,44 @@ class AbmPlayRunner
             ]);
 
             $steps[] = ['step' => 'task_queued', 'detail' => $contact->fullName().' — intro drafted, task due in 2 days.'];
+        }
+
+        return $steps;
+    }
+
+    /**
+     * ABM-017: video outreach — one task per decision-maker pointing the rep
+     * at the tested click-tracked video-message flow (VID-013). Recording
+     * stays external (Loom-class host); the platform orchestrates and sends.
+     *
+     * @return list<array{step: string, detail: string}>
+     */
+    private function videoOutreach(TargetAccount $account, ?int $userId): array
+    {
+        $decisionMakers = $this->accounts->buyingCommittee($account)
+            ->filter(fn ($contact) => $this->accounts->isDecisionMaker($contact))->values();
+
+        if ($decisionMakers->isEmpty()) {
+            return [[
+                'step' => 'no_decision_makers',
+                'detail' => 'No decision-makers identified on the committee — assign buying roles (or titles) first.',
+            ]];
+        }
+
+        $company = (string) ($account->company()->value('name') ?? 'the account');
+        $steps = [];
+        foreach ($decisionMakers as $contact) {
+            Activity::create([
+                'subject_type' => 'contact',
+                'subject_id' => $contact->id,
+                'type' => 'task',
+                'user_id' => $userId,
+                'title' => 'Video outreach: '.$contact->fullName().' ('.$company.')',
+                'body' => 'Record a short personalized video (Loom or any host), then send it click-tracked with the "Video message" button on this contact\'s page.',
+                'due_at' => now()->addDays(2),
+            ]);
+
+            $steps[] = ['step' => 'task_queued', 'detail' => $contact->fullName().' — personalized-video task due in 2 days.'];
         }
 
         return $steps;

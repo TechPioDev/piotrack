@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property array<int, string>|null $tags
  * @property Carbon|null $published_at
+ * @property int|null $vertical_id
  * @property string $content_type
  * @property string $status
  * @property bool $is_lead_magnet

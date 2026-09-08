@@ -226,8 +226,18 @@ function LocationCard({ location, canManage }: { location: Location; canManage: 
                         <span className="font-medium">Map Pack readiness</span>
                         <Badge variant={location.gbp.score >= 80 ? 'default' : 'secondary'}>{location.gbp.score}/100</Badge>
                         <span className="text-muted-foreground text-xs">
-                            Computed from your own records — pushing the profile to Google itself needs the GBP API connection.
+                            Computed from your own records. Pushes go through the GBP driver — the fixture simulates; the live driver is the Google
+                            Business Profile API.
                         </span>
+                        {canManage && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => router.post(route('seo.local.gbp.push', location.id), {}, { preserveScroll: true })}
+                            >
+                                Push to GBP
+                            </Button>
+                        )}
                     </div>
                     <ul className="divide-y rounded border">
                         {location.gbp.checks.map((check) => (

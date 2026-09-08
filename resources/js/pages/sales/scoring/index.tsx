@@ -25,6 +25,8 @@ type Rule = {
     is_active: boolean;
 };
 
+type Predictive = { active: boolean; closed_deals: number; needed: number; baseline: number | null };
+
 type ScoredContact = {
     id: number;
     name: string;
@@ -32,6 +34,7 @@ type ScoredContact = {
     lead_score: number;
     temperature: string;
     lifecycle_stage: string | null;
+    win_probability: number | null;
 };
 
 type Category = 'demographic' | 'firmographic' | 'behavioral' | 'intent';
@@ -246,12 +249,14 @@ export default function Scoring({
     assignment_rules,
     assignment_fields,
     members,
+    predictive,
 }: {
     rules: Rule[];
     contacts: ScoredContact[];
     assignment_rules: AssignmentRule[];
     assignment_fields: string[];
     members: { id: number; name: string }[];
+    predictive: Predictive;
 }) {
     const { can } = usePermissions();
     const canManage = can('sales.scoring.manage');
@@ -331,6 +336,12 @@ export default function Scoring({
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Scored contacts</h3>
+                    {/* LSCR-014: the empirical model's honest state */}
+                    <p className="text-muted-foreground mb-2 text-xs">
+                        {predictive.active
+                            ? `Win % is empirical — win rates from your own ${predictive.closed_deals} closed deals, bucketed by lead source, industry and score band (each bucket needs 5+ closed deals to count). Advisory only. "Ask AI" gives the gateway's advisory opinion; neither ever changes the deterministic score.`
+                            : `Predictive scoring is off: it needs ${predictive.needed}+ closed deals to speak honestly (you have ${predictive.closed_deals}). No statistical dressing over thin data.`}
+                    </p>
                     {contacts.length === 0 ? (
                         <p className="text-muted-foreground text-sm">No contacts yet. Contacts appear here once they are scored.</p>
                     ) : (
@@ -343,6 +354,8 @@ export default function Scoring({
                                         <th className="p-3 text-center font-medium">Score</th>
                                         <th className="p-3 font-medium">Temperature</th>
                                         <th className="p-3 font-medium">Lifecycle stage</th>
+                                        <th className="p-3 text-center font-medium">Win %</th>
+                                        {canManage && <th className="p-3 font-medium"></th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -355,6 +368,22 @@ export default function Scoring({
                                                 <Badge variant={temperatureVariant(contact.temperature)}>{contact.temperature}</Badge>
                                             </td>
                                             <td className="text-muted-foreground p-3">{contact.lifecycle_stage ?? '—'}</td>
+                                            <td className="p-3 text-center tabular-nums">
+                                                {contact.win_probability !== null ? `${contact.win_probability}%` : '—'}
+                                            </td>
+                                            {canManage && (
+                                                <td className="p-3 text-right">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            router.post(route('sales.scoring.ai', contact.id), {}, { preserveScroll: true })
+                                                        }
+                                                    >
+                                                        Ask AI
+                                                    </Button>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

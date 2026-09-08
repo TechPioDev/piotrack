@@ -76,5 +76,7 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:advertising'
         Route::post('retargeting/{audience}/rebuild', [RetargetingController::class, 'rebuild'])->middleware('can:ads.retargeting.manage')->name('retargeting.rebuild');
         Route::get('retargeting/{audience}/export', [RetargetingController::class, 'export'])->middleware('can:ads.retargeting.manage')->name('retargeting.export');
         Route::post('retargeting/{audience}/sms', [RetargetingController::class, 'sms'])->middleware('can:ads.retargeting.manage')->name('retargeting.sms');
+        // RETG-006/007: draft YouTube video-retargeting campaign with the audience attached.
+        Route::post('retargeting/{audience}/video-campaign', [RetargetingController::class, 'videoCampaign'])->middleware('can:ads.retargeting.manage')->name('retargeting.video');
         Route::delete('retargeting/{audience}', [RetargetingController::class, 'destroy'])->middleware('can:ads.retargeting.manage')->name('retargeting.destroy');
     });

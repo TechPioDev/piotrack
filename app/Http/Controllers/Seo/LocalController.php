@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Citation;
 use App\Models\LandingPage;
 use App\Models\SeoLocation;
+use App\Seo\Contracts\GbpProvider;
 use App\Services\Seo\LocalAuthorityService;
 use App\Services\Seo\NapConsistencyChecker;
 use App\Support\AuditLogger;
@@ -118,6 +119,29 @@ class LocalController extends Controller
             resourceType: 'landing_page', resourceId: (string) $page->id, organizationId: $page->organization_id);
 
         return back()->with('status', __('Draft landing page ":name" created — review it under Marketing → Landing pages.', ['name' => $page->name]));
+    }
+
+    /**
+     * MLOC-002: push the branch's REAL profile record through the GBP seam.
+     * Requires the branch's place id — no place id, no push. The fixture
+     * driver's ack is labeled simulated; live = GBP API OAuth + one class.
+     */
+    public function pushGbp(SeoLocation $location, GbpProvider $gbp, AuditLogger $audit): RedirectResponse
+    {
+        if ($location->gbp_place_id === null || $location->gbp_place_id === '') {
+            return back()->withErrors(['gbp' => __('Link this branch\'s Google place id first - a push needs a profile to target.')]);
+        }
+
+        $result = $gbp->pushProfile($location);
+        $audit->log('seo.gbp.pushed', context: ['provider' => $gbp->name(), 'accepted' => $result['accepted'], 'fields' => $result['fields']], resourceType: 'seo_location', resourceId: (string) $location->id, organizationId: $location->organization_id);
+
+        if (! $result['accepted']) {
+            return back()->withErrors(['gbp' => __('The :provider driver refused the push - see the audit log.', ['provider' => $gbp->name()])]);
+        }
+
+        return back()->with('status', $gbp->name() === 'fixture'
+            ? __('Profile push SIMULATED by the fixture driver (:count fields) - connect the Google Business Profile API to push for real.', ['count' => count($result['fields'])])
+            : __('Profile pushed via :provider (:count fields).', ['provider' => $gbp->name(), 'count' => count($result['fields'])]));
     }
 
     public function storeCitation(Request $request, SeoLocation $location): RedirectResponse

@@ -27,9 +27,14 @@ class FixtureEnrichmentProvider implements EnrichmentProvider
             return ['company_name' => null, 'industry' => null, 'employee_range' => null, 'region' => null];
         }
 
-        $domain = explode('@', $email)[1];
-        if (in_array($domain, self::FREE_MAIL, true)) {
-            // A personal mailbox carries no firmographics; say so.
+        return $this->enrichDomain(explode('@', $email)[1]);
+    }
+
+    public function enrichDomain(string $domain): array
+    {
+        $domain = mb_strtolower(trim($domain));
+        if ($domain === '' || in_array($domain, self::FREE_MAIL, true)) {
+            // A personal mailbox / empty domain carries no firmographics; say so.
             return ['company_name' => null, 'industry' => null, 'employee_range' => null, 'region' => null];
         }
 

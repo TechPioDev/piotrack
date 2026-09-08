@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AssignmentRule;
 use App\Models\Contact;
 use App\Models\ScoringRule;
+use App\Services\Ai\AiSalesAgent;
 use App\Services\Sales\LeadScoringService;
+use App\Services\Sales\PredictiveScoringService;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class ScoringController extends Controller
 {
@@ -22,7 +25,7 @@ class ScoringController extends Controller
         private AuditLogger $audit,
     ) {}
 
-    public function index(): Response
+    public function index(PredictiveScoringService $predictive): Response
     {
         return Inertia::render('sales/scoring/index', [
             'rules' => ScoringRule::latest('id')->get()->map(fn (ScoringRule $r) => [
@@ -42,7 +45,14 @@ class ScoringController extends Controller
                 'lead_score' => $c->lead_score,
                 'temperature' => $this->scoring->temperature($c->lead_score),
                 'lifecycle_stage' => $c->lifecycle_stage,
+                // LSCR-014: empirical close probability, or null while the
+                // model floor is unmet (the status card explains).
+                'win_probability' => $predictive->status()['active']
+                    ? $predictive->predict($c)['probability']
+                    : null,
             ]),
+            // LSCR-014: the model's honest state — active or refusing with counts.
+            'predictive' => $predictive->status(),
             // CRM-025: routing rules run before the round-robin fallback.
             'assignment_rules' => AssignmentRule::with('user:id,name')->orderBy('position')->orderBy('id')->get()
                 ->map(fn (AssignmentRule $r) => [
@@ -78,6 +88,24 @@ class ScoringController extends Controller
         $rule->delete();
 
         return back()->with('status', __('Routing rule removed.'));
+    }
+
+    /**
+     * LSCR-015: the P25-tested AI advisory score, surfaced on the scoring
+     * page. Persisted and calibrated by the agent; NEVER written over the
+     * deterministic lead score.
+     */
+    public function aiScore(Contact $contact, AiSalesAgent $agent): RedirectResponse
+    {
+        try {
+            $result = $agent->scoreLead($contact);
+        } catch (Throwable) {
+            return back()->withErrors(['ai' => __('The AI driver is unavailable - the deterministic score stands on its own.')]);
+        }
+
+        return back()->with('status', __('AI opinion for :name: :score/100 - ":reason". Advisory only; the deterministic score is unchanged.', [
+            'name' => $contact->fullName(), 'score' => $result['score'], 'reason' => $result['reason'],
+        ]));
     }
 
     public function store(Request $request): RedirectResponse

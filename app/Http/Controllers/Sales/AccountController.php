@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Sales;
 
+use App\Crm\Contracts\EnrichmentProvider;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Contact;
@@ -83,6 +84,40 @@ class AccountController extends Controller
         ]));
 
         return back()->with('status', __('Account updated.'));
+    }
+
+    /**
+     * ABM-004: enrich the account's company through the provider seam —
+     * set-once fills on EMPTY fields only, provenance audited.
+     */
+    public function enrich(TargetAccount $account, EnrichmentProvider $enrichment, AuditLogger $audit): RedirectResponse
+    {
+        $company = $account->company()->first();
+        if ($company === null) {
+            return back()->withErrors(['company' => __('The account has no company record to enrich.')]);
+        }
+
+        $domain = (string) ($company->domain ?: parse_url(str_contains((string) $company->website, '://') ? (string) $company->website : 'https://'.$company->website, PHP_URL_HOST));
+        if ($domain === '') {
+            return back()->withErrors(['company' => __('Add the company domain or website first - enrichment needs something to look up.')]);
+        }
+
+        $data = $enrichment->enrichDomain($domain);
+        $updates = array_filter([
+            'industry' => $company->industry === null ? $data['industry'] : null,
+            'size' => $company->size === null ? $data['employee_range'] : null,
+            'region' => $company->region === null ? $data['region'] : null,
+        ], fn ($v) => $v !== null);
+
+        if ($updates !== []) {
+            $company->update($updates);
+        }
+
+        $audit->log('abm.account.enriched', context: ['provider' => $enrichment->name(), 'filled' => array_keys($updates)], resourceType: 'company', resourceId: (string) $company->id, organizationId: $account->organization_id);
+
+        return back()->with('status', $updates === []
+            ? __('Nothing to enrich - every field the :provider driver knows is already filled.', ['provider' => $enrichment->name()])
+            : __('Enriched via the :provider driver: :fields.', ['provider' => $enrichment->name(), 'fields' => implode(', ', array_keys($updates))]));
     }
 
     public function rescore(TargetAccount $account): RedirectResponse

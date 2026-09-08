@@ -97,7 +97,7 @@ class MessagingAnalysisService
         $brand = BrandProfile::first();
 
         foreach (['usp' => 'USP', 'value_proposition' => 'Value proposition'] as $field => $label) {
-            $text = trim((string) ($brand?->{$field} ?? ''));
+            $text = $brand !== null ? trim((string) $brand->getAttribute($field)) : '';
             if ($text !== '') {
                 $elements[] = ['source' => 'brand', 'label' => $label, 'text' => $text];
             }

@@ -24,6 +24,7 @@ use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Seo\Contracts\AiSearchProvider;
+use App\Seo\Contracts\GbpProvider;
 use App\Seo\Contracts\LinkDataProvider;
 use App\Seo\Contracts\RankProvider;
 use App\Seo\Contracts\SearchConsoleProvider;
@@ -84,6 +85,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             WebVitalsProvider::class,
             fn ($app) => $app->make(SeoProviderManager::class)->vitals(),
+        );
+        $this->app->bind(
+            GbpProvider::class,
+            fn ($app) => $app->make(SeoProviderManager::class)->gbp(),
         );
 
         // Resolve the active contact-enrichment driver (CRM-027).
