@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Sales;
 
+use App\Crm\Contracts\EnrichmentProvider;
 use App\Http\Controllers\Controller;
 use App\Models\Visitor;
 use App\Support\CurrentOrganization;
@@ -16,7 +17,10 @@ use Inertia\Response;
  */
 class VisitorController extends Controller
 {
-    public function __construct(private CurrentOrganization $currentOrganization) {}
+    public function __construct(
+        private CurrentOrganization $currentOrganization,
+        private EnrichmentProvider $enrichment,
+    ) {}
 
     public function index(): Response
     {
@@ -37,6 +41,11 @@ class VisitorController extends Controller
                     : 'Anonymous · '.substr($visitor->visitor_key, 0, 6),
                 'contact_id' => $visitor->contact_id,
                 'company' => $visitor->contact?->company?->name,
+                // INTENT-002: reverse-IP ID for anonymous visitors, labeled by
+                // driver. First-party truth (the contact's real company) wins.
+                'identified_company' => $visitor->contact_id === null && $visitor->last_ip !== null
+                    ? $this->enrichment->identifyCompany((string) $visitor->last_ip)
+                    : null,
                 'email' => $visitor->email,
                 'visits' => $visitor->visits,
                 'page_views' => $visitor->page_views,
@@ -48,6 +57,7 @@ class VisitorController extends Controller
 
         return Inertia::render('sales/visitors/index', [
             'visitors' => $visitors,
+            'enrichment_provider' => $this->enrichment->name(),
             'trackingKey' => $organization->tracking_key,
             'snippet' => '<script src="'.route('public.track.script', $organization->tracking_key).'" defer></script>',
             'identified' => Visitor::whereNotNull('contact_id')->count(),

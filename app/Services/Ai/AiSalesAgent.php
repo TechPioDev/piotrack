@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Crm\Contracts\EnrichmentProvider;
 use App\Models\AiAction;
 use App\Models\AiConversation;
 use App\Models\AiMessage;
@@ -171,8 +172,35 @@ class AiSalesAgent
                 "Contact: %s\nTitle: %s\nCompany: %s\nLifecycle: %s\nLead score: %d",
                 $contact->fullName(), $contact->title ?? 'unknown',
                 $company->name ?? 'unknown', $contact->lifecycle_stage, $contact->lead_score,
-            )."\n".$this->siteEvidence($company),
+            )."\n".$this->enrichmentEvidence($contact)."\n".$this->siteEvidence($company),
         ])->text;
+    }
+
+    /**
+     * AISA-006: the provider-labeled enrichment block. Firmographics come from
+     * the EnrichmentProvider seam — never from the model — and the block says
+     * which driver supplied them, or plainly that none did.
+     */
+    private function enrichmentEvidence(Contact $contact): string
+    {
+        $provider = app(EnrichmentProvider::class);
+
+        if ($contact->email === null || $contact->email === '') {
+            return 'No enrichment data: the contact has no email address to look up.';
+        }
+
+        $data = $provider->enrich((string) $contact->email);
+        if ($data['company_name'] === null) {
+            return sprintf('No enrichment data for this address (driver: %s).', $provider->name());
+        }
+
+        return sprintf(
+            "Enrichment data (driver: %s%s):\nCompany: %s\nIndustry: %s\nEmployees: %s\nRegion: %s",
+            $provider->name(),
+            $provider->name() === 'fixture' ? ' - simulated' : '',
+            $data['company_name'], $data['industry'] ?? 'unknown',
+            $data['employee_range'] ?? 'unknown', $data['region'] ?? 'unknown',
+        );
     }
 
     public function researchAccount(Company $company): string

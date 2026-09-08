@@ -107,6 +107,8 @@ class ChatWidgetController extends Controller
             'consent.privacy_url' => 'nullable|url|max:500',
             'settings' => 'sometimes|array',
             'settings.teaser' => 'nullable|string|max:120',
+            // CHAT-041: the B teaser arms the A/B split, sticky per visitor.
+            'settings.teaser_b' => 'nullable|string|max:120',
             'settings.teaser_delay' => 'nullable|integer|min:0|max:120',
             'settings.mode' => ['nullable', Rule::in(['bot', 'bot_then_human', 'live'])],
             'settings.language' => 'nullable|string|max:10',

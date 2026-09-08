@@ -45,6 +45,30 @@ class FixtureEnrichmentProvider implements EnrichmentProvider
         ];
     }
 
+    public function identifyCompany(string $ip): ?array
+    {
+        // Private/reserved space can never be a company; say nothing.
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return null;
+        }
+
+        $seed = crc32($ip);
+
+        // A realistic reverse-IP index misses most of the time; the fixture
+        // does too (3 in 4 addresses yield no match), deterministically.
+        if ($seed % 4 !== 0) {
+            return null;
+        }
+
+        $label = ['summit', 'harborview', 'ridgeline', 'lakeside', 'ironworks', 'bluepeak'][($seed >> 2) % 6];
+
+        return [
+            'company_name' => ucfirst($label).' '.self::INDUSTRIES[$seed % count(self::INDUSTRIES)],
+            'domain' => $label.'-corp.example',
+            'industry' => self::INDUSTRIES[$seed % count(self::INDUSTRIES)],
+        ];
+    }
+
     public function name(): string
     {
         return 'fixture';

@@ -66,6 +66,7 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
         },
         settings: {
             teaser: (widget.settings.teaser as string) ?? '',
+            teaser_b: (widget.settings.teaser_b as string) ?? '',
             teaser_delay: (widget.settings.teaser_delay as number) ?? 4,
             mode: (widget.settings.mode as string) ?? 'bot',
             experiment: (widget.settings.experiment as string) ?? '',
@@ -251,6 +252,15 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                                     placeholder="Need help with IT or cybersecurity?"
                                     value={form.data.settings.teaser}
                                     onChange={(e) => form.setData('settings', { ...form.data.settings, teaser: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="teaser_b">Teaser B (A/B test)</Label>
+                                <Input
+                                    id="teaser_b"
+                                    placeholder="Leave blank for no test"
+                                    value={form.data.settings.teaser_b}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, teaser_b: e.target.value })}
                                 />
                             </div>
                             <div className="grid gap-1">

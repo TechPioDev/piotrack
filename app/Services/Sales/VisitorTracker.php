@@ -40,7 +40,7 @@ class VisitorTracker
     ) {}
 
     /**
-     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string, utm_term?: ?string, utm_content?: ?string, x_pct?: ?int, y_pct?: ?int}  $event
+     * @param  array{vid: string, type: string, path?: ?string, title?: ?string, referrer?: ?string, email?: ?string, utm_source?: ?string, utm_medium?: ?string, utm_campaign?: ?string, utm_term?: ?string, utm_content?: ?string, x_pct?: ?int, y_pct?: ?int, ip?: ?string}  $event
      */
     public function ingest(array $event): Visitor
     {
@@ -59,6 +59,11 @@ class VisitorTracker
             'last_seen_at' => $now,
             'visits' => $visitor->visits + ($newSession ? 1 : 0),
         ];
+
+        // INTENT-002: keep the latest IP for reverse-IP identification.
+        if (! empty($event['ip'])) {
+            $updates['last_ip'] = mb_substr((string) $event['ip'], 0, 45);
+        }
 
         // First-touch attribution is set once and never overwritten.
         foreach (['referrer', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as $field) {

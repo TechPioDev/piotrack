@@ -741,7 +741,8 @@ async function boot() {
     // A missing/paused widget, a blocked origin or an outage must all fail
     // silently — the customer's website keeps working exactly as before.
     try {
-        const config = await api<Config>('config');
+        // The visitor key rides along so teaser A/B variants stay sticky (CHAT-041).
+        const config = await api<Config>(`config?vid=${encodeURIComponent(visitorId())}`);
         if (!targetingAllows(config.targeting)) return;
         await waitForTrigger(config.targeting);
         new ChatWidget(config).mount();

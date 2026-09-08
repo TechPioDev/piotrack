@@ -48,7 +48,10 @@ class PublicChatController extends Controller
                     : 'bottom-right',
                 'company' => $theme['company'] ?? $widget->name,
             ],
-            'teaser' => $settings['teaser'] ?? null,
+            // CHAT-041: with a B teaser configured, the variant is sticky per
+            // visitor (hash of the widget-local visitor key the widget sends).
+            'teaser' => $this->teaserFor($settings, (string) $request->query('vid', '')),
+            'teaser_variant' => $this->teaserVariant($settings, (string) $request->query('vid', '')),
             'teaser_delay' => (int) ($settings['teaser_delay'] ?? 4),
             'consent_required' => (bool) ($consent['required'] ?? false),
             'privacy_url' => $consent['privacy_url'] ?? null,
@@ -122,6 +125,8 @@ class PublicChatController extends Controller
                 'source' => 'website_chat',
                 'page' => $data['page'] ?? null,
                 'referrer' => $data['referrer'] ?? null,
+                // CHAT-041: which teaser variant this visitor was served.
+                'teaser_variant' => $this->teaserVariant($widget->settings ?? [], (string) ($data['visitor'] ?? '')),
                 ...$utm,
             ]),
         ]);
@@ -192,6 +197,31 @@ class PublicChatController extends Controller
      * Resolve the widget cross-tenant by its public key, enforce activity,
      * entitlement and the origin allow-list, then establish tenant context.
      */
+    /**
+     * CHAT-041: the teaser this visitor sees. Without a B variant everyone
+     * gets A; with one, the split is a sticky hash of the visitor key.
+     *
+     * @param  array<string, mixed>  $settings
+     */
+    private function teaserFor(array $settings, string $visitorKey): ?string
+    {
+        return $this->teaserVariant($settings, $visitorKey) === 'b'
+            ? ($settings['teaser_b'] ?? null)
+            : ($settings['teaser'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function teaserVariant(array $settings, string $visitorKey): ?string
+    {
+        if (empty($settings['teaser_b'])) {
+            return null;
+        }
+
+        return crc32($visitorKey) % 2 === 0 ? 'a' : 'b';
+    }
+
     private function resolve(Request $request, string $publicKey): ChatWidget
     {
         $widget = ChatWidget::withoutGlobalScope('tenant')

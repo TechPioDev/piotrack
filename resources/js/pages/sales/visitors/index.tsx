@@ -22,6 +22,7 @@ type VisitorRow = {
     label: string;
     contact_id: number | null;
     company: string | null;
+    identified_company: { company_name: string; domain: string; industry: string | null } | null;
     email: string | null;
     visits: number;
     page_views: number;
@@ -40,11 +41,13 @@ function heat(score: number): { label: string; className: string } {
 
 export default function Visitors({
     visitors,
+    enrichment_provider,
     snippet,
     identified,
     total,
 }: {
     visitors: Paginated;
+    enrichment_provider: string;
     trackingKey: string;
     snippet: string;
     identified: number;
@@ -131,7 +134,17 @@ export default function Visitors({
                                                 <span className="text-muted-foreground block text-xs">{visitor.email}</span>
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground">{visitor.company ?? '—'}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {visitor.company ??
+                                                (visitor.identified_company ? (
+                                                    <span>
+                                                        {visitor.identified_company.company_name}{' '}
+                                                        <span className="text-xs">(reverse-IP · {enrichment_provider})</span>
+                                                    </span>
+                                                ) : (
+                                                    '—'
+                                                ))}
+                                        </TableCell>
                                         <TableCell className="text-center tabular-nums">{visitor.visits}</TableCell>
                                         <TableCell className="text-center tabular-nums">{visitor.page_views}</TableCell>
                                         <TableCell>

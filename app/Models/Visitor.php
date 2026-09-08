@@ -24,7 +24,7 @@ class Visitor extends Model
         'organization_id', 'visitor_key', 'contact_id', 'email',
         'first_seen_at', 'last_seen_at', 'visits', 'page_views', 'intent_score',
         'last_path', 'first_path', 'referrer', 'utm_source', 'utm_medium', 'utm_campaign',
-        'utm_term', 'utm_content',
+        'utm_term', 'utm_content', 'last_ip',
     ];
 
     /**

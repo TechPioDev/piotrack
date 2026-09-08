@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Content;
 use App\Http\Controllers\Controller;
 use App\Models\ContentPiece;
 use App\Models\Vertical;
+use App\Services\Content\ContentCraftService;
 use App\Services\Content\ContentService;
 use App\Services\Content\MultimediaPromotion;
 use App\Services\Content\VideoStrategy;
@@ -39,6 +40,9 @@ class ContentPieceController extends Controller
             'verticals' => Vertical::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             // VID-001: the video strategy report from the tenant's own records.
             'video_strategy' => app(VideoStrategy::class)->report(),
+            // CONT-035/036: computed refresh + expansion queues, reasons named.
+            'refresh_queue' => app(ContentCraftService::class)->refreshQueue(),
+            'expansion' => app(ContentCraftService::class)->expansionQueue(),
         ]);
     }
 
@@ -61,7 +65,21 @@ class ContentPieceController extends Controller
                 'published_at' => $piece->published_at?->toIso8601String(),
             ],
             'statuses' => self::STATUSES,
+            // CONT-033/034: transparent craft checks; drafts come via the gateway.
+            'craft_checks' => app(ContentCraftService::class)->craftChecks($piece),
         ]);
+    }
+
+    /**
+     * CONT-033/034: an AI copy DRAFT (conversion or MSP-technical focus)
+     * through the tested gateway — flashed back to the editor, never saved
+     * or published by the platform.
+     */
+    public function draftCopy(Request $request, ContentPiece $piece, ContentCraftService $craft): RedirectResponse
+    {
+        $data = $request->validate(['focus' => ['required', Rule::in(['conversion', 'technical'])]]);
+
+        return back()->with('draft', $craft->draftCopy($piece, $data['focus']));
     }
 
     public function store(Request $request): RedirectResponse

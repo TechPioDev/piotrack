@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Analytics;
 
 use App\Http\Controllers\Controller;
+use App\Models\BrandProfile;
+use App\Models\Keyword;
+use App\Seo\Contracts\RankProvider;
+use App\Seo\SeoProviderManager;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Analytics\FunnelInsights;
 use Inertia\Inertia;
@@ -21,6 +25,33 @@ class AnalyticsDashboardController extends Controller
                 'paths' => $insights->conversionPaths(),
                 'recommendations' => $insights->recommendations(),
             ],
+            // ANLY-012: map-pack positions through the rank seam, provider-labeled.
+            'map_rankings' => $this->mapRankings(),
         ]);
+    }
+
+    /**
+     * @return array{provider: string, rows: list<array{keyword: string, location: string|null, position: int|null}>}
+     */
+    private function mapRankings(): array
+    {
+        $provider = app(RankProvider::class);
+        $business = BrandProfile::first()?->legal_name;
+
+        $rows = [];
+        if ($business !== null && $business !== '') {
+            foreach (Keyword::where('is_tracked', true)->whereNotNull('location')->limit(10)->get() as $keyword) {
+                $rows[] = [
+                    'keyword' => (string) $keyword->phrase,
+                    'location' => $keyword->location,
+                    'position' => $provider->localPack((string) $keyword->phrase, $business, $keyword->location),
+                ];
+            }
+        }
+
+        return [
+            'provider' => app(SeoProviderManager::class)->rankProviderName(),
+            'rows' => $rows,
+        ];
     }
 }

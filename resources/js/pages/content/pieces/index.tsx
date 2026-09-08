@@ -43,16 +43,26 @@ type VideoStrategy = {
     recommendations: string[];
 };
 
+type RefreshEntry = { id: number; title: string; reasons: string[] };
+type Expansion = {
+    thin_pieces: { id: number; title: string; words: number; keyword: string | null }[];
+    unanswered_questions: { question: string; source: string }[];
+};
+
 export default function ContentPieces({
     pieces,
     types,
     verticals,
     video_strategy,
+    refresh_queue,
+    expansion,
 }: {
     pieces: Piece[];
     types: string[];
     verticals: { id: number; name: string }[];
     video_strategy: VideoStrategy;
+    refresh_queue: RefreshEntry[];
+    expansion: Expansion;
 }) {
     const { can } = usePermissions();
     const canManage = can('content.pieces.manage');
@@ -187,6 +197,45 @@ export default function ContentPieces({
                         </Dialog>
                     )}
                 </div>
+
+                {/* CONT-035/036: computed refresh + expansion queues */}
+                {(refresh_queue.length > 0 || expansion.thin_pieces.length > 0 || expansion.unanswered_questions.length > 0) && (
+                    <div className="grid gap-3 lg:grid-cols-2">
+                        <div className="space-y-2 rounded-lg border p-4">
+                            <p className="text-sm font-medium">Refresh queue</p>
+                            {refresh_queue.length === 0 && <p className="text-muted-foreground text-sm">Nothing needs a refresh.</p>}
+                            {refresh_queue.map((entry) => (
+                                <p key={entry.id} className="text-sm">
+                                    <Link href={route('content.pieces.show', entry.id)} className="font-medium hover:underline">
+                                        {entry.title}
+                                    </Link>{' '}
+                                    <span className="text-muted-foreground text-xs">{entry.reasons.join(' · ')}</span>
+                                </p>
+                            ))}
+                        </div>
+                        <div className="space-y-2 rounded-lg border p-4">
+                            <p className="text-sm font-medium">Expansion opportunities</p>
+                            {expansion.thin_pieces.map((entry) => (
+                                <p key={entry.id} className="text-sm">
+                                    <Link href={route('content.pieces.show', entry.id)} className="font-medium hover:underline">
+                                        {entry.title}
+                                    </Link>{' '}
+                                    <span className="text-muted-foreground text-xs">
+                                        {entry.words} words targeting "{entry.keyword}" — room to go deeper
+                                    </span>
+                                </p>
+                            ))}
+                            {expansion.unanswered_questions.map((q) => (
+                                <p key={q.question} className="text-muted-foreground text-sm">
+                                    Unanswered: "{q.question}" <span className="text-xs">(asked via {q.source})</span>
+                                </p>
+                            ))}
+                            {expansion.thin_pieces.length === 0 && expansion.unanswered_questions.length === 0 && (
+                                <p className="text-muted-foreground text-sm">No expansion gaps found.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {video_strategy.pieces > 0 && (
                     <div className="space-y-2 rounded-lg border p-4">

@@ -71,6 +71,10 @@ class PromptRegistry
             'system' => 'You write search-ad copy for managed IT service providers. Headlines at most 30 characters, descriptions at most 90. No superlative claims you were not given, no fabricated offers or prices. Answer in the exact format requested.',
             'template' => "Write search ad copy.\n\nService: {{service}}\nCampaign objective: {{objective}}\nTarget keywords: {{keywords}}\nLanding page: {{destination}}\n\nRespond as:\nHEADLINE: <headline 1>\nHEADLINE: <headline 2>\nHEADLINE: <headline 3>\nDESCRIPTION: <description 1>\nDESCRIPTION: <description 2>",
         ],
+        'content.copy' => [
+            'system' => 'You draft marketing copy for managed IT service providers. Conversion drafts lead with the buyer\'s outcome and end with one clear call to action; technical drafts explain MSP concepts precisely, expanding every acronym on first use. No superlative claims you were not given, no fabricated statistics or prices. Drafts only - the human editor decides what publishes. Answer in the exact format requested.',
+            'template' => "Draft {{focus}} copy for this content piece.\n\nTitle: {{title}}\nTarget keyword: {{keyword}}\nAudience/vertical: {{vertical}}\nCurrent excerpt: {{excerpt}}\n\nRespond as:\nHEADLINE: <headline>\nOPENING: <opening paragraph>\nCTA: <one-sentence call to action>",
+        ],
         'ads.bidding' => [
             'system' => 'You advise on manual search-ad bidding using ONLY the campaign metrics supplied. Be specific and numeric. Recommendations are advisory; never claim you changed anything.',
             'template' => "Campaign: {{name}} ({{platform}}, objective {{objective}})\nDaily budget: {{daily_budget}} cents\n30-day metrics: {{metrics}}\nAd groups and current bids: {{bids}}\n\nGive at most 3 short bid recommendations, each citing a number from the metrics above.",

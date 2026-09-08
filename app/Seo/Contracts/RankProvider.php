@@ -11,4 +11,11 @@ use App\Seo\RankResult;
 interface RankProvider
 {
     public function rank(string $keyword, string $domain, ?string $location, string $engine): RankResult;
+
+    /**
+     * ANLY-012: the business's position in the Google local pack (map results)
+     * for a keyword, or null when it does not appear / cannot be measured.
+     * Never an invented position.
+     */
+    public function localPack(string $keyword, string $businessName, ?string $location): ?int;
 }

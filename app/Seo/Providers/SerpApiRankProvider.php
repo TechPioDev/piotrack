@@ -52,4 +52,43 @@ class SerpApiRankProvider implements RankProvider
             return new RankResult(null);
         }
     }
+
+    /**
+     * ANLY-012: local-pack position from the SAME SerpApi response surface
+     * the rank lookups use — `local_results` carries the map pack.
+     */
+    public function localPack(string $keyword, string $businessName, ?string $location): ?int
+    {
+        $key = (string) config('seo.serpapi.key');
+
+        if ($key === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(20)->get('https://serpapi.com/search.json', array_filter([
+                'engine' => 'google',
+                'q' => $keyword,
+                'location' => $location,
+                'api_key' => $key,
+            ]));
+
+            if ($response->failed()) {
+                return null;
+            }
+
+            /** @var array<int, array<string, mixed>> $places */
+            $places = $response->json('local_results.places', []);
+
+            foreach ($places as $i => $place) {
+                if (mb_stripos((string) ($place['title'] ?? ''), $businessName) !== false) {
+                    return isset($place['position']) ? (int) $place['position'] : $i + 1;
+                }
+            }
+
+            return null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
 }

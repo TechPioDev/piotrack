@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
+use App\Models\ChatConversation;
 use App\Models\ChatWidget;
 use App\Services\Chat\ChatAnalyticsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,6 +39,41 @@ class ChatAnalyticsController extends Controller
             'filters' => ['days' => $days, 'widget' => $widgetId],
             'widgetOptions' => ChatWidget::query()->get(['id', 'name'])
                 ->map(fn (ChatWidget $w) => ['id' => $w->id, 'name' => $w->name])->all(),
+            // CHAT-041: teaser A/B results — real conversations and leads per variant.
+            'teaser_test' => $this->teaserTest($since, $widgetId),
         ]);
+    }
+
+    /**
+     * @return array{active: bool, variants: array<string, array{conversations: int, leads: int, rate: float|null}>}
+     */
+    private function teaserTest(Carbon $since, ?int $widgetId): array
+    {
+        $testing = ChatWidget::query()
+            ->when($widgetId !== null, fn ($q) => $q->whereKey($widgetId))
+            ->get()
+            ->contains(fn (ChatWidget $w) => ! empty(($w->settings ?? [])['teaser_b']));
+
+        if (! $testing) {
+            return ['active' => false, 'variants' => []];
+        }
+
+        $variants = [];
+        foreach (['a', 'b'] as $variant) {
+            $query = ChatConversation::where('created_at', '>=', $since)
+                ->when($widgetId !== null, fn ($q) => $q->where('chat_widget_id', $widgetId))
+                ->where('attribution->teaser_variant', $variant);
+
+            $conversations = (clone $query)->count();
+            $leads = (clone $query)->whereNotNull('contact_id')->count();
+
+            $variants[$variant] = [
+                'conversations' => $conversations,
+                'leads' => $leads,
+                'rate' => $conversations > 0 ? round($leads / $conversations * 100, 1) : null,
+            ];
+        }
+
+        return ['active' => true, 'variants' => $variants];
     }
 }

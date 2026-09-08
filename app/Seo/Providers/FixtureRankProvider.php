@@ -20,4 +20,13 @@ class FixtureRankProvider implements RankProvider
 
         return new RankResult($position, "https://{$domain}/");
     }
+
+    public function localPack(string $keyword, string $businessName, ?string $location): ?int
+    {
+        $seed = crc32(mb_strtolower($keyword.'|'.$businessName.'|'.($location ?? '')));
+
+        // The pack has three spots; roughly half of queries miss it entirely —
+        // deterministically, so tests and demos see both outcomes.
+        return $seed % 2 === 0 ? ($seed >> 2) % 3 + 1 : null;
+    }
 }

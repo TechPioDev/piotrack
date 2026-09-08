@@ -55,6 +55,8 @@ function money(minor: number): string {
     return `$${dollars.toLocaleString('en-US')}`;
 }
 
+type TeaserTest = { active: boolean; variants: Record<string, { conversations: number; leads: number; rate: number | null }> };
+
 export default function ChatAnalytics({
     summary,
     funnel,
@@ -62,6 +64,7 @@ export default function ChatAnalytics({
     widgets,
     filters,
     widgetOptions,
+    teaser_test,
 }: {
     summary: Summary;
     funnel: FunnelRow[];
@@ -69,6 +72,7 @@ export default function ChatAnalytics({
     widgets: WidgetRow[];
     filters: { days: number; widget: number | null };
     widgetOptions: { id: number; name: string }[];
+    teaser_test: TeaserTest;
 }) {
     const go = (next: Partial<{ days: number; widget: number | null }>) => {
         const params: Record<string, number> = {};
@@ -265,6 +269,27 @@ export default function ChatAnalytics({
                             </Table>
                         </div>
                     </>
+                )}
+
+                {/* CHAT-041: teaser A/B — numbers only, no significance claim */}
+                {teaser_test.active && (
+                    <div className="space-y-2 rounded-lg border p-4">
+                        <p className="text-sm font-medium">Teaser A/B test</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(teaser_test.variants).map(([variant, stats]) => (
+                                <div key={variant} className="rounded-md border p-3">
+                                    <p className="text-muted-foreground text-xs uppercase">Variant {variant}</p>
+                                    <p className="text-sm tabular-nums">
+                                        {stats.conversations} conversations · {stats.leads} leads
+                                        {stats.rate !== null && ` · ${stats.rate}% lead rate`}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                            Variants are served sticky per visitor; each conversation records which teaser started it.
+                        </p>
+                    </div>
                 )}
             </div>
         </AppLayout>

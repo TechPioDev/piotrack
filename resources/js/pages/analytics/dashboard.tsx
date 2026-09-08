@@ -119,7 +119,17 @@ function adCards(ads: Advertising): { label: string; value: string | number }[] 
     ];
 }
 
-export default function AnalyticsDashboard({ metrics, funnel_insights }: { metrics: Metrics; funnel_insights: FunnelInsights }) {
+type MapRankings = { provider: string; rows: { keyword: string; location: string | null; position: number | null }[] };
+
+export default function AnalyticsDashboard({
+    metrics,
+    funnel_insights,
+    map_rankings,
+}: {
+    metrics: Metrics;
+    funnel_insights: FunnelInsights;
+    map_rankings: MapRankings;
+}) {
     const sources = Object.entries(metrics.sources);
     const sourceTotal = sources.reduce((total, [, count]) => total + count, 0);
 
@@ -298,6 +308,32 @@ export default function AnalyticsDashboard({ metrics, funnel_insights }: { metri
                         ))}
                     </div>
                 </div>
+
+                {/* ANLY-012: map-pack positions through the rank seam */}
+                {map_rankings.rows.length > 0 && (
+                    <div>
+                        <h3 className="mb-2 text-sm font-medium">Map rankings</h3>
+                        {map_rankings.provider === 'fixture' && (
+                            <p className="text-muted-foreground mb-2 text-xs">
+                                Positions below are <strong>simulated by the fixture driver</strong> — connect SerpApi for live local-pack data.
+                            </p>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                            {map_rankings.rows.map((row) => (
+                                <Card key={`${row.keyword}|${row.location}`}>
+                                    <CardContent className="p-4">
+                                        <p className="text-muted-foreground truncate text-sm">{row.keyword}</p>
+                                        <p className="text-2xl font-semibold tabular-nums">{row.position !== null ? `#${row.position}` : '—'}</p>
+                                        <p className="text-muted-foreground text-xs">
+                                            {row.location ?? 'anywhere'}
+                                            {row.position === null && ' · not in the pack'}
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Leads by channel</h3>

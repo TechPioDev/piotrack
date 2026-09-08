@@ -18,5 +18,14 @@ interface EnrichmentProvider
      */
     public function enrich(string $email): array;
 
+    /**
+     * INTENT-002: reverse-IP company identification. Null when the address is
+     * private/reserved or the provider simply has no match — an honest miss,
+     * never a guess. Live drivers: Clearbit Reveal, 6sense, KickFire.
+     *
+     * @return array{company_name: string, domain: string, industry: string|null}|null
+     */
+    public function identifyCompany(string $ip): ?array;
+
     public function name(): string;
 }

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 type Piece = {
@@ -35,9 +35,13 @@ function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'published' ? 'default' : 'secondary';
 }
 
-export default function ContentPieceShow({ piece, statuses }: { piece: Piece; statuses: string[] }) {
+type CraftCheck = { key: string; kind: string; status: string; detail: string };
+
+export default function ContentPieceShow({ piece, statuses, craft_checks }: { piece: Piece; statuses: string[]; craft_checks: CraftCheck[] }) {
     const { can } = usePermissions();
     const canManage = can('content.pieces.manage');
+    const flash = usePage().props.flash as { draft?: string } | undefined;
+    const draft = flash?.draft ?? null;
 
     const form = useForm<{
         title: string;
@@ -75,6 +79,44 @@ export default function ContentPieceShow({ piece, statuses }: { piece: Piece; st
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={piece.title} />
             <div className="space-y-6 p-4">
+                {/* CONT-033/034: craft checks + gateway drafts (never auto-published) */}
+                <div className="space-y-2 rounded-lg border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium">Copy craft — transparent checks, drafts stay drafts</p>
+                        {canManage && (
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        router.post(route('content.pieces.draft-copy', piece.id), { focus: 'conversion' }, { preserveScroll: true })
+                                    }
+                                >
+                                    Draft conversion copy
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        router.post(route('content.pieces.draft-copy', piece.id), { focus: 'technical' }, { preserveScroll: true })
+                                    }
+                                >
+                                    Draft technical copy
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                        {craft_checks.map((check) => (
+                            <p key={check.key} className="text-sm">
+                                <Badge variant={check.status === 'pass' ? 'secondary' : 'outline'}>{check.kind}</Badge>{' '}
+                                <span className={check.status === 'pass' ? 'text-muted-foreground' : ''}>{check.detail}</span>
+                            </p>
+                        ))}
+                    </div>
+                    {draft && <pre className="bg-muted/40 mt-2 rounded-md p-3 text-sm whitespace-pre-wrap">{draft}</pre>}
+                </div>
+
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex items-center gap-2">
                         <Heading title={piece.title} description={piece.funnel_stage ?? undefined} />

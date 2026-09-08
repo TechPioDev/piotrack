@@ -143,7 +143,8 @@ JS;
 
         $this->currentOrganization->set($organization);
         try {
-            $this->tracker->ingest($data);
+            // INTENT-002: the request IP rides along for reverse-IP lookups.
+            $this->tracker->ingest($data + ['ip' => $request->ip()]);
         } finally {
             $this->currentOrganization->forget();
         }
