@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssignmentRule;
 use App\Models\Contact;
 use App\Models\ScoringRule;
 use App\Services\Sales\LeadScoringService;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,7 +43,41 @@ class ScoringController extends Controller
                 'temperature' => $this->scoring->temperature($c->lead_score),
                 'lifecycle_stage' => $c->lifecycle_stage,
             ]),
+            // CRM-025: routing rules run before the round-robin fallback.
+            'assignment_rules' => AssignmentRule::with('user:id,name')->orderBy('position')->orderBy('id')->get()
+                ->map(fn (AssignmentRule $r) => [
+                    'id' => $r->id,
+                    'position' => $r->position,
+                    'field' => $r->field,
+                    'value' => $r->value,
+                    'user' => $r->user?->name,
+                ]),
+            'assignment_fields' => AssignmentRule::FIELDS,
+            'members' => app(CurrentOrganization::class)->get()->members()
+                ->orderBy('name')->get(['users.id', 'users.name'])
+                ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name]),
         ]);
+    }
+
+    /** CRM-025: add a routing rule (first match wins, position order). */
+    public function storeAssignmentRule(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'field' => ['required', Rule::in(AssignmentRule::FIELDS)],
+            'value' => ['required', 'string', 'max:150'],
+            'user_id' => ['required', Rule::exists('organization_user', 'user_id')->where('organization_id', app(CurrentOrganization::class)->id())],
+        ]);
+
+        AssignmentRule::create($data + ['position' => (int) AssignmentRule::max('position') + 1]);
+
+        return back()->with('status', __('Routing rule added.'));
+    }
+
+    public function destroyAssignmentRule(AssignmentRule $rule): RedirectResponse
+    {
+        $rule->delete();
+
+        return back()->with('status', __('Routing rule removed.'));
     }
 
     public function store(Request $request): RedirectResponse

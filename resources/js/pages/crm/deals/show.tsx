@@ -24,6 +24,7 @@ type Deal = {
     lead_source: string | null;
     campaign: string | null;
     owner: string | null;
+    marketing_owner: string | null;
     expected_close_date: string | null;
 };
 
@@ -77,6 +78,7 @@ export default function DealShow({ deal, activities }: { deal: Deal; activities:
                             <Row label="Lead source" value={deal.lead_source} />
                             <Row label="Campaign" value={deal.campaign} />
                             <Row label="Owner" value={deal.owner} />
+                            <Row label="Marketing owner" value={deal.marketing_owner} />
                             <Row
                                 label="Expected close"
                                 value={deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString() : null}

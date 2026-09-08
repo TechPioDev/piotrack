@@ -782,6 +782,14 @@ export default function StrategyBrand({
                                             <td className="max-w-80 p-3">
                                                 <p className="font-medium">{engagement.title}</p>
                                                 {engagement.notes && <p className="text-muted-foreground">{engagement.notes}</p>}
+                                                {(engagement.type === 'qbr' || engagement.type === 'strategy_review') && (
+                                                    <a
+                                                        href={route('strategy.engagements.packet', engagement.id)}
+                                                        className="text-xs underline underline-offset-2"
+                                                    >
+                                                        Download review packet (PDF)
+                                                    </a>
+                                                )}
                                             </td>
                                             <td className="p-3">
                                                 <Badge variant="outline">{humanize(engagement.type)}</Badge>

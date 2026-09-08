@@ -14,6 +14,8 @@ use App\Content\ContentProviderManager;
 use App\Content\Contracts\ReviewProvider;
 use App\Content\Contracts\SocialListeningProvider;
 use App\Content\Contracts\SocialProvider;
+use App\Crm\Contracts\EnrichmentProvider;
+use App\Crm\Providers\FixtureEnrichmentProvider;
 use App\Messaging\Contracts\MailProvider;
 use App\Messaging\Contracts\SmsProvider;
 use App\Messaging\MessagingProviderManager;
@@ -35,6 +37,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -81,6 +84,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             WebVitalsProvider::class,
             fn ($app) => $app->make(SeoProviderManager::class)->vitals(),
+        );
+
+        // Resolve the active contact-enrichment driver (CRM-027).
+        $this->app->bind(
+            EnrichmentProvider::class,
+            fn () => match ((string) config('crm.enrichment_provider', 'fixture')) {
+                'fixture' => new FixtureEnrichmentProvider,
+                default => throw new InvalidArgumentException('Unknown enrichment provider ['.config('crm.enrichment_provider').'].'),
+            },
         );
 
         // Resolve the active social / review drivers (ADR-0007).

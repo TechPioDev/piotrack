@@ -58,6 +58,8 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
             Route::get('research', [ResearchController::class, 'index'])->name('research');
             Route::get('brand', [StrategyController::class, 'brand'])->name('brand');
             Route::get('brand/style-guide.pdf', [StrategyController::class, 'styleGuide'])->name('brand.style-guide');
+            // PROJ-015/016: the period-bounded review data pack.
+            Route::get('engagements/{engagement}/review-packet.pdf', [StrategyController::class, 'reviewPacket'])->name('engagements.packet');
             Route::get('performance', [PerformanceController::class, 'index'])->name('performance');
 
             // Training courses (TRAIN): reading and personal completion.

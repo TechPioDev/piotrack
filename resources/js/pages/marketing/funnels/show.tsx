@@ -97,14 +97,26 @@ function AttachControls({ funnelId, stage, attachable }: { funnelId: number; sta
     );
 }
 
+type FunnelRoi = {
+    leads: number;
+    customers: number;
+    won_revenue: number;
+    spend: number;
+    roi: number | null;
+    avg_score: number | null;
+    bands: { hot: number; warm: number; cold: number };
+};
+
 export default function FunnelShow({
     funnel,
     stages,
     attachable,
+    roi,
 }: {
     funnel: { id: number; name: string; description: string | null };
     stages: Stage[];
     attachable: Attachable;
+    roi: FunnelRoi;
 }) {
     const { can } = usePermissions();
     const canManage = can('marketing.campaigns.manage');
@@ -132,6 +144,44 @@ export default function FunnelShow({
                         ) : undefined
                     }
                 />
+
+                {/* FUNL-019/020: ROI + lead quality from the funnel's own records */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">Leads captured</p>
+                            <p className="text-2xl font-semibold tabular-nums">{roi.leads}</p>
+                            <p className="text-muted-foreground text-xs">via this funnel's forms</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">Won revenue</p>
+                            <p className="text-2xl font-semibold tabular-nums">${(roi.won_revenue / 100).toLocaleString()}</p>
+                            <p className="text-muted-foreground text-xs">{roi.customers} customers</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">ROI</p>
+                            <p className="text-2xl font-semibold tabular-nums">{roi.roi !== null ? `${roi.roi}×` : '—'}</p>
+                            <p className="text-muted-foreground text-xs">
+                                {roi.roi !== null
+                                    ? `on $${(roi.spend / 100).toLocaleString()} recorded ad spend`
+                                    : 'bind ad campaigns to a stage to record a cost basis'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-muted-foreground text-sm">Lead quality</p>
+                            <p className="text-2xl font-semibold tabular-nums">{roi.avg_score ?? '—'}</p>
+                            <p className="text-muted-foreground text-xs">
+                                {roi.bands.hot} hot · {roi.bands.warm} warm · {roi.bands.cold} cold
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <Card>
                     <CardContent className="p-4">

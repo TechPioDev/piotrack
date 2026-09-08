@@ -79,6 +79,8 @@ class FunnelController extends Controller
             ],
             'stages' => $this->funnels->detail($funnel),
             'attachable' => $this->funnels->attachableOptions(),
+            // FUNL-019/020: ROI + lead quality from the funnel's own records.
+            'roi' => $this->funnels->roi($funnel),
         ]);
     }
 

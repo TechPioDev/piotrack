@@ -12,6 +12,7 @@ use App\Models\StrategyPlan;
 use App\Services\Strategy\BrandPositioningService;
 use App\Services\Strategy\KpiTargetService;
 use App\Services\Strategy\MethodologyService;
+use App\Services\Strategy\ReviewPacketService;
 use App\Services\Strategy\StrategyInsights;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -264,6 +265,25 @@ class StrategyController extends Controller
         $asset->delete();
 
         return back()->with('status', __('Brand asset removed.'));
+    }
+
+    /**
+     * PROJ-015/016: the period-bounded review data pack for a QBR or quarterly
+     * strategy review — generated fresh from records at download time.
+     */
+    public function reviewPacket(Engagement $engagement, ReviewPacketService $packets): StreamedResponse
+    {
+        abort_unless(in_array($engagement->type, ['qbr', 'strategy_review'], true), 404);
+
+        $period = $packets->periodFor($engagement);
+        $pdf = Pdf::document(
+            (app(CurrentOrganization::class)->get()->name ?? 'Review').' - '.($engagement->type === 'strategy_review' ? 'Strategy Review' : 'Monthly Review').' '.$period['label'],
+            $packets->lines($engagement),
+        );
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf;
+        }, 'review-packet-'.$engagement->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 
     public function storeEngagement(Request $request): RedirectResponse

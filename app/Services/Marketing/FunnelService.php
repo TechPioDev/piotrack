@@ -3,11 +3,14 @@
 namespace App\Services\Marketing;
 
 use App\Models\AdCampaign;
+use App\Models\AdMetric;
 use App\Models\BookingPage;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\ContentPiece;
+use App\Models\Deal;
 use App\Models\Form;
+use App\Models\FormSubmission;
 use App\Models\Funnel;
 use App\Models\FunnelAsset;
 use App\Models\FunnelStage;
@@ -16,6 +19,7 @@ use App\Models\RetargetingAudience;
 use App\Models\SitePage;
 use App\Models\SocialPost;
 use App\Models\Workflow;
+use App\Services\Sales\LeadScoringService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
@@ -71,6 +75,49 @@ class FunnelService
      *
      * @return list<array<string, mixed>>
      */
+    /**
+     * FUNL-019/020: funnel ROI and lead quality from records on BOTH sides —
+     * contacts captured through the funnel's own FORM assets, their won-deal
+     * revenue, real recorded spend on the funnel's bound AD-CAMPAIGN assets,
+     * and LSCR score bands over the same captured set. No spend on record
+     * means an explicit null ratio, never infinity.
+     *
+     * @return array{leads: int, customers: int, won_revenue: int, spend: int, roi: float|null, avg_score: float|null, bands: array{hot: int, warm: int, cold: int}}
+     */
+    public function roi(Funnel $funnel): array
+    {
+        $assets = FunnelAsset::whereIn('funnel_stage_id', $funnel->stages()->pluck('id'))->get();
+
+        $formIds = $assets->where('asset_type', 'form')->pluck('asset_id')->all();
+        $contactIds = $formIds === []
+            ? collect()
+            : FormSubmission::whereIn('form_id', $formIds)->whereNotNull('contact_id')->pluck('contact_id')->unique();
+
+        $contacts = Contact::whereIn('id', $contactIds)->get();
+        $wonDeals = Deal::whereIn('contact_id', $contactIds)->where('status', 'won')->get();
+
+        $campaignIds = $assets->where('asset_type', 'ad_campaign')->pluck('asset_id')->all();
+        $spend = $campaignIds === [] ? 0 : (int) AdMetric::whereIn('ad_campaign_id', $campaignIds)->sum('spend');
+
+        $wonRevenue = (int) $wonDeals->sum('value');
+
+        $bands = ['hot' => 0, 'warm' => 0, 'cold' => 0];
+        foreach ($contacts as $contact) {
+            $score = (int) $contact->lead_score;
+            $bands[$score >= LeadScoringService::HOT ? 'hot' : ($score >= LeadScoringService::WARM ? 'warm' : 'cold')]++;
+        }
+
+        return [
+            'leads' => $contacts->count(),
+            'customers' => $wonDeals->pluck('contact_id')->unique()->count(),
+            'won_revenue' => $wonRevenue,
+            'spend' => $spend,
+            'roi' => $spend > 0 ? round($wonRevenue / $spend, 2) : null,
+            'avg_score' => $contacts->isEmpty() ? null : round($contacts->avg('lead_score'), 1),
+            'bands' => $bands,
+        ];
+    }
+
     public function detail(Funnel $funnel): array
     {
         $order = array_flip(Contact::LIFECYCLE_STAGES);

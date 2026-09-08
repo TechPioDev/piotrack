@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Crm;
 
 use App\Billing\Limit;
 use App\Billing\UsageMeter;
+use App\Crm\Contracts\EnrichmentProvider;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Company;
@@ -220,6 +221,52 @@ class ContactController extends Controller
                 'id' => $d->id, 'name' => $d->name, 'value' => $d->value, 'status' => $d->status,
             ]),
         ]);
+    }
+
+    /**
+     * CRM-027: enrich a contact through the provider seam. Enrichment fills
+     * ONLY empty fields — operator-entered data is never overwritten — and
+     * the audit trail records which driver supplied the values.
+     */
+    public function enrich(Contact $contact, EnrichmentProvider $enrichment, AuditLogger $audit): RedirectResponse
+    {
+        if ($contact->email === null || $contact->email === '') {
+            return back()->withErrors(['email' => __('Enrichment needs an email address.')]);
+        }
+
+        $data = $enrichment->enrich((string) $contact->email);
+        $filled = [];
+
+        if ($contact->company_id === null && $data['company_name'] !== null) {
+            $company = Company::firstOrCreate(
+                ['name' => $data['company_name']],
+                array_filter(['industry' => $data['industry'], 'size' => $data['employee_range'], 'region' => $data['region']], fn ($v) => $v !== null),
+            );
+            $contact->update(['company_id' => $company->id]);
+            $filled[] = 'company';
+        } elseif ($contact->company_id !== null) {
+            // Fill the linked company's OWN empty fields, never overwrite.
+            $company = Company::find($contact->company_id);
+            if ($company !== null) {
+                $updates = array_filter([
+                    'industry' => $company->industry === null ? $data['industry'] : null,
+                    'size' => $company->size === null ? $data['employee_range'] : null,
+                    'region' => $company->region === null ? $data['region'] : null,
+                ], fn ($v) => $v !== null);
+                if ($updates !== []) {
+                    $company->update($updates);
+                    $filled = array_merge($filled, array_keys($updates));
+                }
+            }
+        }
+
+        $audit->log('crm.contact.enriched', context: ['provider' => $enrichment->name(), 'filled' => $filled], resourceType: 'contact', resourceId: (string) $contact->id, organizationId: $contact->organization_id);
+
+        if ($filled === []) {
+            return back()->with('status', __('Nothing to enrich - every field the :provider driver knows is already filled.', ['provider' => $enrichment->name()]));
+        }
+
+        return back()->with('status', __('Enriched via the :provider driver: :fields.', ['provider' => $enrichment->name(), 'fields' => implode(', ', $filled)]));
     }
 
     public function store(Request $request): RedirectResponse

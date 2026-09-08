@@ -2,6 +2,7 @@
 
 namespace App\Services\Marketing;
 
+use App\Models\AssignmentRule;
 use App\Models\Contact;
 use App\Models\Form;
 use App\Models\FormSubmission;
@@ -35,6 +36,29 @@ class LeadCaptureService
         private WebhookDispatcher $webhooks,
         private IntentService $intent,
     ) {}
+
+    /**
+     * CRM-025: rule-based routing runs FIRST — position order, first matching
+     * rule wins. Fields: lead_source, email_domain (the part after @), and
+     * lifecycle_stage. No match falls through to round-robin.
+     */
+    private function ruleOwner(Contact $contact): ?int
+    {
+        foreach (AssignmentRule::orderBy('position')->orderBy('id')->get() as $rule) {
+            $actual = match ($rule->field) {
+                'email_domain' => $contact->email !== null && str_contains((string) $contact->email, '@')
+                    ? mb_strtolower(explode('@', (string) $contact->email)[1])
+                    : '',
+                default => mb_strtolower((string) $contact->getAttribute($rule->field)),
+            };
+
+            if ($actual !== '' && $actual === mb_strtolower(trim($rule->value))) {
+                return $rule->user_id;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Round-robin routing (LSCR-019): the active member currently owning the
@@ -85,11 +109,11 @@ class LeadCaptureService
             ]);
         }
 
-        // LSCR-019: automatic routing — an unowned captured lead is assigned
-        // round-robin to the least-loaded active member, so every new lead has
-        // a responsible rep the moment it exists.
+        // LSCR-019 + CRM-025: automatic routing — assignment rules first
+        // (first match wins), then round-robin to the least-loaded active
+        // member, so every new lead has a responsible rep the moment it exists.
         if ($contact->owner_id === null) {
-            $ownerId = $this->routeToOwner();
+            $ownerId = $this->ruleOwner($contact) ?? $this->routeToOwner();
             if ($ownerId !== null) {
                 $contact->update(['owner_id' => $ownerId]);
             }

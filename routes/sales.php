@@ -24,6 +24,9 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:sales'])
         Route::get('scoring', [ScoringController::class, 'index'])->middleware('can:sales.view')->name('scoring.index');
         Route::middleware('can:sales.scoring.manage')->group(function () {
             Route::post('scoring', [ScoringController::class, 'store'])->name('scoring.store');
+            // CRM-025: routing rules ahead of round-robin.
+            Route::post('scoring/assignment-rules', [ScoringController::class, 'storeAssignmentRule'])->name('scoring.assignment.store');
+            Route::delete('scoring/assignment-rules/{rule}', [ScoringController::class, 'destroyAssignmentRule'])->name('scoring.assignment.destroy');
             Route::patch('scoring/{rule}', [ScoringController::class, 'update'])->name('scoring.update');
             Route::delete('scoring/{rule}', [ScoringController::class, 'destroy'])->name('scoring.destroy');
             Route::post('scoring/recompute', [ScoringController::class, 'recompute'])->name('scoring.recompute');

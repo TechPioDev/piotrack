@@ -36,6 +36,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:crm'])
         Route::patch('contacts/{contact}', [ContactController::class, 'update'])->middleware('can:crm.contact.update')->name('contacts.update');
         // VID-016: personalized sales video over the real dispatcher.
         Route::post('contacts/{contact}/video-message', [ContactController::class, 'videoMessage'])->middleware('can:crm.contact.update')->name('contacts.video-message');
+        // CRM-027: enrichment through the provider seam (set-once fills).
+        Route::post('contacts/{contact}/enrich', [ContactController::class, 'enrich'])->middleware('can:crm.contact.update')->name('contacts.enrich');
         Route::delete('contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:crm.contact.delete')->name('contacts.destroy');
 
         // Import/export breadth (IMEX): companies, leads, deals on the shared

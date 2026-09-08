@@ -157,7 +157,102 @@ function NewRuleDialog() {
     );
 }
 
-export default function Scoring({ rules, contacts }: { rules: Rule[]; contacts: ScoredContact[] }) {
+type AssignmentRule = { id: number; position: number; field: string; value: string; user: string | null };
+
+function NewRoutingRuleDialog({ fields, members }: { fields: string[]; members: { id: number; name: string }[] }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm({ field: fields[0] ?? '', value: '', user_id: '' });
+
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(route('sales.scoring.assignment.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.reset();
+                setOpen(false);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline">New routing rule</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>New routing rule</DialogTitle>
+                <p className="text-muted-foreground text-sm">
+                    New leads matching the rule are assigned to the chosen owner. Rules run in order, first match wins; anything unmatched falls back
+                    to least-loaded round-robin.
+                </p>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-1">
+                            <Label htmlFor="ar-field">Field</Label>
+                            <Select value={form.data.field} onValueChange={(v) => form.setData('field', v)}>
+                                <SelectTrigger id="ar-field">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {fields.map((field) => (
+                                        <SelectItem key={field} value={field}>
+                                            {field.replace(/_/g, ' ')}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-1">
+                            <Label htmlFor="ar-value">Value</Label>
+                            <Input
+                                id="ar-value"
+                                value={form.data.value}
+                                onChange={(e) => form.setData('value', e.target.value)}
+                                placeholder="e.g. referral or acmecorp.com"
+                            />
+                            <InputError message={form.errors.value} />
+                        </div>
+                    </div>
+                    <div className="grid gap-1">
+                        <Label htmlFor="ar-user">Assign to</Label>
+                        <Select value={form.data.user_id} onValueChange={(v) => form.setData('user_id', v)}>
+                            <SelectTrigger id="ar-user">
+                                <SelectValue placeholder="Pick a member" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {members.map((member) => (
+                                    <SelectItem key={member.id} value={String(member.id)}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <InputError message={form.errors.user_id} />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={form.processing}>
+                            Add rule
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function Scoring({
+    rules,
+    contacts,
+    assignment_rules,
+    assignment_fields,
+    members,
+}: {
+    rules: Rule[];
+    contacts: ScoredContact[];
+    assignment_rules: AssignmentRule[];
+    assignment_fields: string[];
+    members: { id: number; name: string }[];
+}) {
     const { can } = usePermissions();
     const canManage = can('sales.scoring.manage');
 
@@ -175,6 +270,7 @@ export default function Scoring({ rules, contacts }: { rules: Rule[]; contacts: 
                             <Button variant="secondary" onClick={recompute}>
                                 Recompute scores
                             </Button>
+                            <NewRoutingRuleDialog fields={assignment_fields} members={members} />
                             <NewRuleDialog />
                         </div>
                     )}
@@ -265,6 +361,58 @@ export default function Scoring({ rules, contacts }: { rules: Rule[]; contacts: 
                             </table>
                         </div>
                     )}
+                </div>
+
+                {/* CRM-025: routing rules — first match wins, round-robin fallback */}
+                <div>
+                    <h2 className="mb-2 text-lg font-semibold">Lead routing</h2>
+                    <p className="text-muted-foreground mb-2 text-sm">
+                        New unowned leads are matched against these rules in order; anything unmatched goes round-robin to the least-loaded active
+                        member.
+                    </p>
+                    <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-muted/50 text-muted-foreground">
+                                <tr>
+                                    <th className="p-3 font-medium">#</th>
+                                    <th className="p-3 font-medium">When</th>
+                                    <th className="p-3 font-medium">Assign to</th>
+                                    <th className="p-3 font-medium"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {assignment_rules.map((rule, i) => (
+                                    <tr key={rule.id} className="hover:bg-muted/40">
+                                        <td className="p-3 tabular-nums">{i + 1}</td>
+                                        <td className="p-3">
+                                            {rule.field.replace(/_/g, ' ')} = <span className="font-medium">{rule.value}</span>
+                                        </td>
+                                        <td className="p-3">{rule.user ?? '—'}</td>
+                                        <td className="p-3 text-right">
+                                            {canManage && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        router.delete(route('sales.scoring.assignment.destroy', rule.id), { preserveScroll: true })
+                                                    }
+                                                >
+                                                    Remove
+                                                </Button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {assignment_rules.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="text-muted-foreground p-3 text-sm">
+                                            No rules — every new lead goes round-robin to the least-loaded member.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </AppLayout>

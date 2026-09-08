@@ -24,6 +24,7 @@ type DealCard = {
     company: string | null;
     owner: string | null;
     service_line_id: number | null;
+    marketing_owner_id: number | null;
 };
 type Stage = { id: number; name: string; is_won: boolean; is_lost: boolean; deals: DealCard[]; total: number };
 type ServiceLineOption = { id: number; name: string };
@@ -32,10 +33,12 @@ export default function Deals({
     pipeline,
     stages,
     service_lines,
+    owners,
 }: {
     pipeline: { id: number; name: string };
     stages: Stage[];
     service_lines: ServiceLineOption[];
+    owners: { id: number; name: string }[];
 }) {
     const { can } = usePermissions();
     const [open, setOpen] = useState(false);
@@ -187,6 +190,29 @@ export default function Deals({
                                                     {stages.map((s) => (
                                                         <SelectItem key={s.id} value={String(s.id)}>
                                                             {s.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                        {can('crm.deal.update') && owners.length > 0 && (
+                                            <Select
+                                                value={deal.marketing_owner_id !== null ? String(deal.marketing_owner_id) : undefined}
+                                                onValueChange={(v) =>
+                                                    router.patch(
+                                                        route('crm.deals.update', deal.id),
+                                                        { name: deal.name, marketing_owner_id: Number(v) },
+                                                        { preserveScroll: true },
+                                                    )
+                                                }
+                                            >
+                                                <SelectTrigger className="h-7 text-xs">
+                                                    <SelectValue placeholder="Marketing owner" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {owners.map((member) => (
+                                                        <SelectItem key={member.id} value={String(member.id)}>
+                                                            {member.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>

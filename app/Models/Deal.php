@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $expected_close_date
  * @property Carbon|null $closed_at
  * @property int|null $service_line_id
+ * @property int|null $marketing_owner_id
  */
 class Deal extends Model implements HasActivities
 {
@@ -102,6 +103,16 @@ class Deal extends Model implements HasActivities
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * CRM-024: the marketing-side owner beside the sales owner.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function marketingOwner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marketing_owner_id');
     }
 
     /**

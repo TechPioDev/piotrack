@@ -67,7 +67,7 @@ class DealController extends Controller
 
     public function show(Deal $deal): Response
     {
-        $deal->load('contact:id,first_name,last_name', 'company:id,name', 'stage:id,name', 'owner:id,name');
+        $deal->load('contact:id,first_name,last_name', 'company:id,name', 'stage:id,name', 'owner:id,name', 'marketingOwner:id,name');
 
         return Inertia::render('crm/deals/show', [
             'deal' => [
@@ -85,6 +85,7 @@ class DealController extends Controller
                 'lead_source' => $deal->lead_source,
                 'campaign' => $deal->campaign,
                 'owner' => $deal->owner?->name,
+                'marketing_owner' => $deal->marketingOwner?->name,
                 'expected_close_date' => $deal->expected_close_date,
             ],
             'activities' => $deal->activities()->with('user:id,name')->latest('id')->get()->map(fn ($a) => [
@@ -179,6 +180,8 @@ class DealController extends Controller
             'service_line_id' => ['nullable', TenantExists::in('service_lines')],
             'expected_close_date' => ['nullable', 'date'],
             'owner_id' => ['nullable', Rule::exists('organization_user', 'user_id')->where('organization_id', $this->currentOrganization->id())],
+            // CRM-024: the marketing-side owner, assignable beside the sales owner.
+            'marketing_owner_id' => ['nullable', Rule::exists('organization_user', 'user_id')->where('organization_id', $this->currentOrganization->id())],
         ]);
 
         // Money fields arrive in major units; store minor units.
@@ -205,6 +208,7 @@ class DealController extends Controller
             'company' => $deal->company?->name,
             'owner' => $deal->owner?->name,
             'service_line_id' => $deal->service_line_id,
+            'marketing_owner_id' => $deal->marketing_owner_id,
         ];
     }
 

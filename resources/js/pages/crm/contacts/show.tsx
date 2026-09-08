@@ -113,6 +113,15 @@ export default function ContactShow({ contact, activities, deals }: { contact: C
                             <InitialAvatar name={name} className="size-10 text-sm" />
                             <Heading title={name} description={contact.title ?? undefined} />
                         </div>
+                        {can('crm.contact.update') && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.post(route('crm.contacts.enrich', contact.id), {}, { preserveScroll: true })}
+                            >
+                                Enrich
+                            </Button>
+                        )}
                         {can('crm.contact.update') && <VideoMessageDialog contactId={contact.id} />}
                         {can('crm.contact.delete') && (
                             <Button
