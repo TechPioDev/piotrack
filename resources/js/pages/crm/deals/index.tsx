@@ -1,3 +1,4 @@
+import { SegmentBar } from '@/components/charts/segment-bar';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -144,6 +145,23 @@ export default function Deals({
                         </>
                     }
                 />
+
+                <div className="rounded-lg border p-4">
+                    <SegmentBar
+                        ariaLabel="Deal value by pipeline stage"
+                        segments={stages.map((stage, i) => ({
+                            label: stage.name,
+                            value: stage.total,
+                            color: stage.is_won
+                                ? 'var(--chart-2)'
+                                : stage.is_lost
+                                  ? 'var(--destructive)'
+                                  : ['var(--chart-1)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'][i % 4],
+                        }))}
+                        formatValue={formatMoney}
+                        emptyText="No deal value yet — the stage mix appears as deals are created."
+                    />
+                </div>
 
                 <div className="flex gap-3 overflow-x-auto pb-2">
                     {stages.map((stage) => (

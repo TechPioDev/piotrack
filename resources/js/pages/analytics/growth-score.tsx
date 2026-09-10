@@ -1,3 +1,4 @@
+import { LineChart } from '@/components/charts/line-chart';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,6 @@ export default function GrowthScore({
 }) {
     const areas = Object.entries(breakdown);
     const measured = areas.filter(([, score]) => score !== null).length;
-    const trendPeak = trend.reduce((max, point) => Math.max(max, point.overall), 0);
 
     const { can } = usePermissions();
     const snapshot = () => router.post(route('analytics.growth-score.snapshot'), {}, { preserveScroll: true });
@@ -139,26 +139,14 @@ export default function GrowthScore({
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Trend</h3>
-                    {trend.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No snapshots yet. Save a snapshot to start tracking the trend.</p>
-                    ) : (
-                        <div className="space-y-3 rounded-lg border p-4">
-                            <div className="flex h-32 items-end gap-1">
-                                {trend.map((point) => (
-                                    <div
-                                        key={point.date}
-                                        title={`${point.date}: ${point.overall}`}
-                                        className="bg-primary min-h-0.5 flex-1 rounded-t"
-                                        style={{ height: `${trendPeak > 0 ? (point.overall / trendPeak) * 100 : 0}%` }}
-                                    />
-                                ))}
-                            </div>
-                            <div className="text-muted-foreground flex justify-between text-xs">
-                                <span>{trend[0].date}</span>
-                                <span>{trend[trend.length - 1].date}</span>
-                            </div>
-                        </div>
-                    )}
+                    <div className="rounded-lg border p-4">
+                        <LineChart
+                            ariaLabel="Overall growth score across saved snapshots"
+                            data={trend.map((point) => ({ label: point.date, value: point.overall }))}
+                            height={140}
+                            emptyText="No snapshots yet. Save a snapshot to start tracking the trend."
+                        />
+                    </div>
                 </div>
             </div>
         </AppLayout>

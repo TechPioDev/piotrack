@@ -1,3 +1,4 @@
+import { BarList } from '@/components/charts/bar-list';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -83,7 +84,6 @@ const FUNNEL_STEPS: { key: keyof Funnel; label: string }[] = [
     { key: 'opportunities', label: 'Opportunities' },
     { key: 'proposals', label: 'Proposals' },
     { key: 'closed_won', label: 'Closed won' },
-    { key: 'closed_lost', label: 'Closed lost' },
 ];
 
 const SEO_STATS: { key: keyof Seo; label: string }[] = [
@@ -132,6 +132,14 @@ export default function AnalyticsDashboard({
 }) {
     const sources = Object.entries(metrics.sources);
     const sourceTotal = sources.reduce((total, [, count]) => total + count, 0);
+    const funnelItems = FUNNEL_STEPS.map((step) => ({
+        label: step.label,
+        value: metrics.funnel[step.key],
+        hint:
+            step.key === 'leads' || metrics.funnel.leads === 0
+                ? undefined
+                : `${Math.round((metrics.funnel[step.key] / metrics.funnel.leads) * 100)}% of leads`,
+    }));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -150,16 +158,18 @@ export default function AnalyticsDashboard({
                         <h3 className="text-sm font-medium">Acquisition funnel</h3>
                         <p className="text-muted-foreground text-sm">Qualified pipeline {money(metrics.funnel.qualified_pipeline)}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        {FUNNEL_STEPS.map((step) => (
-                            <Card key={step.key}>
-                                <CardContent className="p-4">
-                                    <p className="text-muted-foreground text-sm">{step.label}</p>
-                                    <p className="text-2xl font-semibold">{metrics.funnel[step.key]}</p>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                    <Card>
+                        <CardContent className="p-4">
+                            <BarList
+                                ariaLabel="Acquisition funnel from leads to closed won"
+                                items={funnelItems}
+                                emptyText="No funnel activity yet — steps fill as leads are captured."
+                            />
+                            <p className="text-muted-foreground mt-3 text-xs">
+                                {metrics.funnel.closed_lost} closed lost this period sit outside the funnel above.
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div>
@@ -337,32 +347,20 @@ export default function AnalyticsDashboard({
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Leads by channel</h3>
-                    {sources.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No leads yet. Channels appear here once contacts are captured.</p>
-                    ) : (
-                        <div className="overflow-x-auto rounded-lg border">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-muted/50 text-muted-foreground">
-                                    <tr>
-                                        <th className="p-3 font-medium">Channel</th>
-                                        <th className="p-3 text-center font-medium">Leads</th>
-                                        <th className="p-3 text-center font-medium">Share</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {sources.map(([channel, count]) => (
-                                        <tr key={channel} className="hover:bg-muted/40">
-                                            <td className="p-3 font-medium">{channel}</td>
-                                            <td className="p-3 text-center">{count}</td>
-                                            <td className="text-muted-foreground p-3 text-center">
-                                                {sourceTotal > 0 ? `${Math.round((count / sourceTotal) * 100)}%` : '—'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                    <Card>
+                        <CardContent className="p-4">
+                            <BarList
+                                ariaLabel="Leads by acquisition channel"
+                                items={sources.map(([channel, count]) => ({
+                                    label: channel,
+                                    value: count,
+                                    hint: sourceTotal > 0 ? `${Math.round((count / sourceTotal) * 100)}%` : undefined,
+                                }))}
+                                color="var(--chart-2)"
+                                emptyText="No leads yet. Channels appear here once contacts are captured."
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </AppLayout>

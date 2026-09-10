@@ -1,3 +1,4 @@
+import { BarList } from '@/components/charts/bar-list';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,36 +24,21 @@ function share(value: number, total: number): string {
     return total > 0 ? `${Math.round((value / total) * 100)}%` : '—';
 }
 
-function RevenueTable({ rows, label, empty }: { rows: [string, number][]; label: string; empty: string }) {
+function RevenueBars({ rows, label, empty, color }: { rows: [string, number][]; label: string; empty: string; color?: string }) {
     const total = rows.reduce((sum, [, revenue]) => sum + revenue, 0);
 
     return (
         <div>
             <h3 className="mb-2 text-sm font-medium">{label}</h3>
-            {rows.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{empty}</p>
-            ) : (
-                <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-muted/50 text-muted-foreground">
-                            <tr>
-                                <th className="p-3 font-medium">Bucket</th>
-                                <th className="p-3 text-center font-medium">Revenue</th>
-                                <th className="p-3 text-center font-medium">Share</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {rows.map(([bucket, revenue]) => (
-                                <tr key={bucket} className="hover:bg-muted/40">
-                                    <td className="p-3 font-medium">{bucket}</td>
-                                    <td className="p-3 text-center">{money(revenue)}</td>
-                                    <td className="text-muted-foreground p-3 text-center">{share(revenue, total)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <div className="rounded-lg border p-4">
+                <BarList
+                    ariaLabel={label}
+                    items={rows.map(([bucket, revenue]) => ({ label: bucket, value: revenue, hint: share(revenue, total) }))}
+                    formatValue={money}
+                    color={color}
+                    emptyText={empty}
+                />
+            </div>
         </div>
     );
 }
@@ -105,17 +91,20 @@ export default function Attribution({
                     ))}
                 </div>
 
-                <RevenueTable
-                    rows={Object.entries(channels)}
-                    label="Revenue by channel"
-                    empty="No attributed revenue yet. Channels appear here once deals are won."
-                />
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <RevenueBars
+                        rows={Object.entries(channels)}
+                        label="Revenue by channel"
+                        empty="No attributed revenue yet. Channels appear here once deals are won."
+                    />
 
-                <RevenueTable
-                    rows={Object.entries(campaigns)}
-                    label="Revenue by campaign"
-                    empty="No campaign revenue yet. Campaigns appear here once deals are won."
-                />
+                    <RevenueBars
+                        rows={Object.entries(campaigns)}
+                        label="Revenue by campaign"
+                        empty="No campaign revenue yet. Campaigns appear here once deals are won."
+                        color="var(--chart-2)"
+                    />
+                </div>
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Prospect journeys</h3>
