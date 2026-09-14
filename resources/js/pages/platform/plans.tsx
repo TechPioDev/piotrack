@@ -203,7 +203,7 @@ export default function PlatformPlans({ plans, coupons, unpaid_invoices }: { pla
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Feature</th>
+                                    <th className="p-3">Feature</th>
                                     {plans.map((plan) => (
                                         <th key={plan.id} className="p-3 text-center font-medium">
                                             {plan.name}
@@ -242,7 +242,7 @@ export default function PlatformPlans({ plans, coupons, unpaid_invoices }: { pla
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Limit</th>
+                                    <th className="p-3">Limit</th>
                                     {plans.map((plan) => (
                                         <th key={plan.id} className="p-3 text-center font-medium">
                                             {plan.name}
@@ -283,12 +283,12 @@ export default function PlatformPlans({ plans, coupons, unpaid_invoices }: { pla
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Code</th>
-                                    <th className="p-3 font-medium">Discount</th>
-                                    <th className="p-3 font-medium">Duration</th>
-                                    <th className="p-3 text-right font-medium">Used</th>
-                                    <th className="p-3 font-medium">Expires</th>
-                                    <th className="p-3 font-medium">Status</th>
+                                    <th className="p-3">Code</th>
+                                    <th className="p-3">Discount</th>
+                                    <th className="p-3">Duration</th>
+                                    <th className="p-3 text-right">Used</th>
+                                    <th className="p-3">Expires</th>
+                                    <th className="p-3">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -335,12 +335,12 @@ export default function PlatformPlans({ plans, coupons, unpaid_invoices }: { pla
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Invoice</th>
-                                    <th className="p-3 font-medium">Organization</th>
-                                    <th className="p-3 text-right font-medium">Total</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 font-medium">Due</th>
-                                    <th className="p-3 font-medium"></th>
+                                    <th className="p-3">Invoice</th>
+                                    <th className="p-3">Organization</th>
+                                    <th className="p-3 text-right">Total</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Due</th>
+                                    <th className="p-3"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">

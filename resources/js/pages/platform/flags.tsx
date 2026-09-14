@@ -231,12 +231,12 @@ export default function PlatformFlags({ flags }: { flags: Flag[] }) {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Key</th>
-                                    <th className="p-3 font-medium">Description</th>
-                                    <th className="p-3 font-medium">Enabled</th>
-                                    <th className="p-3 font-medium">Kill switch</th>
-                                    <th className="p-3 font-medium">Rollout</th>
-                                    <th className="p-3 text-right font-medium">Actions</th>
+                                    <th className="p-3">Key</th>
+                                    <th className="p-3">Description</th>
+                                    <th className="p-3">Enabled</th>
+                                    <th className="p-3">Kill switch</th>
+                                    <th className="p-3">Rollout</th>
+                                    <th className="p-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">

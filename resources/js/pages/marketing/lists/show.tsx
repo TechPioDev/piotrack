@@ -54,9 +54,9 @@ export default function ListShow({ list, members }: { list: MarketingList; membe
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Email</th>
-                                        <th className="p-3 font-medium">Lifecycle stage</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Email</th>
+                                        <th className="p-3">Lifecycle stage</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

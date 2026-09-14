@@ -134,13 +134,13 @@ export default function AdvertisingDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Platform</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 text-center font-medium">Spend</th>
-                                        <th className="p-3 text-center font-medium">Clicks</th>
-                                        <th className="p-3 text-center font-medium">Conversions</th>
-                                        <th className="p-3 text-center font-medium">ROAS</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Platform</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3 text-right">Spend</th>
+                                        <th className="p-3 text-right">Clicks</th>
+                                        <th className="p-3 text-right">Conversions</th>
+                                        <th className="p-3 text-right">ROAS</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -157,10 +157,10 @@ export default function AdvertisingDashboard({
                                             <td className="p-3">
                                                 <Badge variant={statusVariant(campaign.status)}>{campaign.status}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{money(campaign.kpi.spend)}</td>
-                                            <td className="p-3 text-center">{campaign.kpi.clicks}</td>
-                                            <td className="p-3 text-center">{campaign.kpi.conversions}</td>
-                                            <td className="p-3 text-center">{campaign.kpi.roas}x</td>
+                                            <td className="p-3 text-right">{money(campaign.kpi.spend)}</td>
+                                            <td className="p-3 text-right">{campaign.kpi.clicks}</td>
+                                            <td className="p-3 text-right">{campaign.kpi.conversions}</td>
+                                            <td className="p-3 text-right">{campaign.kpi.roas}x</td>
                                         </tr>
                                     ))}
                                 </tbody>

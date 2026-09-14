@@ -329,11 +329,11 @@ export default function Campaigns({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Platform</th>
-                                    <th className="p-3 font-medium">Objective</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Daily budget</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Platform</th>
+                                    <th className="p-3">Objective</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Daily budget</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -351,7 +351,7 @@ export default function Campaigns({
                                         <td className="p-3">
                                             <Badge variant={statusVariant(campaign.status)}>{campaign.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{money(campaign.daily_budget)}</td>
+                                        <td className="p-3 text-right">{money(campaign.daily_budget)}</td>
                                     </tr>
                                 ))}
                             </tbody>

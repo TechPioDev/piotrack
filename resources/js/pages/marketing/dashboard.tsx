@@ -104,12 +104,12 @@ export default function MarketingDashboard({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Name</th>
-                                            <th className="p-3 font-medium">Channel</th>
-                                            <th className="p-3 font-medium">Status</th>
-                                            <th className="p-3 text-center font-medium">Sent</th>
-                                            <th className="p-3 text-center font-medium">Opened</th>
-                                            <th className="p-3 text-center font-medium">Clicked</th>
+                                            <th className="p-3">Name</th>
+                                            <th className="p-3">Channel</th>
+                                            <th className="p-3">Status</th>
+                                            <th className="p-3 text-right">Sent</th>
+                                            <th className="p-3 text-right">Opened</th>
+                                            <th className="p-3 text-right">Clicked</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -129,9 +129,9 @@ export default function MarketingDashboard({
                                                 <td className="p-3">
                                                     <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>{campaign.status}</Badge>
                                                 </td>
-                                                <td className="p-3 text-center">{campaign.sent}</td>
-                                                <td className="p-3 text-center">{campaign.opened}</td>
-                                                <td className="p-3 text-center">{campaign.clicked}</td>
+                                                <td className="p-3 text-right">{campaign.sent}</td>
+                                                <td className="p-3 text-right">{campaign.opened}</td>
+                                                <td className="p-3 text-right">{campaign.clicked}</td>
                                             </tr>
                                         ))}
                                     </tbody>

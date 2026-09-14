@@ -143,9 +143,9 @@ export default function Lists({ lists }: { lists: MarketingList[] }) {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Type</th>
-                                    <th className="p-3 text-center font-medium">Members</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3 text-right">Members</th>
                                     <th className="p-3" />
                                 </tr>
                             </thead>
@@ -161,7 +161,7 @@ export default function Lists({ lists }: { lists: MarketingList[] }) {
                                         <td className="p-3">
                                             <Badge variant="outline">{list.type}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{list.member_count}</td>
+                                        <td className="p-3 text-right">{list.member_count}</td>
                                         <td className="p-3 text-right">
                                             {canManage && (
                                                 <Button

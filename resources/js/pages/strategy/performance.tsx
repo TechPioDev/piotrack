@@ -517,8 +517,8 @@ export default function StrategyPerformance({
                                                 <table className="w-full text-left text-sm">
                                                     <thead className="bg-muted/50 text-muted-foreground">
                                                         <tr>
-                                                            <th className="p-3 font-medium">Quality criterion</th>
-                                                            <th className="p-3 font-medium">Required</th>
+                                                            <th className="p-3">Quality criterion</th>
+                                                            <th className="p-3">Required</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y">
@@ -550,9 +550,9 @@ export default function StrategyPerformance({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Contact</th>
-                                        <th className="p-3 font-medium">Reason</th>
-                                        <th className="p-3 font-medium">Replaced</th>
+                                        <th className="p-3">Contact</th>
+                                        <th className="p-3">Reason</th>
+                                        <th className="p-3">Replaced</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -580,13 +580,13 @@ export default function StrategyPerformance({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Agreement</th>
-                                        <th className="p-3 font-medium">Period</th>
-                                        <th className="p-3 text-center font-medium">Won revenue</th>
-                                        <th className="p-3 text-center font-medium">Ad spend</th>
-                                        <th className="p-3 text-center font-medium">ROI</th>
-                                        <th className="p-3 font-medium">Targets</th>
-                                        <th className="p-3 font-medium">Generated</th>
+                                        <th className="p-3">Agreement</th>
+                                        <th className="p-3">Period</th>
+                                        <th className="p-3 text-right">Won revenue</th>
+                                        <th className="p-3 text-right">Ad spend</th>
+                                        <th className="p-3 text-right">ROI</th>
+                                        <th className="p-3">Targets</th>
+                                        <th className="p-3">Generated</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -596,9 +596,9 @@ export default function StrategyPerformance({
                                             <td className="text-muted-foreground p-3">
                                                 {review.period_start ?? '—'} → {review.period_end ?? '—'}
                                             </td>
-                                            <td className="p-3 text-center">${(review.won_revenue / 100).toFixed(2)}</td>
-                                            <td className="p-3 text-center">${(review.ad_spend / 100).toFixed(2)}</td>
-                                            <td className="p-3 text-center">{review.roi !== null ? `${review.roi}x` : 'no spend recorded'}</td>
+                                            <td className="p-3 text-right">${(review.won_revenue / 100).toFixed(2)}</td>
+                                            <td className="p-3 text-right">${(review.ad_spend / 100).toFixed(2)}</td>
+                                            <td className="p-3 text-right">{review.roi !== null ? `${review.roi}x` : 'no spend recorded'}</td>
                                             <td className="p-3">
                                                 {review.all_targets_met ? <Badge>met</Badge> : <Badge variant="destructive">missed</Badge>}
                                             </td>

@@ -115,10 +115,10 @@ export default function Attribution({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Contact</th>
-                                        <th className="p-3 font-medium">First touch</th>
-                                        <th className="p-3 font-medium">Last touch</th>
-                                        <th className="p-3 font-medium">Multi-touch credit</th>
+                                        <th className="p-3">Contact</th>
+                                        <th className="p-3">First touch</th>
+                                        <th className="p-3">Last touch</th>
+                                        <th className="p-3">Multi-touch credit</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -165,16 +165,16 @@ export default function Attribution({
                                         <table className="w-full text-left text-sm">
                                             <thead className="bg-muted/50 text-muted-foreground">
                                                 <tr>
-                                                    <th className="p-3 font-medium">Bucket</th>
-                                                    <th className="p-3 text-center font-medium">Contacts</th>
-                                                    <th className="p-3 text-right font-medium">Won revenue</th>
+                                                    <th className="p-3">Bucket</th>
+                                                    <th className="p-3 text-right">Contacts</th>
+                                                    <th className="p-3 text-right">Won revenue</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">
                                                 {rows.map((row) => (
                                                     <tr key={row.bucket} className="hover:bg-muted/40">
                                                         <td className="p-3 font-medium break-all">{row.bucket}</td>
-                                                        <td className="p-3 text-center">{row.contacts}</td>
+                                                        <td className="p-3 text-right">{row.contacts}</td>
                                                         <td className="p-3 text-right">{money(row.revenue)}</td>
                                                     </tr>
                                                 ))}

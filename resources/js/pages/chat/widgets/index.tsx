@@ -135,7 +135,7 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
                                 <tr>
                                     <TableHead>Widget</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-center">Conversations</TableHead>
+                                    <TableHead className="text-right">Conversations</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </tr>
                             </TableHeader>
@@ -158,7 +158,7 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
                                                 {widget.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-center tabular-nums">{widget.conversations_count}</TableCell>
+                                        <TableCell className="text-right">{widget.conversations_count}</TableCell>
                                         <TableCell className="text-right">
                                             {can('chat.widget.manage') && (
                                                 <div className="flex justify-end gap-2">

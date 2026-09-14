@@ -213,12 +213,12 @@ export default function Alerts({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Trigger</th>
-                                        <th className="p-3 text-center font-medium">Threshold</th>
-                                        <th className="p-3 font-medium">Channel</th>
-                                        <th className="p-3 text-center font-medium">Active</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Trigger</th>
+                                        <th className="p-3 text-right">Threshold</th>
+                                        <th className="p-3">Channel</th>
+                                        <th className="p-3 text-center">Active</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -228,7 +228,7 @@ export default function Alerts({
                                             <td className="p-3">
                                                 <Badge variant="outline">{rule.trigger}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{rule.threshold}</td>
+                                            <td className="p-3 text-right">{rule.threshold}</td>
                                             <td className="text-muted-foreground p-3">{rule.channel}</td>
                                             <td className="p-3 text-center">
                                                 {rule.is_active ? '✓' : <span className="text-muted-foreground">—</span>}

@@ -58,8 +58,8 @@ function PayloadDetail({ payload }: { payload: Record<string, unknown> | null })
                 <table className="w-full text-left text-sm">
                     <thead className="bg-muted/50 text-muted-foreground">
                         <tr>
-                            <th className="p-3 font-medium">Field</th>
-                            <th className="p-3 font-medium">Proposed value</th>
+                            <th className="p-3">Field</th>
+                            <th className="p-3">Proposed value</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -168,12 +168,12 @@ export default function AiActions({ actions }: { actions: AiAction[] }) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Summary</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 font-medium">Result</th>
-                                        <th className="p-3 font-medium">Confirmed</th>
-                                        <th className="p-3 font-medium">Executed</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Summary</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3">Result</th>
+                                        <th className="p-3">Confirmed</th>
+                                        <th className="p-3">Executed</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

@@ -128,10 +128,10 @@ export default function LandingPages({ pages, forms }: { pages: LandingPage[]; f
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Views</th>
-                                    <th className="p-3 font-medium">Public URL</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Views</th>
+                                    <th className="p-3">Public URL</th>
                                     <th className="p-3" />
                                 </tr>
                             </thead>
@@ -145,7 +145,7 @@ export default function LandingPages({ pages, forms }: { pages: LandingPage[]; f
                                         <td className="p-3">
                                             <Badge variant={page.status === 'published' ? 'default' : 'secondary'}>{page.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{page.view_count}</td>
+                                        <td className="p-3 text-right">{page.view_count}</td>
                                         <td className="p-3">
                                             <a href={page.public_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                                                 {page.public_url}

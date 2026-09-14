@@ -482,12 +482,12 @@ export default function Reputation({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Source</th>
-                                        <th className="p-3 font-medium">Author</th>
-                                        <th className="p-3 text-center font-medium">Rating</th>
-                                        <th className="p-3 font-medium">Sentiment</th>
-                                        <th className="p-3 font-medium">Body</th>
-                                        <th className="p-3 text-right font-medium">Response</th>
+                                        <th className="p-3">Source</th>
+                                        <th className="p-3">Author</th>
+                                        <th className="p-3 text-right">Rating</th>
+                                        <th className="p-3">Sentiment</th>
+                                        <th className="p-3">Body</th>
+                                        <th className="p-3 text-right">Response</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -497,7 +497,7 @@ export default function Reputation({
                                                 <Badge variant="outline">{review.source}</Badge>
                                             </td>
                                             <td className="text-muted-foreground p-3">{review.author_name ?? '—'}</td>
-                                            <td className="p-3 text-center">{review.rating}★</td>
+                                            <td className="p-3 text-right">{review.rating}★</td>
                                             <td className="p-3">
                                                 <Badge variant={sentimentVariant(review.sentiment)}>{review.sentiment}</Badge>
                                             </td>

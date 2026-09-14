@@ -221,11 +221,11 @@ function WebhooksSection({ webhooks, events, canManage }: { webhooks: Webhook[];
                     <table className="w-full text-left text-sm">
                         <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
-                                <th className="p-3 font-medium">URL</th>
-                                <th className="p-3 font-medium">Events</th>
-                                <th className="p-3 font-medium">Last delivery</th>
-                                <th className="p-3 font-medium">Failures</th>
-                                {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                <th className="p-3">URL</th>
+                                <th className="p-3">Events</th>
+                                <th className="p-3">Last delivery</th>
+                                <th className="p-3">Failures</th>
+                                {canManage && <th className="p-3 text-right">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -318,10 +318,10 @@ export default function Integrations({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Connector</th>
-                                            <th className="p-3 font-medium">Status</th>
-                                            <th className="p-3 font-medium">Records</th>
-                                            <th className="p-3 font-medium">Finished</th>
+                                            <th className="p-3">Connector</th>
+                                            <th className="p-3">Status</th>
+                                            <th className="p-3">Records</th>
+                                            <th className="p-3">Finished</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">

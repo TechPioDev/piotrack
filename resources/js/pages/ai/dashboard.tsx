@@ -239,19 +239,19 @@ export default function AiDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Feature</th>
-                                        <th className="p-3 text-center font-medium">Requests</th>
-                                        <th className="p-3 text-center font-medium">Tokens</th>
-                                        <th className="p-3 text-center font-medium">Cost</th>
+                                        <th className="p-3">Feature</th>
+                                        <th className="p-3 text-right">Requests</th>
+                                        <th className="p-3 text-right">Tokens</th>
+                                        <th className="p-3 text-right">Cost</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {usage.by_feature.map((row) => (
                                         <tr key={row.feature} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.feature}</td>
-                                            <td className="p-3 text-center">{row.requests}</td>
-                                            <td className="p-3 text-center">{row.tokens}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{money(row.cost)}</td>
+                                            <td className="p-3 text-right">{row.requests}</td>
+                                            <td className="p-3 text-right">{row.tokens}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{money(row.cost)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -269,17 +269,17 @@ export default function AiDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">User</th>
-                                        <th className="p-3 text-center font-medium">Requests</th>
-                                        <th className="p-3 text-center font-medium">Cost</th>
+                                        <th className="p-3">User</th>
+                                        <th className="p-3 text-right">Requests</th>
+                                        <th className="p-3 text-right">Cost</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {usage.by_user.map((row) => (
                                         <tr key={row.user_id ?? 'system'} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.user_id === null ? 'System' : `User #${row.user_id}`}</td>
-                                            <td className="p-3 text-center">{row.requests}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{money(row.cost)}</td>
+                                            <td className="p-3 text-right">{row.requests}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{money(row.cost)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -297,14 +297,14 @@ export default function AiDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Feature</th>
-                                        <th className="p-3 font-medium">Model</th>
-                                        <th className="p-3 text-center font-medium">Tokens</th>
-                                        <th className="p-3 text-center font-medium">Cost</th>
-                                        <th className="p-3 text-center font-medium">Duration</th>
-                                        <th className="p-3 text-center font-medium">Attempts</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 font-medium">When</th>
+                                        <th className="p-3">Feature</th>
+                                        <th className="p-3">Model</th>
+                                        <th className="p-3 text-right">Tokens</th>
+                                        <th className="p-3 text-right">Cost</th>
+                                        <th className="p-3 text-right">Duration</th>
+                                        <th className="p-3 text-right">Attempts</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3">When</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -312,12 +312,12 @@ export default function AiDashboard({
                                         <tr key={request.id} className="hover:bg-muted/40 align-top">
                                             <td className="p-3 font-medium">{request.feature}</td>
                                             <td className="text-muted-foreground p-3">{request.model}</td>
-                                            <td className="p-3 text-center">{request.tokens}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{money(request.cost)}</td>
-                                            <td className="text-muted-foreground p-3 text-center">
+                                            <td className="p-3 text-right">{request.tokens}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{money(request.cost)}</td>
+                                            <td className="text-muted-foreground p-3 text-right">
                                                 {request.duration_ms === null ? '—' : `${request.duration_ms} ms`}
                                             </td>
-                                            <td className="p-3 text-center">{request.attempts}</td>
+                                            <td className="p-3 text-right">{request.attempts}</td>
                                             <td className="p-3">
                                                 <Badge variant={statusVariant(request.status)}>{request.status}</Badge>
                                                 {request.error !== null && <p className="text-destructive mt-1 max-w-64 text-xs">{request.error}</p>}

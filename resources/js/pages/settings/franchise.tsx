@@ -105,21 +105,21 @@ export default function Franchise({ parent, children, linkable, isOwner }: Props
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Organization</th>
-                                            <th className="p-3 text-center font-medium">Contacts</th>
-                                            <th className="p-3 text-center font-medium">SQLs</th>
-                                            <th className="p-3 text-center font-medium">Won value</th>
-                                            <th className="p-3 text-center font-medium">Published pages</th>
-                                            {canManage && <th className="p-3 font-medium">Actions</th>}
+                                            <th className="p-3">Organization</th>
+                                            <th className="p-3 text-right">Contacts</th>
+                                            <th className="p-3 text-right">SQLs</th>
+                                            <th className="p-3 text-right">Won value</th>
+                                            <th className="p-3 text-center">Published pages</th>
+                                            {canManage && <th className="p-3">Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {children.map((child) => (
                                             <tr key={child.id} className="hover:bg-muted/40">
                                                 <td className="p-3 font-medium">{child.name}</td>
-                                                <td className="p-3 text-center">{child.contacts}</td>
-                                                <td className="p-3 text-center">{child.sqls}</td>
-                                                <td className="p-3 text-center">{money(child.won_value)}</td>
+                                                <td className="p-3 text-right">{child.contacts}</td>
+                                                <td className="p-3 text-right">{child.sqls}</td>
+                                                <td className="p-3 text-right">{money(child.won_value)}</td>
                                                 <td className="p-3 text-center">
                                                     <Badge variant={child.published_pages > 0 ? 'default' : 'outline'}>{child.published_pages}</Badge>
                                                 </td>

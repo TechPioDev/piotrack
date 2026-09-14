@@ -161,10 +161,10 @@ export default function PortalDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Deliverable</th>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Due</th>
-                                        <th className="p-3 text-right font-medium">Your decision</th>
+                                        <th className="p-3">Deliverable</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Due</th>
+                                        <th className="p-3 text-right">Your decision</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -247,11 +247,11 @@ export default function PortalDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Metric</th>
-                                        <th className="p-3 text-center font-medium">Target</th>
-                                        <th className="p-3 text-center font-medium">Actual</th>
-                                        <th className="p-3 text-center font-medium">Attainment</th>
-                                        <th className="p-3 font-medium">Status</th>
+                                        <th className="p-3">Metric</th>
+                                        <th className="p-3 text-center">Target</th>
+                                        <th className="p-3 text-center">Actual</th>
+                                        <th className="p-3 text-center">Attainment</th>
+                                        <th className="p-3">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -273,10 +273,10 @@ export default function PortalDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Project</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 font-medium">Health</th>
-                                        <th className="p-3 font-medium">Dates</th>
+                                        <th className="p-3">Project</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3">Health</th>
+                                        <th className="p-3">Dates</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -319,12 +319,12 @@ export default function PortalDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Campaign</th>
-                                        <th className="p-3 font-medium">Channel</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 text-center font-medium">Sent</th>
-                                        <th className="p-3 text-center font-medium">Opened</th>
-                                        <th className="p-3 text-center font-medium">Clicked</th>
+                                        <th className="p-3">Campaign</th>
+                                        <th className="p-3">Channel</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3 text-right">Sent</th>
+                                        <th className="p-3 text-right">Opened</th>
+                                        <th className="p-3 text-right">Clicked</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -335,9 +335,9 @@ export default function PortalDashboard({
                                             <td className="p-3">
                                                 <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>{campaign.status}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{campaign.sent}</td>
-                                            <td className="p-3 text-center">{campaign.opened}</td>
-                                            <td className="p-3 text-center">{campaign.clicked}</td>
+                                            <td className="p-3 text-right">{campaign.sent}</td>
+                                            <td className="p-3 text-right">{campaign.opened}</td>
+                                            <td className="p-3 text-right">{campaign.clicked}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -386,10 +386,10 @@ export default function PortalDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Deliverable</th>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Approval</th>
-                                        <th className="p-3 font-medium">Due</th>
+                                        <th className="p-3">Deliverable</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Approval</th>
+                                        <th className="p-3">Due</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

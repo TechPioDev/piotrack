@@ -313,12 +313,12 @@ export default function Experiments({ experiments, types, pages }: { experiments
                                             <table className="w-full text-left text-sm">
                                                 <thead className="bg-muted/50 text-muted-foreground">
                                                     <tr>
-                                                        <th className="p-3 font-medium">Variant</th>
-                                                        <th className="p-3 text-center font-medium">Impressions</th>
-                                                        <th className="p-3 text-center font-medium">Conversions</th>
-                                                        <th className="p-3 text-center font-medium">Conversion rate</th>
-                                                        <th className="p-3 text-center font-medium">Lift</th>
-                                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                                        <th className="p-3">Variant</th>
+                                                        <th className="p-3 text-right">Impressions</th>
+                                                        <th className="p-3 text-right">Conversions</th>
+                                                        <th className="p-3 text-right">Conversion rate</th>
+                                                        <th className="p-3 text-right">Lift</th>
+                                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y">
@@ -331,10 +331,10 @@ export default function Experiments({ experiments, types, pages }: { experiments
                                                                     {experiment.winning_variant_id === variant.id && <Badge>Winner</Badge>}
                                                                 </div>
                                                             </td>
-                                                            <td className="p-3 text-center">{variant.impressions}</td>
-                                                            <td className="p-3 text-center">{variant.conversions}</td>
-                                                            <td className="p-3 text-center">{variant.conversion_rate}%</td>
-                                                            <td className="p-3 text-center">
+                                                            <td className="p-3 text-right">{variant.impressions}</td>
+                                                            <td className="p-3 text-right">{variant.conversions}</td>
+                                                            <td className="p-3 text-right">{variant.conversion_rate}%</td>
+                                                            <td className="p-3 text-right">
                                                                 {variant.is_control ? (
                                                                     <span className="text-muted-foreground">—</span>
                                                                 ) : (

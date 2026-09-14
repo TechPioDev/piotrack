@@ -138,16 +138,9 @@ export default function Companies({ companies, filters }: { companies: Paginated
                                     sort={filters.sort}
                                     dir={filters.dir}
                                     onSort={sortBy}
-                                    className="text-center"
+                                    align="right"
                                 />
-                                <SortHeader
-                                    label="Deals"
-                                    column="deals_count"
-                                    sort={filters.sort}
-                                    dir={filters.dir}
-                                    onSort={sortBy}
-                                    className="text-center"
-                                />
+                                <SortHeader label="Deals" column="deals_count" sort={filters.sort} dir={filters.dir} onSort={sortBy} align="right" />
                             </tr>
                         </TableHeader>
                         <TableBody>
@@ -168,8 +161,8 @@ export default function Companies({ companies, filters }: { companies: Paginated
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">{c.industry ?? '—'}</TableCell>
-                                    <TableCell className="text-center tabular-nums">{c.contacts_count}</TableCell>
-                                    <TableCell className="text-center tabular-nums">{c.deals_count}</TableCell>
+                                    <TableCell className="text-right">{c.contacts_count}</TableCell>
+                                    <TableCell className="text-right">{c.deals_count}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

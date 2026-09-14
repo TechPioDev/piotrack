@@ -212,11 +212,11 @@ export default function AiPrompts({ templates, known_keys }: { templates: Templa
                                     <table className="w-full text-left text-sm">
                                         <thead className="bg-muted/50 text-muted-foreground">
                                             <tr>
-                                                <th className="p-3 text-center font-medium">Version</th>
-                                                <th className="p-3 font-medium">Description</th>
-                                                <th className="p-3 font-medium">Content</th>
-                                                <th className="p-3 font-medium">State</th>
-                                                {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                                <th className="p-3 text-center">Version</th>
+                                                <th className="p-3">Description</th>
+                                                <th className="p-3">Content</th>
+                                                <th className="p-3">State</th>
+                                                {canManage && <th className="p-3 text-right">Actions</th>}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">

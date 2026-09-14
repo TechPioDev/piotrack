@@ -705,11 +705,11 @@ export default function StrategyBrand({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Asset</th>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Link</th>
-                                        <th className="p-3 font-medium">Notes</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Asset</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Link</th>
+                                        <th className="p-3">Notes</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -768,12 +768,12 @@ export default function StrategyBrand({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Engagement</th>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Topic</th>
-                                        <th className="p-3 font-medium">Scheduled</th>
-                                        <th className="p-3 text-center font-medium">Attendees</th>
-                                        <th className="p-3 font-medium">Status</th>
+                                        <th className="p-3">Engagement</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Topic</th>
+                                        <th className="p-3">Scheduled</th>
+                                        <th className="p-3 text-right">Attendees</th>
+                                        <th className="p-3">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -796,7 +796,7 @@ export default function StrategyBrand({
                                             </td>
                                             <td className="text-muted-foreground p-3">{engagement.topic ?? '—'}</td>
                                             <td className="text-muted-foreground p-3">{formatTime(engagement.scheduled_at)}</td>
-                                            <td className="p-3 text-center">{engagement.attendees ?? '—'}</td>
+                                            <td className="p-3 text-right">{engagement.attendees ?? '—'}</td>
                                             <td className="p-3">
                                                 {canManage ? (
                                                     <Select value={engagement.status} onValueChange={(v) => setEngagementStatus(engagement, v)}>

@@ -189,12 +189,12 @@ export default function Automation({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Trigger</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Steps</th>
-                                    <th className="p-3 text-center font-medium">Enrolled</th>
-                                    <th className="p-3 text-center font-medium">Completed</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Trigger</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Steps</th>
+                                    <th className="p-3 text-right">Enrolled</th>
+                                    <th className="p-3 text-right">Completed</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -209,9 +209,9 @@ export default function Automation({
                                         <td className="p-3">
                                             <Badge variant={workflow.status === 'active' ? 'default' : 'secondary'}>{workflow.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{workflow.steps_count}</td>
-                                        <td className="p-3 text-center">{workflow.enrolled_count}</td>
-                                        <td className="p-3 text-center">{workflow.completed_count}</td>
+                                        <td className="p-3 text-right">{workflow.steps_count}</td>
+                                        <td className="p-3 text-right">{workflow.enrolled_count}</td>
+                                        <td className="p-3 text-right">{workflow.completed_count}</td>
                                     </tr>
                                 ))}
                             </tbody>

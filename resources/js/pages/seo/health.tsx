@@ -106,11 +106,11 @@ export default function Health({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Query</th>
-                                        <th className="p-3 text-right font-medium">Clicks</th>
-                                        <th className="p-3 text-right font-medium">Impressions</th>
-                                        <th className="p-3 text-right font-medium">CTR</th>
-                                        <th className="p-3 text-right font-medium">Position</th>
+                                        <th className="p-3">Query</th>
+                                        <th className="p-3 text-right">Clicks</th>
+                                        <th className="p-3 text-right">Impressions</th>
+                                        <th className="p-3 text-right">CTR</th>
+                                        <th className="p-3 text-right">Position</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -177,9 +177,9 @@ export default function Health({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Lab check</th>
-                                            <th className="p-3 font-medium">Metric</th>
-                                            <th className="p-3 font-medium">Result</th>
+                                            <th className="p-3">Lab check</th>
+                                            <th className="p-3">Metric</th>
+                                            <th className="p-3">Result</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">

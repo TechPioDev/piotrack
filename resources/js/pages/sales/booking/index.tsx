@@ -188,14 +188,14 @@ export default function Booking({ pages, bookings, members }: { pages: BookingPa
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Meeting type</th>
-                                        <th className="p-3 text-center font-medium">Duration</th>
-                                        <th className="p-3 font-medium">Assignment</th>
-                                        <th className="p-3 font-medium">Active</th>
-                                        <th className="p-3 font-medium">Owner</th>
-                                        <th className="p-3 font-medium">Link</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Meeting type</th>
+                                        <th className="p-3 text-right">Duration</th>
+                                        <th className="p-3">Assignment</th>
+                                        <th className="p-3">Active</th>
+                                        <th className="p-3">Owner</th>
+                                        <th className="p-3">Link</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -203,7 +203,7 @@ export default function Booking({ pages, bookings, members }: { pages: BookingPa
                                         <tr key={page.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{page.name}</td>
                                             <td className="text-muted-foreground p-3">{page.meeting_type}</td>
-                                            <td className="p-3 text-center">{page.duration_minutes} min</td>
+                                            <td className="p-3 text-right">{page.duration_minutes} min</td>
                                             <td className="p-3">
                                                 <Badge variant="outline">{page.assignment}</Badge>
                                             </td>
@@ -257,11 +257,11 @@ export default function Booking({ pages, bookings, members }: { pages: BookingPa
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Email</th>
-                                        <th className="p-3 font-medium">Page</th>
-                                        <th className="p-3 font-medium">Scheduled</th>
-                                        <th className="p-3 font-medium">Status</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Email</th>
+                                        <th className="p-3">Page</th>
+                                        <th className="p-3">Scheduled</th>
+                                        <th className="p-3">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

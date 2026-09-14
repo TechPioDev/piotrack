@@ -456,13 +456,13 @@ function CampaignCard({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Domain</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">DA</th>
-                                    <th className="p-3 font-medium">Anchor</th>
-                                    <th className="p-3 font-medium">Placement</th>
-                                    {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Domain</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">DA</th>
+                                    <th className="p-3">Anchor</th>
+                                    <th className="p-3">Placement</th>
+                                    {canManage && <th className="p-3 text-right">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -473,7 +473,7 @@ function CampaignCard({
                                         <td className="p-3">
                                             <Badge variant={prospectStatusVariant(prospect.status)}>{prospect.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{prospect.domain_authority ?? '—'}</td>
+                                        <td className="p-3 text-right">{prospect.domain_authority ?? '—'}</td>
                                         <td className="text-muted-foreground p-3">{prospect.anchor_text ?? '—'}</td>
                                         <td className="p-3">
                                             {prospect.placement_url ? (

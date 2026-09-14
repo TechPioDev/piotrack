@@ -817,18 +817,18 @@ function SectionsTable({ page, canManage }: { page: SitePage; canManage: boolean
             <table className="w-full text-left text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                        <th className="p-3 text-center font-medium">#</th>
-                        <th className="p-3 font-medium">Type</th>
-                        <th className="p-3 font-medium">Heading</th>
-                        <th className="p-3 font-medium">Body</th>
-                        <th className="p-3 font-medium">Visibility</th>
-                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                        <th className="p-3 text-right">#</th>
+                        <th className="p-3">Type</th>
+                        <th className="p-3">Heading</th>
+                        <th className="p-3">Body</th>
+                        <th className="p-3">Visibility</th>
+                        {canManage && <th className="p-3 text-right">Actions</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y">
                     {sections.map((section, index) => (
                         <tr key={section.id} className="hover:bg-muted/40 align-top">
-                            <td className="text-muted-foreground p-3 text-center">{index + 1}</td>
+                            <td className="text-muted-foreground p-3 text-right">{index + 1}</td>
                             <td className="p-3">
                                 <Badge variant="outline">{humanize(section.type)}</Badge>
                             </td>
@@ -1024,11 +1024,11 @@ function NavigationPanel({ navigation, pages, canManage }: { navigation: Navigat
                     <table className="w-full text-left text-sm">
                         <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
-                                <th className="p-3 font-medium">Label</th>
-                                <th className="p-3 font-medium">Placement</th>
-                                <th className="p-3 font-medium">Target</th>
-                                <th className="p-3 text-center font-medium">Order</th>
-                                {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                <th className="p-3">Label</th>
+                                <th className="p-3">Placement</th>
+                                <th className="p-3">Target</th>
+                                <th className="p-3 text-right">Order</th>
+                                {canManage && <th className="p-3 text-right">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -1044,7 +1044,7 @@ function NavigationPanel({ navigation, pages, canManage }: { navigation: Navigat
                                         <td className="text-muted-foreground p-3">
                                             {linked ? `${linked.title} (/s/${linked.slug})` : (item.url ?? '—')}
                                         </td>
-                                        <td className="text-muted-foreground p-3 text-center">{item.sort_order}</td>
+                                        <td className="text-muted-foreground p-3 text-right">{item.sort_order}</td>
                                         {canManage && (
                                             <td className="p-3 text-right">
                                                 <Button size="sm" variant="outline" onClick={() => remove(item)}>

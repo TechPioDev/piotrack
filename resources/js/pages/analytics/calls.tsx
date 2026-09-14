@@ -400,12 +400,12 @@ export default function Calls({ numbers, calls, breakdown }: { numbers: Tracking
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Number</th>
-                                        <th className="p-3 font-medium">Label</th>
-                                        <th className="p-3 font-medium">Source</th>
-                                        <th className="p-3 font-medium">Campaign</th>
-                                        <th className="p-3 font-medium">Active</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Number</th>
+                                        <th className="p-3">Label</th>
+                                        <th className="p-3">Source</th>
+                                        <th className="p-3">Campaign</th>
+                                        <th className="p-3">Active</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -453,16 +453,16 @@ export default function Calls({ numbers, calls, breakdown }: { numbers: Tracking
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">From</th>
-                                        <th className="p-3 font-medium">Contact</th>
-                                        <th className="p-3 font-medium">Direction</th>
-                                        <th className="p-3 text-center font-medium">Duration</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 font-medium">Source</th>
-                                        <th className="p-3 text-center font-medium">Score</th>
-                                        <th className="p-3 font-medium">Outcome</th>
-                                        <th className="p-3 font-medium">When</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">From</th>
+                                        <th className="p-3">Contact</th>
+                                        <th className="p-3">Direction</th>
+                                        <th className="p-3 text-right">Duration</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3">Source</th>
+                                        <th className="p-3 text-right">Score</th>
+                                        <th className="p-3">Outcome</th>
+                                        <th className="p-3">When</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -473,12 +473,12 @@ export default function Calls({ numbers, calls, breakdown }: { numbers: Tracking
                                             <td className="p-3">
                                                 <Badge variant="outline">{call.direction}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{formatDuration(call.duration_seconds)}</td>
+                                            <td className="p-3 text-right">{formatDuration(call.duration_seconds)}</td>
                                             <td className="p-3">
                                                 <Badge variant={statusVariant(call.status)}>{call.status}</Badge>
                                             </td>
                                             <td className="text-muted-foreground p-3">{call.source ?? '—'}</td>
-                                            <td className="p-3 text-center">{call.score}</td>
+                                            <td className="p-3 text-right">{call.score}</td>
                                             <td className="p-3">
                                                 <div className="flex flex-wrap gap-1">
                                                     {call.is_qualified && <Badge variant="secondary">Qualified</Badge>}

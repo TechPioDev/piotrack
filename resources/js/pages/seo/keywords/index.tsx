@@ -284,14 +284,14 @@ export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Phrase</th>
-                                    <th className="p-3 font-medium">Intent</th>
-                                    <th className="p-3 font-medium">Type</th>
-                                    <th className="p-3 font-medium">Cluster</th>
-                                    <th className="p-3 font-medium">Location</th>
-                                    <th className="p-3 font-medium">Position</th>
-                                    <th className="p-3 font-medium">Mapped URL</th>
-                                    {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                    <th className="p-3">Phrase</th>
+                                    <th className="p-3">Intent</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Cluster</th>
+                                    <th className="p-3">Location</th>
+                                    <th className="p-3 text-right">Position</th>
+                                    <th className="p-3">Mapped URL</th>
+                                    {canManage && <th className="p-3 text-right">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -312,13 +312,13 @@ export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]
                                         <td className="text-muted-foreground p-3">{keyword.cluster ?? '—'}</td>
                                         <td className="text-muted-foreground p-3">{keyword.location ?? '—'}</td>
                                         <td className="p-3">
-                                            <div className="flex items-center gap-2">
-                                                <span>{keyword.current_position ?? '—'}</span>
+                                            <div className="flex items-center justify-end gap-2">
                                                 {keyword.top_three ? (
                                                     <Badge>Top 3</Badge>
                                                 ) : keyword.page_one ? (
                                                     <Badge variant="secondary">Page 1</Badge>
                                                 ) : null}
+                                                <span>{keyword.current_position ?? '—'}</span>
                                             </div>
                                         </td>
                                         <td className="text-muted-foreground p-3 break-all">{keyword.mapped_url ?? '—'}</td>
@@ -379,19 +379,19 @@ export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Keyword</th>
-                                            <th className="p-3 text-center font-medium">Us</th>
-                                            <th className="p-3 font-medium">Best competitor</th>
-                                            <th className="p-3 text-center font-medium">Them</th>
+                                            <th className="p-3">Keyword</th>
+                                            <th className="p-3 text-right">Us</th>
+                                            <th className="p-3">Best competitor</th>
+                                            <th className="p-3 text-right">Them</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {steal.map((row) => (
                                             <tr key={row.keyword}>
                                                 <td className="p-3 font-medium">{row.keyword}</td>
-                                                <td className="p-3 text-center">{row.our_position ?? '—'}</td>
+                                                <td className="p-3 text-right">{row.our_position ?? '—'}</td>
                                                 <td className="text-muted-foreground p-3">{row.best_competitor ?? '—'}</td>
-                                                <td className="p-3 text-center">{row.best_position ?? '—'}</td>
+                                                <td className="p-3 text-right">{row.best_position ?? '—'}</td>
                                             </tr>
                                         ))}
                                     </tbody>

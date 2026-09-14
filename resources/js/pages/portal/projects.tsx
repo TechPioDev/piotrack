@@ -87,10 +87,10 @@ export default function PortalProjects({ projects, tasks, deliverables }: { proj
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Task</th>
-                                                                <th className="p-3 font-medium">Priority</th>
-                                                                <th className="p-3 font-medium">Due</th>
-                                                                <th className="p-3 font-medium">Status</th>
+                                                                <th className="p-3">Task</th>
+                                                                <th className="p-3">Priority</th>
+                                                                <th className="p-3">Due</th>
+                                                                <th className="p-3">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">
@@ -119,11 +119,11 @@ export default function PortalProjects({ projects, tasks, deliverables }: { proj
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Deliverable</th>
-                                                                <th className="p-3 font-medium">Type</th>
-                                                                <th className="p-3 font-medium">Approval</th>
-                                                                <th className="p-3 font-medium">Due</th>
-                                                                <th className="p-3 text-right font-medium">Your decision</th>
+                                                                <th className="p-3">Deliverable</th>
+                                                                <th className="p-3">Type</th>
+                                                                <th className="p-3">Approval</th>
+                                                                <th className="p-3">Due</th>
+                                                                <th className="p-3 text-right">Your decision</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">

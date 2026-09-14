@@ -227,14 +227,14 @@ export default function PlatformDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Organization</th>
-                                        <th className="p-3 font-medium">Slug</th>
-                                        <th className="p-3 text-center font-medium">Members</th>
-                                        <th className="p-3 font-medium">Plan</th>
-                                        <th className="p-3 font-medium">Subscription</th>
-                                        <th className="p-3 font-medium">Trial ends</th>
-                                        <th className="p-3 font-medium">Created</th>
-                                        {canImpersonate && <th className="p-3 text-right font-medium">Support access</th>}
+                                        <th className="p-3">Organization</th>
+                                        <th className="p-3">Slug</th>
+                                        <th className="p-3 text-right">Members</th>
+                                        <th className="p-3">Plan</th>
+                                        <th className="p-3">Subscription</th>
+                                        <th className="p-3">Trial ends</th>
+                                        <th className="p-3">Created</th>
+                                        {canImpersonate && <th className="p-3 text-right">Support access</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -242,7 +242,7 @@ export default function PlatformDashboard({
                                         <tr key={tenant.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{tenant.name}</td>
                                             <td className="text-muted-foreground p-3">{tenant.slug}</td>
-                                            <td className="p-3 text-center">{tenant.members}</td>
+                                            <td className="p-3 text-right">{tenant.members}</td>
                                             <td className="p-3">{tenant.plan ?? <span className="text-muted-foreground">No plan</span>}</td>
                                             <td className="p-3">
                                                 {tenant.status === null ? (
@@ -281,11 +281,11 @@ export default function PlatformDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Impersonator</th>
-                                        <th className="p-3 font-medium">User</th>
-                                        <th className="p-3 font-medium">Reason</th>
-                                        <th className="p-3 font-medium">Started</th>
-                                        <th className="p-3 font-medium">Ended</th>
+                                        <th className="p-3">Impersonator</th>
+                                        <th className="p-3">User</th>
+                                        <th className="p-3">Reason</th>
+                                        <th className="p-3">Started</th>
+                                        <th className="p-3">Ended</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

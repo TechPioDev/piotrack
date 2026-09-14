@@ -70,9 +70,9 @@ export default function ImportContacts({ history, preview }: { history: HistoryR
                                     <table className="w-full text-left text-sm">
                                         <thead className="bg-muted/50 text-muted-foreground">
                                             <tr>
-                                                <th className="p-2 font-medium">Name</th>
-                                                <th className="p-2 font-medium">Email</th>
-                                                <th className="p-2 font-medium">Status</th>
+                                                <th className="p-2">Name</th>
+                                                <th className="p-2">Email</th>
+                                                <th className="p-2">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">

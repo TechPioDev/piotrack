@@ -384,18 +384,13 @@ export default function WebTaxonomy({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Service line</th>
-                                            <th className="p-3 font-medium">Coverage</th>
-                                            <th className="p-3 text-center font-medium">Pages</th>
-                                            <th className="p-3 text-center font-medium">Published</th>
-                                            <th className="p-3 text-center font-medium">Keywords</th>
-                                            <th className="p-3 text-center font-medium">Campaigns</th>
-                                            <th className="p-3 text-center font-medium">Content</th>
-                                            <th className="p-3 text-center font-medium">Ads</th>
-                                            <th className="p-3 text-center font-medium">Case studies</th>
-                                            <th className="p-3 text-center font-medium">Sequences</th>
-                                            <th className="p-3 text-center font-medium">Accounts</th>
-                                            <th className="p-3 font-medium">Messaging</th>
+                                            <th className="p-3">Service line</th>
+                                            <th className="p-3">Coverage</th>
+                                            <th className="p-3 text-right">Pages</th>
+                                            <th className="p-3 text-right">Published</th>
+                                            <th className="p-3 text-right">Keywords</th>
+                                            <th className="p-3 text-right">Campaigns</th>
+                                            <th className="p-3 text-right">Content</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -413,19 +408,19 @@ export default function WebTaxonomy({
                                                     <td className="p-3">
                                                         <Badge variant={coverage.variant}>{coverage.label}</Badge>
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={service.pages} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={service.published_pages} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={service.keywords} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={service.campaigns} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={service.content} />
                                                     </td>
                                                 </tr>
@@ -453,14 +448,19 @@ export default function WebTaxonomy({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Vertical</th>
-                                            <th className="p-3 font-medium">Coverage</th>
-                                            <th className="p-3 font-medium">Compliance notes</th>
-                                            <th className="p-3 text-center font-medium">Pages</th>
-                                            <th className="p-3 text-center font-medium">Published</th>
-                                            <th className="p-3 text-center font-medium">Keywords</th>
-                                            <th className="p-3 text-center font-medium">Campaigns</th>
-                                            <th className="p-3 text-center font-medium">Content</th>
+                                            <th className="p-3">Vertical</th>
+                                            <th className="p-3">Coverage</th>
+                                            <th className="p-3">Compliance notes</th>
+                                            <th className="p-3 text-right">Pages</th>
+                                            <th className="p-3 text-right">Published</th>
+                                            <th className="p-3 text-right">Keywords</th>
+                                            <th className="p-3 text-right">Campaigns</th>
+                                            <th className="p-3 text-right">Content</th>
+                                            <th className="p-3 text-right">Ads</th>
+                                            <th className="p-3 text-right">Case studies</th>
+                                            <th className="p-3 text-right">Sequences</th>
+                                            <th className="p-3 text-right">Accounts</th>
+                                            <th className="p-3">Messaging</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -474,31 +474,31 @@ export default function WebTaxonomy({
                                                         <Badge variant={coverage.variant}>{coverage.label}</Badge>
                                                     </td>
                                                     <td className="text-muted-foreground max-w-80 p-3">{vertical.compliance_notes ?? '—'}</td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.pages} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.published_pages} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.keywords} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.campaigns} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.content} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.ads} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.case_studies} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.sequences} />
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3 text-right">
                                                         <CoverageCell value={vertical.accounts} />
                                                     </td>
                                                     <td className="max-w-64 p-3">
@@ -528,16 +528,16 @@ export default function WebTaxonomy({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Location</th>
-                                            <th className="p-3 font-medium">Territory</th>
-                                            <th className="p-3 font-medium">Location page</th>
-                                            <th className="p-3 text-center font-medium">Citations</th>
-                                            <th className="p-3 text-center font-medium">Geo keywords</th>
-                                            <th className="p-3 text-center font-medium">Campaigns</th>
-                                            <th className="p-3 text-center font-medium">Content</th>
-                                            <th className="p-3 text-center font-medium">Leads</th>
-                                            <th className="p-3 text-center font-medium">SQLs</th>
-                                            <th className="p-3 text-center font-medium">Won value</th>
+                                            <th className="p-3">Location</th>
+                                            <th className="p-3">Territory</th>
+                                            <th className="p-3">Location page</th>
+                                            <th className="p-3 text-right">Citations</th>
+                                            <th className="p-3 text-right">Geo keywords</th>
+                                            <th className="p-3 text-right">Campaigns</th>
+                                            <th className="p-3 text-right">Content</th>
+                                            <th className="p-3 text-right">Leads</th>
+                                            <th className="p-3 text-right">SQLs</th>
+                                            <th className="p-3 text-right">Won value</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -562,29 +562,29 @@ export default function WebTaxonomy({
                                                         <Badge variant="outline">Gap — no page</Badge>
                                                     )}
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <span className="text-muted-foreground">
                                                         {location.consistent_citations}/{location.citations}
                                                     </span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <CoverageCell value={location.geo_keywords} />
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <span className="text-muted-foreground">
                                                         {location.active_campaigns}/{location.campaigns}
                                                     </span>
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <CoverageCell value={location.content_pieces} />
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <CoverageCell value={location.leads} />
                                                 </td>
-                                                <td className="p-3 text-center">
+                                                <td className="p-3 text-right">
                                                     <CoverageCell value={location.sqls} />
                                                 </td>
-                                                <td className="text-muted-foreground p-3 text-center">{money(location.won_value)}</td>
+                                                <td className="text-muted-foreground p-3 text-right">{money(location.won_value)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

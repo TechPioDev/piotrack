@@ -290,12 +290,12 @@ export default function Scoring({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Category</th>
-                                        <th className="p-3 font-medium">Condition</th>
-                                        <th className="p-3 text-center font-medium">Points</th>
-                                        <th className="p-3 text-center font-medium">Active</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Category</th>
+                                        <th className="p-3">Condition</th>
+                                        <th className="p-3 text-right">Points</th>
+                                        <th className="p-3 text-center">Active</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -308,7 +308,7 @@ export default function Scoring({
                                             <td className="text-muted-foreground p-3">
                                                 {rule.attribute} {rule.operator} {rule.value ?? ''}
                                             </td>
-                                            <td className="p-3 text-center">{rule.points}</td>
+                                            <td className="p-3 text-right">{rule.points}</td>
                                             <td className="p-3 text-center">
                                                 {rule.is_active ? '✓' : <span className="text-muted-foreground">—</span>}
                                             </td>
@@ -349,13 +349,13 @@ export default function Scoring({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Email</th>
-                                        <th className="p-3 text-center font-medium">Score</th>
-                                        <th className="p-3 font-medium">Temperature</th>
-                                        <th className="p-3 font-medium">Lifecycle stage</th>
-                                        <th className="p-3 text-center font-medium">Win %</th>
-                                        {canManage && <th className="p-3 font-medium"></th>}
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Email</th>
+                                        <th className="p-3 text-right">Score</th>
+                                        <th className="p-3">Temperature</th>
+                                        <th className="p-3">Lifecycle stage</th>
+                                        <th className="p-3 text-right">Win %</th>
+                                        {canManage && <th className="p-3"></th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -363,12 +363,12 @@ export default function Scoring({
                                         <tr key={contact.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{contact.name}</td>
                                             <td className="text-muted-foreground p-3">{contact.email ?? '—'}</td>
-                                            <td className="p-3 text-center">{contact.lead_score}</td>
+                                            <td className="p-3 text-right">{contact.lead_score}</td>
                                             <td className="p-3">
                                                 <Badge variant={temperatureVariant(contact.temperature)}>{contact.temperature}</Badge>
                                             </td>
                                             <td className="text-muted-foreground p-3">{contact.lifecycle_stage ?? '—'}</td>
-                                            <td className="p-3 text-center tabular-nums">
+                                            <td className="p-3 text-right tabular-nums">
                                                 {contact.win_probability !== null ? `${contact.win_probability}%` : '—'}
                                             </td>
                                             {canManage && (
@@ -403,10 +403,10 @@ export default function Scoring({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">#</th>
-                                    <th className="p-3 font-medium">When</th>
-                                    <th className="p-3 font-medium">Assign to</th>
-                                    <th className="p-3 font-medium"></th>
+                                    <th className="p-3">#</th>
+                                    <th className="p-3">When</th>
+                                    <th className="p-3">Assign to</th>
+                                    <th className="p-3"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">

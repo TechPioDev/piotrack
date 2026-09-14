@@ -187,9 +187,9 @@ export default function PortalSupport({ tickets, files }: { tickets: Ticket[]; f
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">File</th>
-                                        <th className="p-3 font-medium">Size</th>
-                                        <th className="p-3 font-medium">Added</th>
+                                        <th className="p-3">File</th>
+                                        <th className="p-3">Size</th>
+                                        <th className="p-3">Added</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

@@ -196,19 +196,19 @@ export default function AnalyticsDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Channel</th>
-                                        <th className="p-3 text-center font-medium">Visitors</th>
-                                        <th className="p-3 text-center font-medium">Sessions</th>
-                                        <th className="p-3 text-center font-medium">Leads</th>
+                                        <th className="p-3">Channel</th>
+                                        <th className="p-3 text-right">Visitors</th>
+                                        <th className="p-3 text-right">Sessions</th>
+                                        <th className="p-3 text-right">Leads</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {metrics.web.channels.map((row) => (
                                         <tr key={row.channel}>
                                             <td className="p-3 font-medium capitalize">{row.channel}</td>
-                                            <td className="p-3 text-center">{row.visitors}</td>
-                                            <td className="p-3 text-center">{row.sessions}</td>
-                                            <td className="p-3 text-center">{row.leads}</td>
+                                            <td className="p-3 text-right">{row.visitors}</td>
+                                            <td className="p-3 text-right">{row.sessions}</td>
+                                            <td className="p-3 text-right">{row.leads}</td>
                                         </tr>
                                     ))}
                                 </tbody>

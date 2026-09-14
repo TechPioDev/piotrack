@@ -370,12 +370,12 @@ export default function SocialPosts({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Channel</th>
-                                    <th className="p-3 font-medium">Type</th>
-                                    <th className="p-3 font-medium">Body</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Engagement</th>
-                                    {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                    <th className="p-3">Channel</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Body</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-center">Engagement</th>
+                                    {canManage && <th className="p-3 text-right">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -433,19 +433,19 @@ export default function SocialPosts({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Network</th>
-                                        <th className="p-3 text-center font-medium">30d posts</th>
-                                        <th className="p-3 text-center font-medium">Per week</th>
-                                        <th className="p-3 text-center font-medium">Scheduled</th>
+                                        <th className="p-3">Network</th>
+                                        <th className="p-3 text-right">30d posts</th>
+                                        <th className="p-3 text-right">Per week</th>
+                                        <th className="p-3 text-right">Scheduled</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {strategy.networks.map((row) => (
                                         <tr key={row.network}>
                                             <td className="p-3 font-medium">{row.network}</td>
-                                            <td className="p-3 text-center">{row.published_30d}</td>
-                                            <td className="p-3 text-center">{row.per_week}</td>
-                                            <td className="p-3 text-center">{row.scheduled_ahead}</td>
+                                            <td className="p-3 text-right">{row.published_30d}</td>
+                                            <td className="p-3 text-right">{row.per_week}</td>
+                                            <td className="p-3 text-right">{row.scheduled_ahead}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -477,20 +477,20 @@ export default function SocialPosts({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Network</th>
-                                            <th className="p-3 text-center font-medium">Visitors</th>
-                                            <th className="p-3 text-center font-medium">Leads</th>
-                                            <th className="p-3 text-center font-medium">Customers</th>
-                                            <th className="p-3 text-right font-medium">Won revenue</th>
+                                            <th className="p-3">Network</th>
+                                            <th className="p-3 text-right">Visitors</th>
+                                            <th className="p-3 text-right">Leads</th>
+                                            <th className="p-3 text-right">Customers</th>
+                                            <th className="p-3 text-right">Won revenue</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {attribution.map((row) => (
                                             <tr key={row.network}>
                                                 <td className="p-3 font-medium">{row.network}</td>
-                                                <td className="p-3 text-center">{row.visitors}</td>
-                                                <td className="p-3 text-center">{row.leads}</td>
-                                                <td className="p-3 text-center">{row.customers}</td>
+                                                <td className="p-3 text-right">{row.visitors}</td>
+                                                <td className="p-3 text-right">{row.leads}</td>
+                                                <td className="p-3 text-right">{row.customers}</td>
                                                 <td className="p-3 text-right">${(row.won_revenue / 100).toLocaleString('en-US')}</td>
                                             </tr>
                                         ))}

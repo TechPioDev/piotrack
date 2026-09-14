@@ -147,21 +147,21 @@ export default function Behavior({ pages, bounces, heatmap }: { pages: PageRow[]
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Page</th>
-                                        <th className="p-3 text-center font-medium">Views</th>
-                                        <th className="p-3 text-center font-medium">Visitors</th>
-                                        <th className="p-3 text-center font-medium">Clicks</th>
-                                        <th className="p-3 text-center font-medium">Avg scroll</th>
+                                        <th className="p-3">Page</th>
+                                        <th className="p-3 text-right">Views</th>
+                                        <th className="p-3 text-right">Visitors</th>
+                                        <th className="p-3 text-right">Clicks</th>
+                                        <th className="p-3 text-right">Avg scroll</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {pages.map((page) => (
                                         <tr key={page.path} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium break-all">{page.path}</td>
-                                            <td className="p-3 text-center">{page.pageviews}</td>
-                                            <td className="p-3 text-center">{page.visitors}</td>
-                                            <td className="p-3 text-center">{page.clicks}</td>
-                                            <td className="p-3 text-center">{page.avg_scroll_depth !== null ? `${page.avg_scroll_depth}%` : '—'}</td>
+                                            <td className="p-3 text-right">{page.pageviews}</td>
+                                            <td className="p-3 text-right">{page.visitors}</td>
+                                            <td className="p-3 text-right">{page.clicks}</td>
+                                            <td className="p-3 text-right">{page.avg_scroll_depth !== null ? `${page.avg_scroll_depth}%` : '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -179,18 +179,18 @@ export default function Behavior({ pages, bounces, heatmap }: { pages: PageRow[]
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Landing page</th>
-                                        <th className="p-3 text-center font-medium">Sessions</th>
-                                        <th className="p-3 text-center font-medium">Bounces</th>
-                                        <th className="p-3 text-center font-medium">Bounce rate</th>
+                                        <th className="p-3">Landing page</th>
+                                        <th className="p-3 text-right">Sessions</th>
+                                        <th className="p-3 text-right">Bounces</th>
+                                        <th className="p-3 text-center">Bounce rate</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {bounces.map((row) => (
                                         <tr key={row.landing_path} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium break-all">{row.landing_path}</td>
-                                            <td className="p-3 text-center">{row.sessions}</td>
-                                            <td className="p-3 text-center">{row.bounces}</td>
+                                            <td className="p-3 text-right">{row.sessions}</td>
+                                            <td className="p-3 text-right">{row.bounces}</td>
                                             <td className="p-3 text-center">
                                                 {row.insufficient ? (
                                                     <span className="text-muted-foreground" title="Under 5 sessions — a rate would be noise">

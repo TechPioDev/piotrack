@@ -270,12 +270,12 @@ export default function ContentPieces({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Title</th>
-                                    <th className="p-3 font-medium">Type</th>
-                                    <th className="p-3 font-medium">Funnel</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Lead magnet</th>
-                                    <th className="p-3 text-center font-medium">Score</th>
+                                    <th className="p-3">Title</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Funnel</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-center">Lead magnet</th>
+                                    <th className="p-3 text-right">Score</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -294,7 +294,7 @@ export default function ContentPieces({
                                             <Badge variant={statusVariant(piece.status)}>{piece.status}</Badge>
                                         </td>
                                         <td className="p-3 text-center">{piece.is_lead_magnet ? '✓' : '—'}</td>
-                                        <td className="p-3 text-center">{piece.optimization_score}/100</td>
+                                        <td className="p-3 text-right">{piece.optimization_score}/100</td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -80,12 +80,12 @@ export default function Omnichannel({ channels, journeys }: { channels: Channel[
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Contact</th>
-                                        <th className="p-3 font-medium">Lifecycle stage</th>
-                                        <th className="p-3 text-center font-medium">Lead score</th>
-                                        <th className="p-3 font-medium">First touch</th>
-                                        <th className="p-3 font-medium">Last touch</th>
-                                        <th className="p-3 font-medium">Touchpoints</th>
+                                        <th className="p-3">Contact</th>
+                                        <th className="p-3">Lifecycle stage</th>
+                                        <th className="p-3 text-right">Lead score</th>
+                                        <th className="p-3">First touch</th>
+                                        <th className="p-3">Last touch</th>
+                                        <th className="p-3">Touchpoints</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -93,7 +93,7 @@ export default function Omnichannel({ channels, journeys }: { channels: Channel[
                                         <tr key={journey.contact_id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{journey.name}</td>
                                             <td className="text-muted-foreground p-3">{journey.lifecycle_stage ?? '—'}</td>
-                                            <td className="p-3 text-center">{journey.lead_score}</td>
+                                            <td className="p-3 text-right">{journey.lead_score}</td>
                                             <td className="p-3">
                                                 <Badge variant="outline">{journey.first_touch}</Badge>
                                             </td>

@@ -63,10 +63,10 @@ export default function AuditLog({ logs, filters }: AuditLogProps) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Action</th>
-                                        <th className="p-3 font-medium">Person</th>
-                                        <th className="p-3 font-medium">Resource</th>
-                                        <th className="p-3 font-medium">When</th>
+                                        <th className="p-3">Action</th>
+                                        <th className="p-3">Person</th>
+                                        <th className="p-3">Resource</th>
+                                        <th className="p-3">When</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

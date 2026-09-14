@@ -81,8 +81,8 @@ export default function ImportEntity({ entity, history, preview }: { entity: str
                                     <table className="w-full text-left text-sm">
                                         <thead className="bg-muted/50 text-muted-foreground">
                                             <tr>
-                                                <th className="p-2 font-medium">Record</th>
-                                                <th className="p-2 font-medium">Status</th>
+                                                <th className="p-2">Record</th>
+                                                <th className="p-2">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">

@@ -63,11 +63,11 @@ export default function Files({ files }: { files: FileRow[] }) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Size</th>
-                                        <th className="p-3 font-medium">Uploaded by</th>
-                                        <th className="p-3 font-medium">Attached to</th>
-                                        <th className="p-3 text-right font-medium">Actions</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Size</th>
+                                        <th className="p-3">Uploaded by</th>
+                                        <th className="p-3">Attached to</th>
+                                        <th className="p-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

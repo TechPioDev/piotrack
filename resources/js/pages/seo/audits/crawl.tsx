@@ -86,12 +86,12 @@ export default function CrawlReport({ crawl }: Props) {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">URL</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Depth</th>
-                                    <th className="p-3 text-center font-medium">Inlinks</th>
-                                    <th className="p-3 text-center font-medium">Outlinks</th>
-                                    <th className="p-3 text-right font-medium">HTML KB</th>
+                                    <th className="p-3">URL</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Depth</th>
+                                    <th className="p-3 text-right">Inlinks</th>
+                                    <th className="p-3 text-right">Outlinks</th>
+                                    <th className="p-3 text-right">HTML KB</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -99,9 +99,9 @@ export default function CrawlReport({ crawl }: Props) {
                                     <tr key={page.url} className="hover:bg-muted/40">
                                         <td className="max-w-md p-3 break-all">{page.url}</td>
                                         <td className="p-3">{statusBadge(page.status)}</td>
-                                        <td className="p-3 text-center">{page.depth}</td>
-                                        <td className="p-3 text-center">{page.inlinks}</td>
-                                        <td className="p-3 text-center">{page.outlinks}</td>
+                                        <td className="p-3 text-right">{page.depth}</td>
+                                        <td className="p-3 text-right">{page.inlinks}</td>
+                                        <td className="p-3 text-right">{page.outlinks}</td>
                                         <td className="p-3 text-right">{Math.round(page.bytes / 1024)}</td>
                                     </tr>
                                 ))}

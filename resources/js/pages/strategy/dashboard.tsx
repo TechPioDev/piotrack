@@ -465,16 +465,16 @@ function MethodologyPanel({ methodology }: { methodology: Methodology }) {
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Evidence</th>
-                                            <th className="p-3 text-center font-medium">Value</th>
-                                            <th className="p-3 text-center font-medium">Met</th>
+                                            <th className="p-3">Evidence</th>
+                                            <th className="p-3 text-right">Value</th>
+                                            <th className="p-3 text-center">Met</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {stage.evidence.map((evidence) => (
                                             <tr key={evidence.signal} className="hover:bg-muted/40">
                                                 <td className="p-3">{evidence.signal}</td>
-                                                <td className="text-muted-foreground p-3 text-center">{evidence.value}</td>
+                                                <td className="text-muted-foreground p-3 text-right">{evidence.value}</td>
                                                 <td className="p-3 text-center">
                                                     {evidence.met ? (
                                                         <Check className="text-primary mx-auto size-4" aria-label="Met" />
@@ -513,22 +513,22 @@ function KpiTable({ kpis, canManage, metrics }: { kpis: Kpi[]; canManage: boolea
                     <table className="w-full text-left text-sm">
                         <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
-                                <th className="p-3 font-medium">Metric</th>
-                                <th className="p-3 text-center font-medium">Target</th>
-                                <th className="p-3 text-center font-medium">Actual</th>
-                                <th className="p-3 text-center font-medium">Attainment</th>
-                                <th className="p-3 font-medium">Direction</th>
-                                <th className="p-3 font-medium">On track</th>
-                                {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                <th className="p-3">Metric</th>
+                                <th className="p-3 text-right">Target</th>
+                                <th className="p-3 text-right">Actual</th>
+                                <th className="p-3 text-right">Attainment</th>
+                                <th className="p-3">Direction</th>
+                                <th className="p-3">On track</th>
+                                {canManage && <th className="p-3 text-right">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y">
                             {kpis.map((kpi) => (
                                 <tr key={kpi.id} className="hover:bg-muted/40">
                                     <td className="p-3 font-medium">{kpi.metric}</td>
-                                    <td className="p-3 text-center">{kpi.target}</td>
-                                    <td className="p-3 text-center">{kpi.actual}</td>
-                                    <td className="p-3 text-center">{kpi.attainment}%</td>
+                                    <td className="p-3 text-right">{kpi.target}</td>
+                                    <td className="p-3 text-right">{kpi.actual}</td>
+                                    <td className="p-3 text-right">{kpi.attainment}%</td>
                                     <td className="text-muted-foreground p-3">{kpi.lower_is_better ? 'Lower is better' : 'Higher is better'}</td>
                                     <td className="p-3">
                                         {kpi.on_track ? <Badge>On track</Badge> : <Badge variant="destructive">Off target</Badge>}
@@ -860,10 +860,10 @@ export default function StrategyDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Plan</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 text-center font-medium">Items</th>
-                                        <th className="p-3 font-medium">Period</th>
+                                        <th className="p-3">Plan</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3 text-right">Items</th>
+                                        <th className="p-3">Period</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -876,7 +876,7 @@ export default function StrategyDashboard({
                                             <td className="p-3">
                                                 <Badge variant="outline">{plan.status}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{plan.items_count}</td>
+                                            <td className="p-3 text-right">{plan.items_count}</td>
                                             <td className="text-muted-foreground p-3">
                                                 {plan.period_start ?? '—'} → {plan.period_end ?? '—'}
                                             </td>
@@ -905,12 +905,12 @@ export default function StrategyDashboard({
                                         <table className="w-full text-left text-sm">
                                             <thead className="bg-muted/50 text-muted-foreground">
                                                 <tr>
-                                                    <th className="p-3 font-medium">Item</th>
-                                                    <th className="p-3 font-medium">Plan</th>
-                                                    <th className="p-3 font-medium">Priority</th>
-                                                    <th className="p-3 font-medium">Due</th>
-                                                    <th className="p-3 font-medium">Status</th>
-                                                    {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                                    <th className="p-3">Item</th>
+                                                    <th className="p-3">Plan</th>
+                                                    <th className="p-3">Priority</th>
+                                                    <th className="p-3">Due</th>
+                                                    <th className="p-3">Status</th>
+                                                    {canManage && <th className="p-3 text-right">Actions</th>}
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">

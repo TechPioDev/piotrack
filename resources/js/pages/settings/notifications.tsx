@@ -106,7 +106,7 @@ export default function Notifications({ notifications, preferences, categories, 
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Category</th>
+                                        <th className="p-3">Category</th>
                                         {channels.map((c) => (
                                             <th key={c} className="p-3 text-center font-medium">
                                                 {humanizeKey(c)}

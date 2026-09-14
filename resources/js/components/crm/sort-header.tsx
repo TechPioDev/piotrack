@@ -13,6 +13,7 @@ export function SortHeader({
     sort,
     dir,
     onSort,
+    align = 'left',
     className,
 }: {
     label: string;
@@ -20,18 +21,21 @@ export function SortHeader({
     sort?: string;
     dir?: string;
     onSort: (column: string, dir: 'asc' | 'desc') => void;
+    /** Numeric columns align right so the header sits over its digits. */
+    align?: 'left' | 'right';
     className?: string;
 }) {
     const active = sort === column;
     const Icon = active ? (dir === 'desc' ? ArrowDown : ArrowUp) : ArrowUpDown;
 
     return (
-        <TableHead className={className}>
+        <TableHead className={cn(align === 'right' && 'text-right', className)}>
             <button
                 type="button"
                 onClick={() => onSort(column, active && dir === 'asc' ? 'desc' : 'asc')}
                 className={cn(
-                    'hover:text-foreground -ml-1 flex items-center gap-1 rounded px-1 py-0.5 transition-colors',
+                    'hover:text-foreground flex w-fit items-center gap-1 rounded px-1 py-0.5 uppercase transition-colors',
+                    align === 'right' ? '-mr-1 ml-auto' : '-ml-1',
                     active ? 'text-foreground font-semibold' : 'text-muted-foreground',
                 )}
                 aria-label={`Sort by ${label}${active ? (dir === 'asc' ? ', currently ascending' : ', currently descending') : ''}`}

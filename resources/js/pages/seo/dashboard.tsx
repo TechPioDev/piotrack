@@ -101,9 +101,9 @@ export default function SeoDashboard({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">URL</th>
-                                        <th className="p-3 font-medium">Score</th>
-                                        <th className="p-3 text-center font-medium">Issues</th>
+                                        <th className="p-3">URL</th>
+                                        <th className="p-3">Score</th>
+                                        <th className="p-3 text-right">Issues</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -117,7 +117,7 @@ export default function SeoDashboard({
                                             <td className="p-3">
                                                 <Badge variant={scoreVariant(audit.score)}>{audit.score}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{audit.issues_count}</td>
+                                            <td className="p-3 text-right">{audit.issues_count}</td>
                                         </tr>
                                     ))}
                                 </tbody>

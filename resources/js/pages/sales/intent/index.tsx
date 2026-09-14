@@ -163,17 +163,17 @@ export default function Intent({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 text-center font-medium">Intent score</th>
-                                        <th className="p-3 font-medium">Signal</th>
-                                        <th className="p-3 font-medium">Next action</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3 text-right">Intent score</th>
+                                        <th className="p-3">Signal</th>
+                                        <th className="p-3">Next action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {contacts.map((contact) => (
                                         <tr key={contact.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{contact.name}</td>
-                                            <td className="p-3 text-center">{contact.intent_score}</td>
+                                            <td className="p-3 text-right">{contact.intent_score}</td>
                                             <td className="p-3">
                                                 <div className="flex gap-1">
                                                     {contact.high_intent && <Badge>High intent</Badge>}
@@ -198,10 +198,10 @@ export default function Intent({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Contact</th>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 text-center font-medium">Weight</th>
-                                        <th className="p-3 font-medium">Occurred</th>
+                                        <th className="p-3">Contact</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3 text-right">Weight</th>
+                                        <th className="p-3">Occurred</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -211,7 +211,7 @@ export default function Intent({
                                             <td className="p-3">
                                                 <Badge variant="outline">{signal.type}</Badge>
                                             </td>
-                                            <td className="p-3 text-center">{signal.weight}</td>
+                                            <td className="p-3 text-right">{signal.weight}</td>
                                             <td className="text-muted-foreground p-3">{formatTime(signal.occurred_at)}</td>
                                         </tr>
                                     ))}

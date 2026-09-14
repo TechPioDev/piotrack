@@ -169,14 +169,14 @@ export default function AiVisibility({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Prompt</th>
-                                    <th className="p-3 font-medium">Engine</th>
-                                    <th className="p-3 font-medium">Brand</th>
-                                    <th className="p-3 font-medium">Mentioned</th>
-                                    <th className="p-3 font-medium">Share</th>
-                                    <th className="p-3 font-medium">Sources</th>
-                                    <th className="p-3 font-medium">Competitors</th>
-                                    <th className="p-3 font-medium">Checked</th>
+                                    <th className="p-3">Prompt</th>
+                                    <th className="p-3">Engine</th>
+                                    <th className="p-3">Brand</th>
+                                    <th className="p-3">Mentioned</th>
+                                    <th className="p-3">Share</th>
+                                    <th className="p-3">Sources</th>
+                                    <th className="p-3">Competitors</th>
+                                    <th className="p-3">Checked</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -243,17 +243,17 @@ export default function AiVisibility({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Source</th>
-                                            <th className="p-3 text-center font-medium">Citations</th>
-                                            <th className="p-3 font-medium">Status</th>
-                                            {canManage && <th className="p-3 text-right font-medium">Action</th>}
+                                            <th className="p-3">Source</th>
+                                            <th className="p-3 text-right">Citations</th>
+                                            <th className="p-3">Status</th>
+                                            {canManage && <th className="p-3 text-right">Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {citation_sources.map((source) => (
                                             <tr key={source.host} className="hover:bg-muted/40">
                                                 <td className="p-3 font-medium break-all">{source.host}</td>
-                                                <td className="p-3 text-center">{source.citations}</td>
+                                                <td className="p-3 text-right">{source.citations}</td>
                                                 <td className="p-3">
                                                     <Badge variant={source.status === 'covered' ? 'default' : 'secondary'}>{source.status}</Badge>
                                                 </td>

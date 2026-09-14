@@ -435,11 +435,11 @@ export default function Enablement({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Type</th>
-                                        <th className="p-3 font-medium">Title</th>
-                                        <th className="p-3 font-medium">Description</th>
-                                        <th className="p-3 font-medium">Link</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3">Title</th>
+                                        <th className="p-3">Description</th>
+                                        <th className="p-3">Link</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

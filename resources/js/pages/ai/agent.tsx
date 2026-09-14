@@ -327,15 +327,15 @@ export default function AiAgent({ contacts, deals, tasks }: { contacts: Contact[
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Deal</th>
-                                        <th className="p-3 text-center font-medium">Value</th>
+                                        <th className="p-3">Deal</th>
+                                        <th className="p-3 text-right">Value</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {deals.map((deal) => (
                                         <tr key={deal.id} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{deal.name}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{deal.value === null ? '—' : money(deal.value)}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{deal.value === null ? '—' : money(deal.value)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

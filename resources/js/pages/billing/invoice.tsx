@@ -47,16 +47,16 @@ export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Description</th>
-                                        <th className="p-3 text-center font-medium">Qty</th>
-                                        <th className="p-3 text-right font-medium">Amount</th>
+                                        <th className="p-3">Description</th>
+                                        <th className="p-3 text-right">Qty</th>
+                                        <th className="p-3 text-right">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {invoice.line_items.map((li, i) => (
                                         <tr key={i}>
                                             <td className="p-3">{li.description}</td>
-                                            <td className="p-3 text-center">{li.quantity}</td>
+                                            <td className="p-3 text-right">{li.quantity}</td>
                                             <td className="p-3 text-right">{formatMoney(li.amount, invoice.currency)}</td>
                                         </tr>
                                     ))}

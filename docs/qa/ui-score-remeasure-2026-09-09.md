@@ -110,3 +110,54 @@ re-measure 72).
 
 Gate: pint ✓ · phpstan 0 findings (raw grep) ✓ · prettier ✓ · eslint ✓ · tsc ✓ ·
 build ✓ · Vitest 55 ✓ · Pest 1,086 / 5,706 assertions ✓.
+
+## UI-P2 — tables (2026-09-14)
+
+**Measured before** (same seeded org, 1052×820, computed styles on every rendered
+cell): the CRM lists already carried the full data-table kit (sort headers,
+filters, bulk actions, stage pills, saved views, designed empty states), so the gap
+sat in the 118 hand-written tables elsewhere. Of 87 rendered numeric cells, **85 were
+centered, 1 right-aligned, 10 tabular**; 18 of 22 tables used a sentence-case header
+style while the shared primitives used uppercase — two visual systems. Every table
+already scrolled inside its own container and had row hover.
+
+**Found along the way — a real rendering bug:** on /website/taxonomy the Phase 39
+change placed the Ads / Case studies / Sequences / Accounts / Messaging headers on the
+*service-line* table (12 headers over 7 cells) instead of the *vertical* table (8
+headers over 13 cells), so vertical counts rendered under no heading at all. Headers
+moved to the table that owns those fields; a repo-wide sweep found no other case.
+
+**Changes**
+
+- Numeric columns right-aligned, header and cells together: 120 columns by a
+  reviewed codemod that pairs each `<th>` with its body `<td>` and flips only plain
+  numeric expressions (badges, ✓ marks, Yes/No, version labels and status pills stay
+  centered), plus hand edits for numeric cells with muted "—" fallbacks, the taxonomy
+  tables, and the `ui/table` pages (companies, visitors, widgets, keyword positions).
+- `SortHeader` gained `align="right"` — its flex button previously ignored the
+  header's `text-center`, so numeric sort headers sat left over centered digits.
+- Base layer: every `table` uses tabular figures; every `thead th` shares one voice
+  (muted, xs, semibold, tracked, uppercase); the 560 per-header `font-medium`
+  overrides that fought it were removed.
+- `Badge` no longer wraps mid-label ("Page 1" / "Top 3" were breaking onto two lines
+  in the keyword position column).
+- `resources/js/components/data-tables.test.tsx`: SortHeader alignment and sort
+  toggling, plus a sweep of every page source that fails the build when a table's
+  header count differs from its body row's cell count — proven by running it against
+  the pre-fix taxonomy file (fails on exactly the two broken tables) and the fix
+  (passes).
+
+**Measured after** (identical script): numeric cells right-aligned **309 / 309** on
+the sampled pages (/strategy 28, /analytics 18, /ads 8, /crm/companies 8,
+/website/taxonomy 238, /sales/visitors 2, /analytics/attribution 2,
+/marketing/forms 1, /projects 1) and tabular **309 / 309**; keyword positions end
+12 px from the cell edge on all 8 rows; header style uniform on every rendered
+table; 0 wrapped badges; 0 header/cell mismatches across all page sources; 0 px page
+overflow.
+
+Category movement: **Tables 55 → 90.** Held back from 100, stated plainly: sorting
+exists only on the CRM lists (the other tables are short computed reports), and long
+report tables have no sticky header. **Score after UI-P2: 78/100** (mean 77.5).
+
+Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
+Vitest **60** ✓ · Pest 1,086 / 5,706 ✓.

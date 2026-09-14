@@ -327,14 +327,14 @@ export default function Accounts({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Company</th>
-                                    <th className="p-3 font-medium">Tier</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Score</th>
-                                    <th className="p-3 text-center font-medium">Committee</th>
-                                    <th className="p-3 text-center font-medium">Engaged</th>
-                                    <th className="p-3 text-center font-medium">Threading</th>
-                                    {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                    <th className="p-3">Company</th>
+                                    <th className="p-3">Tier</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Score</th>
+                                    <th className="p-3 text-center">Committee</th>
+                                    <th className="p-3 text-right">Engaged</th>
+                                    <th className="p-3 text-center">Threading</th>
+                                    {canManage && <th className="p-3 text-right">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -347,14 +347,14 @@ export default function Accounts({
                                         <td className="p-3">
                                             <Badge variant={statusVariant(account.status)}>{account.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{account.account_score}</td>
+                                        <td className="p-3 text-right">{account.account_score}</td>
                                         <td className="p-3 text-center">
                                             {account.committee}
                                             {account.decision_makers > 0 && (
                                                 <span className="text-muted-foreground ml-1 text-xs">({account.decision_makers} DM)</span>
                                             )}
                                         </td>
-                                        <td className="p-3 text-center">{account.engaged}</td>
+                                        <td className="p-3 text-right">{account.engaged}</td>
                                         <td className="p-3 text-center">
                                             {account.multi_threaded ? (
                                                 <Badge>Multi-threaded</Badge>

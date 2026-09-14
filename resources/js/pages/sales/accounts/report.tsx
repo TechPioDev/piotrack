@@ -167,13 +167,13 @@ export default function AccountReport({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Title</th>
-                                    <th className="p-3 font-medium">Role</th>
-                                    <th className="p-3 font-medium">Stage</th>
-                                    <th className="p-3 text-center font-medium">Lead score</th>
-                                    <th className="p-3 text-center font-medium">Intent</th>
-                                    {canManage && <th className="p-3 font-medium">Reports to</th>}
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Title</th>
+                                    <th className="p-3">Role</th>
+                                    <th className="p-3">Stage</th>
+                                    <th className="p-3 text-right">Lead score</th>
+                                    <th className="p-3 text-right">Intent</th>
+                                    {canManage && <th className="p-3">Reports to</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -195,8 +195,8 @@ export default function AccountReport({
                                             )}
                                         </td>
                                         <td className="text-muted-foreground p-3 uppercase">{person.lifecycle_stage}</td>
-                                        <td className="p-3 text-center">{person.lead_score}</td>
-                                        <td className="p-3 text-center">{person.intent_score}</td>
+                                        <td className="p-3 text-right">{person.lead_score}</td>
+                                        <td className="p-3 text-right">{person.intent_score}</td>
                                         {canManage && (
                                             <td className="p-3">
                                                 <Select value={managerFor[person.id] ?? ''} onValueChange={(value) => setManager(person.id, value)}>
@@ -290,10 +290,10 @@ export default function AccountReport({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Deal</th>
-                                            <th className="p-3 font-medium">Status</th>
-                                            <th className="p-3 text-right font-medium">Value</th>
-                                            <th className="p-3 text-right font-medium">MRR</th>
+                                            <th className="p-3">Deal</th>
+                                            <th className="p-3">Status</th>
+                                            <th className="p-3 text-right">Value</th>
+                                            <th className="p-3 text-right">MRR</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -328,9 +328,9 @@ export default function AccountReport({
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">With</th>
-                                            <th className="p-3 font-medium">Status</th>
-                                            <th className="p-3 font-medium">When</th>
+                                            <th className="p-3">With</th>
+                                            <th className="p-3">Status</th>
+                                            <th className="p-3">When</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -357,17 +357,17 @@ export default function AccountReport({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Signal</th>
-                                        <th className="p-3 text-center font-medium">Weight</th>
-                                        <th className="p-3 font-medium">Page</th>
-                                        <th className="p-3 font-medium">When</th>
+                                        <th className="p-3">Signal</th>
+                                        <th className="p-3 text-right">Weight</th>
+                                        <th className="p-3">Page</th>
+                                        <th className="p-3">When</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {signals.map((signal, index) => (
                                         <tr key={index}>
                                             <td className="p-3 font-medium">{signal.type.replace(/_/g, ' ')}</td>
-                                            <td className="p-3 text-center">{signal.weight}</td>
+                                            <td className="p-3 text-right">{signal.weight}</td>
                                             <td className="text-muted-foreground p-3 break-all">{signal.url ?? '—'}</td>
                                             <td className="text-muted-foreground p-3">{when(signal.occurred_at)}</td>
                                         </tr>

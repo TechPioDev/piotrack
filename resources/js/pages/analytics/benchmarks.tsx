@@ -96,13 +96,13 @@ export default function Benchmarks({
                     <table className="w-full text-left text-sm">
                         <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
-                                <th className="p-3 font-medium">Metric</th>
-                                <th className="p-3 text-center font-medium">Your value</th>
-                                <th className="p-3 text-center font-medium">Peer median</th>
-                                <th className="p-3 text-center font-medium">Top quartile</th>
-                                <th className="p-3 text-center font-medium">Peer average</th>
-                                <th className="p-3 text-center font-medium">Percentile</th>
-                                <th className="p-3 text-center font-medium">Cohort</th>
+                                <th className="p-3">Metric</th>
+                                <th className="p-3 text-right">Your value</th>
+                                <th className="p-3 text-right">Peer median</th>
+                                <th className="p-3 text-right">Top quartile</th>
+                                <th className="p-3 text-right">Peer average</th>
+                                <th className="p-3 text-center">Percentile</th>
+                                <th className="p-3 text-right">Cohort</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -114,16 +114,16 @@ export default function Benchmarks({
                                     return (
                                         <tr key={metric} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{label(metric)}</td>
-                                            <td className="p-3 text-center">
+                                            <td className="p-3 text-right">
                                                 {benchmark.your_value === null ? (
                                                     <span className="text-muted-foreground">No data</span>
                                                 ) : (
                                                     formatValue(metric, benchmark.your_value)
                                                 )}
                                             </td>
-                                            <td className="text-muted-foreground p-3 text-center">{formatValue(metric, benchmark.peer_median)}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{formatValue(metric, benchmark.top_quartile)}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{formatValue(metric, benchmark.peer_average)}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{formatValue(metric, benchmark.peer_median)}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{formatValue(metric, benchmark.top_quartile)}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{formatValue(metric, benchmark.peer_average)}</td>
                                             <td className="p-3 text-center">
                                                 {benchmark.your_percentile === null ? (
                                                     <span className="text-muted-foreground">—</span>
@@ -133,7 +133,7 @@ export default function Benchmarks({
                                                     </Badge>
                                                 )}
                                             </td>
-                                            <td className="text-muted-foreground p-3 text-center">{benchmark.cohort}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{benchmark.cohort}</td>
                                         </tr>
                                     );
                                 })}
@@ -172,10 +172,10 @@ export default function Benchmarks({
                                         <table className="w-full text-left text-sm">
                                             <thead className="bg-muted/50 text-muted-foreground">
                                                 <tr>
-                                                    <th className="p-3 font-medium">Segment</th>
-                                                    <th className="p-3 text-center font-medium">Cohort</th>
+                                                    <th className="p-3">Segment</th>
+                                                    <th className="p-3 text-right">Cohort</th>
                                                     {dimension.columns.map((column) => (
-                                                        <th key={column} className="p-3 text-center font-medium capitalize">
+                                                        <th key={column} className="p-3 text-right font-medium capitalize">
                                                             {columnLabel(column)}
                                                         </th>
                                                     ))}
@@ -185,9 +185,9 @@ export default function Benchmarks({
                                                 {dimension.segments.map((segment) => (
                                                     <tr key={String(segment.segment)} className="hover:bg-muted/40">
                                                         <td className="p-3 font-medium">{String(segment.segment).replace(/_/g, ' ')}</td>
-                                                        <td className="text-muted-foreground p-3 text-center">{segment.cohort}</td>
+                                                        <td className="text-muted-foreground p-3 text-right">{segment.cohort}</td>
                                                         {dimension.columns.map((column) => (
-                                                            <td key={column} className="p-3 text-center">
+                                                            <td key={column} className="p-3 text-right">
                                                                 {column === 'page_one_share'
                                                                     ? `${segment[column]}%`
                                                                     : column === 'median_position'

@@ -456,10 +456,10 @@ export default function DeliverySupport({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Article</th>
-                                        <th className="p-3 font-medium">Category</th>
-                                        <th className="p-3 font-medium">Slug</th>
-                                        <th className="p-3 font-medium">Published</th>
+                                        <th className="p-3">Article</th>
+                                        <th className="p-3">Category</th>
+                                        <th className="p-3">Slug</th>
+                                        <th className="p-3">Published</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

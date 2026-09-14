@@ -257,17 +257,17 @@ export default function Competitors({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Domain</th>
-                                        <th className="p-3 text-center font-medium">Visibility</th>
-                                        <th className="p-3 text-center font-medium">Share</th>
+                                        <th className="p-3">Domain</th>
+                                        <th className="p-3 text-right">Visibility</th>
+                                        <th className="p-3 text-right">Share</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {share_of_voice.competitors.map((row) => (
                                         <tr key={row.domain} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.domain}</td>
-                                            <td className="p-3 text-center">{row.visibility}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{row.share}%</td>
+                                            <td className="p-3 text-right">{row.visibility}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{row.share}%</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -287,25 +287,25 @@ export default function Competitors({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Keyword</th>
-                                        <th className="p-3 text-center font-medium">You</th>
+                                        <th className="p-3">Keyword</th>
+                                        <th className="p-3 text-right">You</th>
                                         {competitorDomains.map((domain) => (
-                                            <th key={domain} className="p-3 text-center font-medium">
+                                            <th key={domain} className="p-3 text-right font-medium">
                                                 {domain}
                                             </th>
                                         ))}
-                                        <th className="p-3 text-center font-medium">Status</th>
+                                        <th className="p-3 text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {headToHead.map((row) => (
                                         <tr key={row.keyword} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.keyword}</td>
-                                            <td className="p-3 text-center font-semibold tabular-nums">
+                                            <td className="p-3 text-right font-semibold tabular-nums">
                                                 {row.our_position !== null ? `#${row.our_position}` : '—'}
                                             </td>
                                             {competitorDomains.map((domain) => (
-                                                <td key={domain} className="text-muted-foreground p-3 text-center tabular-nums">
+                                                <td key={domain} className="text-muted-foreground p-3 text-right tabular-nums">
                                                     {row.competitors[domain] !== null ? `#${row.competitors[domain]}` : '—'}
                                                 </td>
                                             ))}
@@ -377,12 +377,12 @@ export default function Competitors({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Name</th>
-                                        <th className="p-3 font-medium">Domain</th>
-                                        <th className="p-3 font-medium">Notes</th>
-                                        <th className="p-3 font-medium">Tracked</th>
-                                        <th className="p-3 font-medium">Content</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Domain</th>
+                                        <th className="p-3">Notes</th>
+                                        <th className="p-3">Tracked</th>
+                                        <th className="p-3">Content</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

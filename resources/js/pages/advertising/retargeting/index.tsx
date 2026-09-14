@@ -322,13 +322,13 @@ export default function Retargeting({
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Source</th>
-                                    <th className="p-3 font-medium">List</th>
-                                    <th className="p-3 font-medium">Platforms</th>
-                                    <th className="p-3 text-center font-medium">Members</th>
-                                    <th className="p-3 text-center font-medium">Exclude converted</th>
-                                    {canManage && <th className="p-3 font-medium">Actions</th>}
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Source</th>
+                                    <th className="p-3">List</th>
+                                    <th className="p-3">Platforms</th>
+                                    <th className="p-3 text-right">Members</th>
+                                    <th className="p-3 text-center">Exclude converted</th>
+                                    {canManage && <th className="p-3">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -340,7 +340,7 @@ export default function Retargeting({
                                         </td>
                                         <td className="text-muted-foreground p-3">{audience.list ?? '—'}</td>
                                         <td className="text-muted-foreground p-3">{audience.platforms.join(', ') || '—'}</td>
-                                        <td className="p-3 text-center">{audience.member_count}</td>
+                                        <td className="p-3 text-right">{audience.member_count}</td>
                                         <td className="p-3 text-center">{audience.exclude_converted ? 'Yes' : 'No'}</td>
                                         {canManage && (
                                             <td className="p-3">

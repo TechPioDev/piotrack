@@ -78,17 +78,17 @@ function DimensionTable({ label, rows, empty }: { label: string; rows: Dimension
                     <table className="w-full text-left text-sm">
                         <thead className="bg-muted/50 text-muted-foreground">
                             <tr>
-                                <th className="p-3 font-medium">{label}</th>
-                                <th className="p-3 text-center font-medium">Checks</th>
-                                <th className="p-3 text-center font-medium">Mention rate</th>
+                                <th className="p-3">{label}</th>
+                                <th className="p-3 text-right">Checks</th>
+                                <th className="p-3 text-right">Mention rate</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
                             {rows.map((row) => (
                                 <tr key={row.value} className="hover:bg-muted/40">
                                     <td className="p-3 font-medium">{row.value}</td>
-                                    <td className="p-3 text-center">{row.checks}</td>
-                                    <td className="text-muted-foreground p-3 text-center">{row.mention_rate}%</td>
+                                    <td className="p-3 text-right">{row.checks}</td>
+                                    <td className="text-muted-foreground p-3 text-right">{row.mention_rate}%</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -310,19 +310,19 @@ export default function AiVisibility({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Engine</th>
-                                        <th className="p-3 text-center font-medium">Checks</th>
-                                        <th className="p-3 text-center font-medium">Mention rate</th>
-                                        <th className="p-3 text-center font-medium">Share of answer</th>
+                                        <th className="p-3">Engine</th>
+                                        <th className="p-3 text-right">Checks</th>
+                                        <th className="p-3 text-right">Mention rate</th>
+                                        <th className="p-3 text-right">Share of answer</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {by_engine.map((row) => (
                                         <tr key={row.engine} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.engine}</td>
-                                            <td className="p-3 text-center">{row.checks}</td>
-                                            <td className="p-3 text-center">{row.mention_rate}%</td>
-                                            <td className="text-muted-foreground p-3 text-center">{row.share_of_answer}%</td>
+                                            <td className="p-3 text-right">{row.checks}</td>
+                                            <td className="p-3 text-right">{row.mention_rate}%</td>
+                                            <td className="text-muted-foreground p-3 text-right">{row.share_of_answer}%</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -340,17 +340,17 @@ export default function AiVisibility({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Domain</th>
-                                        <th className="p-3 text-center font-medium">Appearances</th>
-                                        <th className="p-3 text-center font-medium">Share of checks</th>
+                                        <th className="p-3">Domain</th>
+                                        <th className="p-3 text-right">Appearances</th>
+                                        <th className="p-3 text-right">Share of checks</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {competitors.map((row) => (
                                         <tr key={row.domain} className="hover:bg-muted/40">
                                             <td className="p-3 font-medium">{row.domain}</td>
-                                            <td className="p-3 text-center">{row.appearances}</td>
-                                            <td className="text-muted-foreground p-3 text-center">{row.share}%</td>
+                                            <td className="p-3 text-right">{row.appearances}</td>
+                                            <td className="text-muted-foreground p-3 text-right">{row.share}%</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -440,13 +440,13 @@ export default function AiVisibility({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Prompt</th>
-                                        <th className="p-3 font-medium">Category</th>
-                                        <th className="p-3 font-medium">Service</th>
-                                        <th className="p-3 font-medium">City</th>
-                                        <th className="p-3 font-medium">Vertical</th>
-                                        <th className="p-3 font-medium">State</th>
-                                        {canManage && <th className="p-3 text-right font-medium">Actions</th>}
+                                        <th className="p-3">Prompt</th>
+                                        <th className="p-3">Category</th>
+                                        <th className="p-3">Service</th>
+                                        <th className="p-3">City</th>
+                                        <th className="p-3">Vertical</th>
+                                        <th className="p-3">State</th>
+                                        {canManage && <th className="p-3 text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

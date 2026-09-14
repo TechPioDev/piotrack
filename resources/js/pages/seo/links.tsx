@@ -127,10 +127,10 @@ export default function Links({ audit, profile, gaps }: { audit: Audit; profile:
                                 <table className="w-full text-left text-sm">
                                     <thead className="bg-muted/50 text-muted-foreground">
                                         <tr>
-                                            <th className="p-3 font-medium">Source</th>
-                                            <th className="p-3 font-medium">Anchor</th>
-                                            <th className="p-3 text-center font-medium">DA</th>
-                                            <th className="p-3 font-medium">Verdict</th>
+                                            <th className="p-3">Source</th>
+                                            <th className="p-3">Anchor</th>
+                                            <th className="p-3 text-right">DA</th>
+                                            <th className="p-3">Verdict</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -138,7 +138,7 @@ export default function Links({ audit, profile, gaps }: { audit: Audit; profile:
                                             <tr key={link.url} className="hover:bg-muted/40">
                                                 <td className="p-3 font-medium">{link.source_domain}</td>
                                                 <td className="text-muted-foreground p-3">{link.anchor}</td>
-                                                <td className="p-3 text-center">{link.domain_authority}</td>
+                                                <td className="p-3 text-right">{link.domain_authority}</td>
                                                 <td className="p-3">
                                                     {link.toxic ? (
                                                         <span className="flex flex-wrap items-center gap-1">

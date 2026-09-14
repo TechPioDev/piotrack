@@ -759,8 +759,8 @@ export default function DeliveryProjects({
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Member</th>
-                                                                <th className="p-3 font-medium">Delivery role</th>
+                                                                <th className="p-3">Member</th>
+                                                                <th className="p-3">Delivery role</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">
@@ -787,11 +787,11 @@ export default function DeliveryProjects({
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Sprint</th>
-                                                                <th className="p-3 font-medium">Goal</th>
-                                                                <th className="p-3 font-medium">Status</th>
-                                                                <th className="p-3 font-medium">Window</th>
-                                                                <th className="p-3 text-center font-medium">Tasks</th>
+                                                                <th className="p-3">Sprint</th>
+                                                                <th className="p-3">Goal</th>
+                                                                <th className="p-3">Status</th>
+                                                                <th className="p-3">Window</th>
+                                                                <th className="p-3 text-right">Tasks</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">
@@ -805,7 +805,7 @@ export default function DeliveryProjects({
                                                                     <td className="text-muted-foreground p-3">
                                                                         {sprint.starts_on ?? '—'} → {sprint.ends_on ?? '—'}
                                                                     </td>
-                                                                    <td className="p-3 text-center">
+                                                                    <td className="p-3 text-right">
                                                                         {projectTasks.filter((task) => task.sprint_id === sprint.id).length}
                                                                     </td>
                                                                 </tr>
@@ -825,11 +825,11 @@ export default function DeliveryProjects({
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Task</th>
-                                                                <th className="p-3 font-medium">Sprint</th>
-                                                                <th className="p-3 font-medium">Priority</th>
-                                                                <th className="p-3 font-medium">Due</th>
-                                                                <th className="p-3 font-medium">Status</th>
+                                                                <th className="p-3">Task</th>
+                                                                <th className="p-3">Sprint</th>
+                                                                <th className="p-3">Priority</th>
+                                                                <th className="p-3">Due</th>
+                                                                <th className="p-3">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">
@@ -884,13 +884,13 @@ export default function DeliveryProjects({
                                                     <table className="w-full text-left text-sm">
                                                         <thead className="bg-muted/50 text-muted-foreground">
                                                             <tr>
-                                                                <th className="p-3 font-medium">Deliverable</th>
-                                                                <th className="p-3 font-medium">Type</th>
-                                                                <th className="p-3 font-medium">Status</th>
-                                                                <th className="p-3 font-medium">Approval</th>
-                                                                <th className="p-3 font-medium">Client visibility</th>
-                                                                <th className="p-3 font-medium">Due</th>
-                                                                {(canManage || canApprove) && <th className="p-3 text-right font-medium">Actions</th>}
+                                                                <th className="p-3">Deliverable</th>
+                                                                <th className="p-3">Type</th>
+                                                                <th className="p-3">Status</th>
+                                                                <th className="p-3">Approval</th>
+                                                                <th className="p-3">Client visibility</th>
+                                                                <th className="p-3">Due</th>
+                                                                {(canManage || canApprove) && <th className="p-3 text-right">Actions</th>}
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y">

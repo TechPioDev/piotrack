@@ -294,6 +294,16 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* One table voice for hand-written tables and the ui/table primitives
+       alike; utilities on a given cell still win over these. */
+    table {
+        font-variant-numeric: tabular-nums;
+    }
+
+    thead th {
+        @apply text-muted-foreground text-xs font-semibold tracking-wide uppercase;
+    }
 }
 
 /* Sidebar section expand/collapse. Radix measures the panel and exposes its

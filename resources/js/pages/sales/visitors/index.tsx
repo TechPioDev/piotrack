@@ -107,8 +107,8 @@ export default function Visitors({
                             <tr>
                                 <TableHead>Visitor</TableHead>
                                 <TableHead>Company</TableHead>
-                                <TableHead className="text-center">Sessions</TableHead>
-                                <TableHead className="text-center">Pages</TableHead>
+                                <TableHead className="text-right">Sessions</TableHead>
+                                <TableHead className="text-right">Pages</TableHead>
                                 <TableHead>Interest</TableHead>
                                 <TableHead>Source</TableHead>
                                 <TableHead>Last seen</TableHead>
@@ -145,8 +145,8 @@ export default function Visitors({
                                                     '—'
                                                 ))}
                                         </TableCell>
-                                        <TableCell className="text-center tabular-nums">{visitor.visits}</TableCell>
-                                        <TableCell className="text-center tabular-nums">{visitor.page_views}</TableCell>
+                                        <TableCell className="text-right">{visitor.visits}</TableCell>
+                                        <TableCell className="text-right">{visitor.page_views}</TableCell>
                                         <TableCell>
                                             <span className={`inline-flex items-center gap-1 text-sm font-medium ${h.className}`}>
                                                 {h.label === 'Hot' && <Flame className="size-3.5" aria-hidden />}

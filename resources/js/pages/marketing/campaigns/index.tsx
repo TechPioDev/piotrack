@@ -120,13 +120,13 @@ export default function Campaigns({ campaigns, lists }: { campaigns: Campaign[];
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Channel</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 font-medium">List</th>
-                                    <th className="p-3 text-center font-medium">Sent</th>
-                                    <th className="p-3 text-center font-medium">Opened</th>
-                                    <th className="p-3 text-center font-medium">Clicked</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Channel</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">List</th>
+                                    <th className="p-3 text-right">Sent</th>
+                                    <th className="p-3 text-right">Opened</th>
+                                    <th className="p-3 text-right">Clicked</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -144,9 +144,9 @@ export default function Campaigns({ campaigns, lists }: { campaigns: Campaign[];
                                             <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>{campaign.status}</Badge>
                                         </td>
                                         <td className="text-muted-foreground p-3">{campaign.list ?? '—'}</td>
-                                        <td className="p-3 text-center">{campaign.stat_sent}</td>
-                                        <td className="p-3 text-center">{campaign.stat_opened}</td>
-                                        <td className="p-3 text-center">{campaign.stat_clicked}</td>
+                                        <td className="p-3 text-right">{campaign.stat_sent}</td>
+                                        <td className="p-3 text-right">{campaign.stat_opened}</td>
+                                        <td className="p-3 text-right">{campaign.stat_clicked}</td>
                                     </tr>
                                 ))}
                             </tbody>

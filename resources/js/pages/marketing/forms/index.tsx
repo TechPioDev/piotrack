@@ -190,10 +190,10 @@ export default function Forms({ forms, lists }: { forms: MarketingForm[]; lists:
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Name</th>
-                                    <th className="p-3 font-medium">Status</th>
-                                    <th className="p-3 text-center font-medium">Submissions</th>
-                                    <th className="p-3 font-medium">Public URL</th>
+                                    <th className="p-3">Name</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3 text-right">Submissions</th>
+                                    <th className="p-3">Public URL</th>
                                     <th className="p-3" />
                                 </tr>
                             </thead>
@@ -204,7 +204,7 @@ export default function Forms({ forms, lists }: { forms: MarketingForm[]; lists:
                                         <td className="p-3">
                                             <Badge variant={formRow.status === 'published' ? 'default' : 'secondary'}>{formRow.status}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{formRow.submission_count}</td>
+                                        <td className="p-3 text-right">{formRow.submission_count}</td>
                                         <td className="p-3">
                                             <a href={formRow.public_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                                                 {formRow.public_url}

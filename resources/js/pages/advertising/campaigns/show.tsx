@@ -797,23 +797,23 @@ export default function CampaignShow({
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Date</th>
-                                        <th className="p-3 text-center font-medium">Impressions</th>
-                                        <th className="p-3 text-center font-medium">Clicks</th>
-                                        <th className="p-3 text-center font-medium">Spend</th>
-                                        <th className="p-3 text-center font-medium">Conversions</th>
-                                        <th className="p-3 text-center font-medium">Revenue</th>
+                                        <th className="p-3">Date</th>
+                                        <th className="p-3 text-right">Impressions</th>
+                                        <th className="p-3 text-right">Clicks</th>
+                                        <th className="p-3 text-right">Spend</th>
+                                        <th className="p-3 text-right">Conversions</th>
+                                        <th className="p-3 text-right">Revenue</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {metrics.map((metric) => (
                                         <tr key={metric.date} className="hover:bg-muted/40">
                                             <td className="p-3">{metric.date}</td>
-                                            <td className="p-3 text-center">{metric.impressions}</td>
-                                            <td className="p-3 text-center">{metric.clicks}</td>
-                                            <td className="p-3 text-center">{money(metric.spend)}</td>
-                                            <td className="p-3 text-center">{metric.conversions}</td>
-                                            <td className="p-3 text-center">{money(metric.revenue)}</td>
+                                            <td className="p-3 text-right">{metric.impressions}</td>
+                                            <td className="p-3 text-right">{metric.clicks}</td>
+                                            <td className="p-3 text-right">{money(metric.spend)}</td>
+                                            <td className="p-3 text-right">{metric.conversions}</td>
+                                            <td className="p-3 text-right">{money(metric.revenue)}</td>
                                         </tr>
                                     ))}
                                 </tbody>

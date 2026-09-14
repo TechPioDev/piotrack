@@ -42,10 +42,10 @@ export default function Invoices({ invoices }: { invoices: Paginated<Invoice> })
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Invoice</th>
-                                        <th className="p-3 font-medium">Status</th>
-                                        <th className="p-3 font-medium">Date</th>
-                                        <th className="p-3 text-right font-medium">Total</th>
+                                        <th className="p-3">Invoice</th>
+                                        <th className="p-3">Status</th>
+                                        <th className="p-3">Date</th>
+                                        <th className="p-3 text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">

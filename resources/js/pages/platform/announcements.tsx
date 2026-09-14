@@ -152,10 +152,10 @@ export default function PlatformAnnouncements({ announcements }: { announcements
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">Title</th>
-                                    <th className="p-3 font-medium">Type</th>
-                                    <th className="p-3 font-medium">Audience</th>
-                                    <th className="p-3 font-medium">Published</th>
+                                    <th className="p-3">Title</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Audience</th>
+                                    <th className="p-3">Published</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">

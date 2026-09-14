@@ -101,10 +101,10 @@ export default function SeoAudits({ audits, crawls }: { audits: Audit[]; crawls:
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-muted/50 text-muted-foreground">
                                     <tr>
-                                        <th className="p-3 font-medium">Start URL</th>
-                                        <th className="p-3 text-center font-medium">Pages</th>
-                                        <th className="p-3 text-center font-medium">Findings</th>
-                                        <th className="p-3 font-medium">Created</th>
+                                        <th className="p-3">Start URL</th>
+                                        <th className="p-3 text-right">Pages</th>
+                                        <th className="p-3 text-right">Findings</th>
+                                        <th className="p-3">Created</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -118,8 +118,8 @@ export default function SeoAudits({ audits, crawls }: { audits: Audit[]; crawls:
                                                     {crawl.start_url}
                                                 </Link>
                                             </td>
-                                            <td className="p-3 text-center">{crawl.pages_crawled}</td>
-                                            <td className="p-3 text-center">{crawl.issues_count}</td>
+                                            <td className="p-3 text-right">{crawl.pages_crawled}</td>
+                                            <td className="p-3 text-right">{crawl.issues_count}</td>
                                             <td className="text-muted-foreground p-3">{formatTime(crawl.created_at)}</td>
                                         </tr>
                                     ))}
@@ -136,10 +136,10 @@ export default function SeoAudits({ audits, crawls }: { audits: Audit[]; crawls:
                         <table className="w-full text-left text-sm">
                             <thead className="bg-muted/50 text-muted-foreground">
                                 <tr>
-                                    <th className="p-3 font-medium">URL</th>
-                                    <th className="p-3 font-medium">Score</th>
-                                    <th className="p-3 text-center font-medium">Issues</th>
-                                    <th className="p-3 font-medium">Created</th>
+                                    <th className="p-3">URL</th>
+                                    <th className="p-3">Score</th>
+                                    <th className="p-3 text-right">Issues</th>
+                                    <th className="p-3">Created</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -153,7 +153,7 @@ export default function SeoAudits({ audits, crawls }: { audits: Audit[]; crawls:
                                         <td className="p-3">
                                             <Badge variant={scoreVariant(audit.score)}>{audit.score}</Badge>
                                         </td>
-                                        <td className="p-3 text-center">{audit.issues_count}</td>
+                                        <td className="p-3 text-right">{audit.issues_count}</td>
                                         <td className="text-muted-foreground p-3">{formatTime(audit.created_at)}</td>
                                     </tr>
                                 ))}
