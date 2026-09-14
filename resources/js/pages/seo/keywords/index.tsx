@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
+import { KeyRound } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Keywords', href: '/seo/keywords' }];
@@ -278,7 +280,12 @@ export default function Keywords({ keywords, gap, steal }: { keywords: Keyword[]
                 </div>
 
                 {keywords.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No keywords yet. Add a keyword or seed the MSP research library.</p>
+                    <EmptyState
+                        icon={KeyRound}
+                        title="No keywords yet"
+                        description="Add a keyword or seed the MSP research library."
+                        action={canManage && <Button onClick={() => setOpen(true)}>Add keyword</Button>}
+                    />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">

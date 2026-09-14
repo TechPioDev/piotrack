@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
+import { BookOpen } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Enablement', href: '/sales/enablement' }];
@@ -429,7 +431,12 @@ export default function Enablement({
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Assets library</h3>
                     {assets.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No assets yet. Add a deck, one-pager, or script to get started.</p>
+                        <EmptyState
+                            icon={BookOpen}
+                            title="No assets yet"
+                            description="Add a deck, one-pager, or script to get started."
+                            action={canManage && <NewAssetDialog types={types} verticals={verticals} serviceLines={service_lines} />}
+                        />
                     ) : (
                         <div className="overflow-x-auto rounded-lg border">
                             <table className="w-full text-left text-sm">

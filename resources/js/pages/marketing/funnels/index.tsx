@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Filter } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Funnels', href: '/marketing/funnels' }];
@@ -181,7 +183,12 @@ export default function Funnels({ funnels }: { funnels: Funnel[] }) {
                 </div>
 
                 {funnels.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No funnels yet. Create a funnel to map your customer journey.</p>
+                    <EmptyState
+                        icon={Filter}
+                        title="No funnels yet"
+                        description="Create a funnel to map your customer journey."
+                        action={canManage && <Button onClick={() => setOpen(true)}>New funnel</Button>}
+                    />
                 ) : (
                     <div className="space-y-4">
                         {funnels.map((funnel) => (

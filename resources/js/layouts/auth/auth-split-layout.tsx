@@ -1,4 +1,5 @@
 import AppLogoIcon from '@/components/app-logo-icon';
+import { FlashMessage } from '@/components/flash-message';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { CalendarCheck, LineChart, Sparkles } from 'lucide-react';
@@ -120,6 +121,7 @@ export default function AuthSplitLayout({ children, title, description }: { chil
                             <h1 className="text-2xl font-semibold tracking-tight text-balance">{title}</h1>
                             {description && <p className="text-muted-foreground mt-1.5 text-sm">{description}</p>}
                         </div>
+                        <FlashMessage className="mb-6" kinds={['error']} />
                         {children}
                     </div>
                 </div>

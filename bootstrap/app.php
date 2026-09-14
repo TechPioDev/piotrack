@@ -103,7 +103,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Session/CSRF expired: send the user back with a message rather than
             // rendering Laravel's "Page Expired" page inside the modal.
             if ($status === 419) {
-                return back()->with('message', 'Your session expired — please try again.');
+                return back()->with('error', 'Your session expired — please try again.');
             }
 
             // Render hard error statuses as a real Inertia page. Keep the detailed

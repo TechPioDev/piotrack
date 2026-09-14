@@ -116,7 +116,7 @@ export default function Benchmarks({
                                             <td className="p-3 font-medium">{label(metric)}</td>
                                             <td className="p-3 text-right">
                                                 {benchmark.your_value === null ? (
-                                                    <span className="text-muted-foreground">No data</span>
+                                                    <span className="text-muted-foreground">Not measured yet</span>
                                                 ) : (
                                                     formatValue(metric, benchmark.your_value)
                                                 )}

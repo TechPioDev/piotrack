@@ -7,6 +7,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Growth Score', href: '/analytics/growth-score' }];
 
@@ -50,7 +51,13 @@ export default function GrowthScore({
     const measured = areas.filter(([, score]) => score !== null).length;
 
     const { can } = usePermissions();
-    const snapshot = () => router.post(route('analytics.growth-score.snapshot'), {}, { preserveScroll: true });
+    const [saving, setSaving] = useState(false);
+    const snapshot = () =>
+        router.post(
+            route('analytics.growth-score.snapshot'),
+            {},
+            { preserveScroll: true, onStart: () => setSaving(true), onFinish: () => setSaving(false) },
+        );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -59,8 +66,8 @@ export default function GrowthScore({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <Heading title="MSP Growth Score" description="The composite 0-100 score across every growth module" />
                     {can('analytics.growth-score.manage') && (
-                        <Button variant="secondary" onClick={snapshot}>
-                            Save snapshot
+                        <Button variant="secondary" onClick={snapshot} disabled={saving}>
+                            {saving ? 'Saving…' : 'Save snapshot'}
                         </Button>
                     )}
                 </div>
@@ -94,7 +101,7 @@ export default function GrowthScore({
                                     <span className="flex items-center gap-2">
                                         <span className="text-muted-foreground text-xs">weight {Math.round((weights[area] ?? 0) * 100)}%</span>
                                         {score === null ? (
-                                            <span className="text-muted-foreground">No data</span>
+                                            <span className="text-muted-foreground">Not measured yet</span>
                                         ) : (
                                             <Badge variant={scoreVariant(score)}>{score}</Badge>
                                         )}
@@ -126,7 +133,7 @@ export default function GrowthScore({
                                     </div>
                                     <div className="shrink-0">
                                         {recommendation.score === null ? (
-                                            <span className="text-muted-foreground text-sm">No data</span>
+                                            <span className="text-muted-foreground text-sm">Not measured yet</span>
                                         ) : (
                                             <Badge variant={scoreVariant(recommendation.score)}>{recommendation.score}</Badge>
                                         )}

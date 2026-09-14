@@ -233,3 +233,73 @@ haven't finished setup. **Score after UI-P3: 80/100** (mean 80.4).
 
 Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
 Vitest **67** ✓ · Pest **1,092 / 5,731** ✓.
+
+## UI-P4 — empty, loading and error states (2026-09-14)
+
+Measured on a genuinely empty organization (enterprise plan, no data) plus a
+source census of all 127 pages, and a simulated dropped connection in the browser.
+
+**Measured before**
+
+- **Empty:** the designed `EmptyState` (icon, title, guidance, inline action) was
+  used on 7 pages; 27 collection pages fell back to one muted sentence; the empty
+  deals board printed "No deals" six times with no way forward; 51 empty messages
+  were four words or fewer.
+- **Loading:** 154 of 156 forms surfaced `processing` (the two CSV import previews
+  did not); 6 files ran one-click mutations with no busy state, five of them
+  creating records (accept invitation, save growth snapshot, run ABM play, attach
+  funnel asset, add link prospect) so a double click duplicated work; the progress
+  bar was a flat grey.
+- **Errors:** 403/404/500/503 pages, the React error boundary and 419 handling
+  already existed — but measuring what reaches the screen found **four silent
+  failures**: (1) the expired-session handler flashed under `message`, which the
+  client never received, so a submit after a timeout just bounced back; (2) an
+  invalid invitation link and (3) checkout of a custom-priced plan flashed `error`,
+  also never shared, so both redirected with no explanation; (4) Phase 52's "Draft
+  copy" flashed `draft`, never shared, so the AI draft never appeared — its test had
+  asserted the session, not the page. And (5) a request that never reached the
+  server (dropped Wi-Fi, VPN reconnect, a deploy restarting) did nothing visible at
+  all: no navigation, no message, no console output.
+
+**Changes**
+
+- Flash plumbing: `error` and `draft` shared with the client; the 419 handler
+  flashes `error`; `FlashMessage` renders errors in the destructive style (error
+  first, each dismissible) and the auth layout shows errors, so an expired session on
+  the login form is explained too.
+- `ConnectionNotice`: handles Inertia's `exception` event (network failures only —
+  cancelled visits never fire it, server errors render their page) with "Couldn't
+  reach Piotrack — nothing was saved or loaded", clearing on the next success.
+- Designed empty states with the page's own create action (same dialog, same
+  permission) on 17 more collection pages: ads campaigns and retargeting, content
+  pieces and social, the six marketing pages, SEO keywords, and sales accounts,
+  alerts, booking, enablement, intent and scoring. The empty deals board is one
+  state naming the pipeline's real stages with New deal.
+- Busy states on the five creating actions and both import previews ("Reading the
+  file…"); the progress bar uses the brand token with a 150 ms delay.
+- Precise copy for bare values: "Not measured yet" for scores excluded from the
+  growth score and benchmarks; company contacts/deals lines say whose they are.
+
+Tests: four `FlashMessageTest` regressions — expired session, invalid invitation,
+custom-priced checkout, draft delivered to the page — **proven by reverting the two
+server fixes (5 failures) and restoring them (all pass)**;
+`resources/js/components/feedback-states.test.tsx` — error styling and ordering,
+the errors-only mode, independent dismissal, the connection notice showing,
+preventing Inertia's unseen rejection and clearing on success, and a pin that 21
+collection pages keep a designed empty state with an action.
+
+**Measured after:** designed empty states on **25 pages** (was 7), each verified
+action opening its dialog in the browser (lists, alerts) and the deals board naming
+six stages; forms surfacing busy state **156 / 156**; creating one-click actions
+without busy state **0** (the one remaining file is idempotent notification
+toggles); the simulated dropped connection now shows the notice; the progress bar
+paints `var(--brand)`.
+
+Category movement: **Empty / loading / error states 65 → 90.** Held back, stated
+plainly: eight multi-section or form-first pages (audits, schema, AI visibility,
+training, LLMO, local, outreach, reputation) keep contextual sentences by design,
+and long provider calls (AI drafts) show only a disabled button, no progress detail.
+**Score after UI-P4: 83/100** (mean 82.5).
+
+Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
+Vitest **75** ✓ · Pest **1,096 / 5,782** ✓.

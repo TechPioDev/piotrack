@@ -52,6 +52,8 @@ export interface SharedData {
 
 export interface Flash {
     status?: string | null;
+    /** A refusal or failure the user must see (expired session, invalid invitation). */
+    error?: string | null;
     ai_result?: Record<string, unknown> | null;
 }
 

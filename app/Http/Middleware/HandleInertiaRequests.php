@@ -111,8 +111,10 @@ class HandleInertiaRequests extends Middleware
             // `back()->with('status', …)` confirmation in the app is invisible.
             'flash' => [
                 'status' => $request->session()->get('status'),
+                'error' => $request->session()->get('error'),
                 'ai_result' => $request->session()->get('ai_result'),
                 'play_result' => $request->session()->get('play_result'),
+                'draft' => $request->session()->get('draft'),
             ],
             // Enforcement redirects through password confirmation, which consumes
             // the flash message explaining why — so the reason is derived per

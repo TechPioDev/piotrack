@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
+import { FileText } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Forms', href: '/marketing/forms' }];
@@ -184,7 +186,12 @@ export default function Forms({ forms, lists }: { forms: MarketingForm[]; lists:
                 </div>
 
                 {forms.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No forms yet. Create a form to start capturing leads.</p>
+                    <EmptyState
+                        icon={FileText}
+                        title="No forms yet"
+                        description="Create a form to start capturing leads."
+                        action={canManage && <Button onClick={() => setOpen(true)}>New form</Button>}
+                    />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">

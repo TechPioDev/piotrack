@@ -59,7 +59,7 @@ export default function CompanyShow({ company, contacts, deals }: { company: Com
                         </CardHeader>
                         <CardContent className="space-y-1 p-4 pt-0 text-sm">
                             {contacts.length === 0 ? (
-                                <p className="text-muted-foreground">No contacts.</p>
+                                <p className="text-muted-foreground">No contacts at this company yet.</p>
                             ) : (
                                 contacts.map((c) => (
                                     <div key={c.id} className="flex justify-between">
@@ -79,7 +79,7 @@ export default function CompanyShow({ company, contacts, deals }: { company: Com
                         </CardHeader>
                         <CardContent className="space-y-1 p-4 pt-0 text-sm">
                             {deals.length === 0 ? (
-                                <p className="text-muted-foreground">No deals.</p>
+                                <p className="text-muted-foreground">No deals with this company yet.</p>
                             ) : (
                                 deals.map((d) => (
                                     <div key={d.id} className="flex items-center justify-between">

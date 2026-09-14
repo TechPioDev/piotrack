@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { Radar } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Intent', href: '/sales/intent' }];
@@ -157,7 +159,12 @@ export default function Intent({
                 <div>
                     <h3 className="mb-2 text-sm font-medium">High-intent contacts</h3>
                     {contacts.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No intent yet. Record a signal to start ranking contacts.</p>
+                        <EmptyState
+                            icon={Radar}
+                            title="No intent yet"
+                            description="Record a signal to start ranking contacts."
+                            action={canManage && <RecordSignalDialog types={types} contactOptions={contactOptions} />}
+                        />
                     ) : (
                         <div className="overflow-x-auto rounded-lg border">
                             <table className="w-full text-left text-sm">

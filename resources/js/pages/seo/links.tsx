@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'SEO', href: '/seo' },
@@ -45,6 +46,7 @@ type Profile = {
 };
 
 export default function Links({ audit, profile, gaps }: { audit: Audit; profile: Profile; gaps: Gap[] }) {
+    const [adding, setAdding] = useState<string | null>(null);
     const { can } = usePermissions();
     const canManage = can('seo.keywords.manage');
 
@@ -204,15 +206,20 @@ export default function Links({ audit, profile, gaps }: { audit: Audit; profile:
                                         <Button
                                             size="sm"
                                             variant="outline"
+                                            disabled={adding === gap.source_domain}
                                             onClick={() =>
                                                 router.post(
                                                     route('seo.links.prospect'),
                                                     { source_domain: gap.source_domain, domain_authority: gap.domain_authority },
-                                                    { preserveScroll: true },
+                                                    {
+                                                        preserveScroll: true,
+                                                        onStart: () => setAdding(gap.source_domain),
+                                                        onFinish: () => setAdding(null),
+                                                    },
                                                 )
                                             }
                                         >
-                                            Add to outreach
+                                            {adding === gap.source_domain ? 'Adding…' : 'Add to outreach'}
                                         </Button>
                                     )}
                                 </li>

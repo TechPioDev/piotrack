@@ -35,6 +35,7 @@ const CATEGORY_STYLES: Record<string, string> = {
 function AttachControls({ funnelId, stage, attachable }: { funnelId: number; stage: Stage; attachable: Attachable }) {
     const [type, setType] = useState<string>('');
     const [assetId, setAssetId] = useState<string>('');
+    const [attaching, setAttaching] = useState(false);
     const options = type ? (attachable[type]?.options ?? []) : [];
 
     return (
@@ -80,12 +81,17 @@ function AttachControls({ funnelId, stage, attachable }: { funnelId: number; sta
                     </Select>
                     <Button
                         size="sm"
-                        disabled={!assetId}
+                        disabled={!assetId || attaching}
                         onClick={() => {
                             router.post(
                                 route('marketing.funnels.assets.attach', [funnelId, stage.id]),
                                 { asset_type: type, asset_id: Number(assetId) },
-                                { preserveScroll: true, onSuccess: () => setAssetId('') },
+                                {
+                                    preserveScroll: true,
+                                    onStart: () => setAttaching(true),
+                                    onSuccess: () => setAssetId(''),
+                                    onFinish: () => setAttaching(false),
+                                },
                             );
                         }}
                     >

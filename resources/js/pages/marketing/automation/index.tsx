@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Workflow } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Automation', href: '/marketing/automation' }];
@@ -183,7 +185,12 @@ export default function Automation({
                 </div>
 
                 {workflows.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No workflows yet. Create one to automate contact journeys.</p>
+                    <EmptyState
+                        icon={Workflow}
+                        title="No workflows yet"
+                        description="Create one to automate contact journeys."
+                        action={canManage && <Button onClick={() => setOpen(true)}>New workflow</Button>}
+                    />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">

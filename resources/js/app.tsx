@@ -4,6 +4,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
+import { ConnectionNotice } from './components/connection-notice';
 import { ErrorBoundary } from './components/error-boundary';
 import { initializeTheme } from './hooks/use-appearance';
 
@@ -22,11 +23,15 @@ createInertiaApp({
         root.render(
             <ErrorBoundary>
                 <App {...props} />
+                <ConnectionNotice />
             </ErrorBoundary>,
         );
     },
     progress: {
-        color: '#4B5563',
+        // The brand token, so the bar belongs to the product in both themes.
+        color: 'var(--brand)',
+        // Fast visits stay flicker-free; anything slower shows it is working.
+        delay: 150,
     },
 });
 

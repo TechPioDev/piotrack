@@ -62,9 +62,14 @@ export default function ImportEntity({ entity, history, preview }: { entity: str
                     <CardContent className="space-y-4 p-4">
                         <label className="bg-primary text-primary-foreground hover:bg-primary/90 inline-block cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium">
                             Choose CSV file
-                            <input type="file" accept=".csv,text/csv" className="hidden" onChange={onSelect} />
+                            <input type="file" accept=".csv,text/csv" className="hidden" onChange={onSelect} disabled={previewForm.processing} />
                         </label>
-                        {file && <span className="text-muted-foreground ml-3 text-sm">{file.name}</span>}
+                        {file && (
+                            <span className="text-muted-foreground ml-3 text-sm" aria-live="polite">
+                                {file.name}
+                                {previewForm.processing && ' · Reading the file…'}
+                            </span>
+                        )}
                         <InputError message={previewForm.errors.file} />
 
                         {preview && (

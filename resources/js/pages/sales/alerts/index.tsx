@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
+import { Bell } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Alerts', href: '/sales/alerts' }];
@@ -207,7 +209,12 @@ export default function Alerts({
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Alert rules</h3>
                     {rules.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">No rules yet. Create a rule to raise alerts automatically.</p>
+                        <EmptyState
+                            icon={Bell}
+                            title="No rules yet"
+                            description="Create a rule to raise alerts automatically."
+                            action={canManage && <NewRuleDialog />}
+                        />
                     ) : (
                         <div className="overflow-x-auto rounded-lg border">
                             <table className="w-full text-left text-sm">

@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Building2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Accounts', href: '/sales/accounts' }];
@@ -321,7 +323,12 @@ export default function Accounts({
                 </div>
 
                 {accounts.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No target accounts yet. Add a company to start account-based selling.</p>
+                    <EmptyState
+                        icon={Building2}
+                        title="No target accounts yet"
+                        description="Add a company to start account-based selling."
+                        action={canManage && <NewAccountDialog companies={companies} verticals={verticals} />}
+                    />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">

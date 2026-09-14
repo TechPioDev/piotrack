@@ -1,4 +1,5 @@
 import { SegmentBar } from '@/components/charts/segment-bar';
+import { EmptyState } from '@/components/empty-state';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Handshake } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Deals', href: '/crm/deals' }];
@@ -146,126 +148,144 @@ export default function Deals({
                     }
                 />
 
-                <div className="rounded-lg border p-4">
-                    <SegmentBar
-                        ariaLabel="Deal value by pipeline stage"
-                        segments={stages.map((stage, i) => ({
-                            label: stage.name,
-                            value: stage.total,
-                            color: stage.is_won
-                                ? 'var(--chart-2)'
-                                : stage.is_lost
-                                  ? 'var(--destructive)'
-                                  : ['var(--chart-1)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'][i % 4],
-                        }))}
-                        formatValue={formatMoney}
-                        emptyText="No deal value yet — the stage mix appears as deals are created."
+                {stages.every((stage) => stage.deals.length === 0) ? (
+                    <EmptyState
+                        icon={Handshake}
+                        title="No deals yet"
+                        description={`Deals move through your ${stages.length} stages — ${stages.map((stage) => stage.name).join(' → ')}. Create one, or convert a lead from Leads.`}
+                        action={can('crm.deal.create') && <Button onClick={() => setOpen(true)}>New deal</Button>}
                     />
-                </div>
-
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                    {stages.map((stage) => (
-                        <div key={stage.id} className="bg-muted/30 w-72 shrink-0 rounded-lg border">
-                            <div className="flex items-center justify-between border-b p-3">
-                                <span className="flex items-center gap-2 font-medium">
-                                    <span
-                                        className={cn(
-                                            'size-2 rounded-full',
-                                            stage.is_won ? 'bg-emerald-500' : stage.is_lost ? 'bg-red-500' : 'bg-brand',
-                                        )}
-                                        aria-hidden
-                                    />
-                                    {stage.name}
-                                </span>
-                                <span className="text-muted-foreground text-xs tabular-nums">
-                                    {stage.deals.length} · {formatMoney(stage.total)}
-                                </span>
-                            </div>
-                            <div className="space-y-2 p-2">
-                                {stage.deals.map((deal) => (
-                                    <div
-                                        key={deal.id}
-                                        className="bg-background hover:border-brand/40 space-y-2 rounded-md border p-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none"
-                                    >
-                                        <Link href={route('crm.deals.show', deal.id)} className="hover:text-brand-strong font-medium hover:underline">
-                                            {deal.name}
-                                        </Link>
-                                        <div className="text-muted-foreground text-xs">
-                                            {formatMoney(deal.value)}
-                                            {deal.contact && ` · ${deal.contact}`}
-                                        </div>
-                                        {can('crm.deal.update') && (
-                                            <Select
-                                                value={String(stage.id)}
-                                                onValueChange={(v) =>
-                                                    router.patch(route('crm.deals.stage', deal.id), { stage_id: Number(v) }, { preserveScroll: true })
-                                                }
-                                            >
-                                                <SelectTrigger className="h-7 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {stages.map((s) => (
-                                                        <SelectItem key={s.id} value={String(s.id)}>
-                                                            {s.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                        {can('crm.deal.update') && owners.length > 0 && (
-                                            <Select
-                                                value={deal.marketing_owner_id !== null ? String(deal.marketing_owner_id) : undefined}
-                                                onValueChange={(v) =>
-                                                    router.patch(
-                                                        route('crm.deals.update', deal.id),
-                                                        { name: deal.name, marketing_owner_id: Number(v) },
-                                                        { preserveScroll: true },
-                                                    )
-                                                }
-                                            >
-                                                <SelectTrigger className="h-7 text-xs">
-                                                    <SelectValue placeholder="Marketing owner" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {owners.map((member) => (
-                                                        <SelectItem key={member.id} value={String(member.id)}>
-                                                            {member.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                        {can('crm.deal.update') && service_lines.length > 0 && (
-                                            <Select
-                                                value={deal.service_line_id !== null ? String(deal.service_line_id) : undefined}
-                                                onValueChange={(v) =>
-                                                    router.patch(
-                                                        route('crm.deals.update', deal.id),
-                                                        { name: deal.name, service_line_id: Number(v) },
-                                                        { preserveScroll: true },
-                                                    )
-                                                }
-                                            >
-                                                <SelectTrigger className="h-7 text-xs">
-                                                    <SelectValue placeholder="Service line" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {service_lines.map((line) => (
-                                                        <SelectItem key={line.id} value={String(line.id)}>
-                                                            {line.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    </div>
-                                ))}
-                                {stage.deals.length === 0 && <p className="text-muted-foreground p-2 text-xs">No deals</p>}
-                            </div>
+                ) : (
+                    <>
+                        <div className="rounded-lg border p-4">
+                            <SegmentBar
+                                ariaLabel="Deal value by pipeline stage"
+                                segments={stages.map((stage, i) => ({
+                                    label: stage.name,
+                                    value: stage.total,
+                                    color: stage.is_won
+                                        ? 'var(--chart-2)'
+                                        : stage.is_lost
+                                          ? 'var(--destructive)'
+                                          : ['var(--chart-1)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'][i % 4],
+                                }))}
+                                formatValue={formatMoney}
+                                emptyText="No deal value yet — the stage mix appears as deals are created."
+                            />
                         </div>
-                    ))}
-                </div>
+
+                        <div className="flex gap-3 overflow-x-auto pb-2">
+                            {stages.map((stage) => (
+                                <div key={stage.id} className="bg-muted/30 w-72 shrink-0 rounded-lg border">
+                                    <div className="flex items-center justify-between border-b p-3">
+                                        <span className="flex items-center gap-2 font-medium">
+                                            <span
+                                                className={cn(
+                                                    'size-2 rounded-full',
+                                                    stage.is_won ? 'bg-emerald-500' : stage.is_lost ? 'bg-red-500' : 'bg-brand',
+                                                )}
+                                                aria-hidden
+                                            />
+                                            {stage.name}
+                                        </span>
+                                        <span className="text-muted-foreground text-xs tabular-nums">
+                                            {stage.deals.length} · {formatMoney(stage.total)}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2 p-2">
+                                        {stage.deals.map((deal) => (
+                                            <div
+                                                key={deal.id}
+                                                className="bg-background hover:border-brand/40 space-y-2 rounded-md border p-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none"
+                                            >
+                                                <Link
+                                                    href={route('crm.deals.show', deal.id)}
+                                                    className="hover:text-brand-strong font-medium hover:underline"
+                                                >
+                                                    {deal.name}
+                                                </Link>
+                                                <div className="text-muted-foreground text-xs">
+                                                    {formatMoney(deal.value)}
+                                                    {deal.contact && ` · ${deal.contact}`}
+                                                </div>
+                                                {can('crm.deal.update') && (
+                                                    <Select
+                                                        value={String(stage.id)}
+                                                        onValueChange={(v) =>
+                                                            router.patch(
+                                                                route('crm.deals.stage', deal.id),
+                                                                { stage_id: Number(v) },
+                                                                { preserveScroll: true },
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-7 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {stages.map((s) => (
+                                                                <SelectItem key={s.id} value={String(s.id)}>
+                                                                    {s.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                                {can('crm.deal.update') && owners.length > 0 && (
+                                                    <Select
+                                                        value={deal.marketing_owner_id !== null ? String(deal.marketing_owner_id) : undefined}
+                                                        onValueChange={(v) =>
+                                                            router.patch(
+                                                                route('crm.deals.update', deal.id),
+                                                                { name: deal.name, marketing_owner_id: Number(v) },
+                                                                { preserveScroll: true },
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-7 text-xs">
+                                                            <SelectValue placeholder="Marketing owner" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {owners.map((member) => (
+                                                                <SelectItem key={member.id} value={String(member.id)}>
+                                                                    {member.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                                {can('crm.deal.update') && service_lines.length > 0 && (
+                                                    <Select
+                                                        value={deal.service_line_id !== null ? String(deal.service_line_id) : undefined}
+                                                        onValueChange={(v) =>
+                                                            router.patch(
+                                                                route('crm.deals.update', deal.id),
+                                                                { name: deal.name, service_line_id: Number(v) },
+                                                                { preserveScroll: true },
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger className="h-7 text-xs">
+                                                            <SelectValue placeholder="Service line" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {service_lines.map((line) => (
+                                                                <SelectItem key={line.id} value={String(line.id)}>
+                                                                    {line.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {stage.deals.length === 0 && <p className="text-muted-foreground p-2 text-xs">Nothing in this stage</p>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </AppLayout>
     );

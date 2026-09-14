@@ -86,7 +86,13 @@ export default function AccountReport({
     const [attachId, setAttachId] = useState('');
     const [managerFor, setManagerFor] = useState<Record<number, string>>({});
 
-    const runPlay = (play: string) => router.post(route('sales.accounts.play', account.id), { play }, { preserveScroll: true });
+    const [runningPlay, setRunningPlay] = useState<string | null>(null);
+    const runPlay = (play: string) =>
+        router.post(
+            route('sales.accounts.play', account.id),
+            { play },
+            { preserveScroll: true, onStart: () => setRunningPlay(play), onFinish: () => setRunningPlay(null) },
+        );
 
     const attachContent = () => {
         if (attachId === '') return;
@@ -143,7 +149,14 @@ export default function AccountReport({
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {plays.map((play) => (
-                                <Button key={play.key} variant="outline" size="sm" title={play.description} onClick={() => runPlay(play.key)}>
+                                <Button
+                                    key={play.key}
+                                    variant="outline"
+                                    size="sm"
+                                    title={play.description}
+                                    onClick={() => runPlay(play.key)}
+                                    disabled={runningPlay !== null}
+                                >
                                     {play.key.replace(/_/g, ' ')}
                                 </Button>
                             ))}

@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/empty-state';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Mail } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Campaigns', href: '/marketing/campaigns' }];
@@ -114,7 +116,12 @@ export default function Campaigns({ campaigns, lists }: { campaigns: Campaign[];
                 </div>
 
                 {campaigns.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No campaigns yet. Create a campaign to reach your lists.</p>
+                    <EmptyState
+                        icon={Mail}
+                        title="No campaigns yet"
+                        description="Create a campaign to reach your lists."
+                        action={canManage && <Button onClick={() => setOpen(true)}>New campaign</Button>}
+                    />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-left text-sm">
