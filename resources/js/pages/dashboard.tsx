@@ -6,6 +6,7 @@ import { StatCard } from '@/components/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { formatDelta, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { AlertTriangle, CalendarCheck, DollarSign, Flame, Handshake, MessagesSquare, PieChart, TrendingUp, UserPlus, Users } from 'lucide-react';
@@ -14,7 +15,6 @@ import { useEffect, useState } from 'react';
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 type Onboarding = { steps: { key: string; label: string; done: boolean; url: string }[]; complete: boolean };
-type Compared = { value: number; previous: number; delta_pct: number | null };
 type Kpis = {
     new_leads: Compared;
     meetings: Compared;
@@ -43,17 +43,6 @@ function money(minor: number): string {
 }
 
 const ZERO: Compared = { value: 0, previous: 0, delta_pct: null };
-
-/** "+18%" against the previous 30 days; null previous means "new", not +∞. */
-function delta(c: Compared): { value: string; direction: 'up' | 'down' | 'neutral' } | undefined {
-    if (c.delta_pct === null) {
-        return c.value > 0 ? { value: 'new', direction: 'neutral' } : undefined;
-    }
-    return {
-        value: `${c.delta_pct > 0 ? '+' : ''}${c.delta_pct}%`,
-        direction: c.delta_pct > 0 ? 'up' : c.delta_pct < 0 ? 'down' : 'neutral',
-    };
-}
 
 function scoreBand(overall: number): string {
     if (overall >= 80) return 'Excellent';
@@ -142,15 +131,15 @@ export default function Dashboard({
                 {onboarding && !onboarding.complete && <OnboardingChecklist onboarding={onboarding} />}
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard label="New Leads" value={k.new_leads.value.toLocaleString('en-US')} delta={delta(k.new_leads)} icon={UserPlus} />
+                    <StatCard label="New Leads" value={k.new_leads.value.toLocaleString('en-US')} delta={formatDelta(k.new_leads)} icon={UserPlus} />
                     <StatCard
                         label="Meetings Booked"
                         value={k.meetings.value.toLocaleString('en-US')}
-                        delta={delta(k.meetings)}
+                        delta={formatDelta(k.meetings)}
                         icon={CalendarCheck}
                     />
-                    <StatCard label="Deals Won" value={k.deals_won.value.toLocaleString('en-US')} delta={delta(k.deals_won)} icon={Handshake} />
-                    <StatCard label="New MRR" value={money(k.new_mrr.value)} delta={delta(k.new_mrr)} icon={DollarSign} />
+                    <StatCard label="Deals Won" value={k.deals_won.value.toLocaleString('en-US')} delta={formatDelta(k.deals_won)} icon={Handshake} />
+                    <StatCard label="New MRR" value={money(k.new_mrr.value)} delta={formatDelta(k.new_mrr)} icon={DollarSign} />
                     <StatCard label="Qualified Pipeline" value={money(k.qualified_pipeline)} icon={TrendingUp} />
                     <StatCard label="SQLs" value={k.sqls.toLocaleString('en-US')} icon={Users} />
                     <StatCard label="ARR" value={money(k.arr)} icon={DollarSign} />

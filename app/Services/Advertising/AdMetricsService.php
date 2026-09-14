@@ -69,12 +69,14 @@ class AdMetricsService
     }
 
     /**
-     * KPI rollup across all of the organization's campaigns.
+     * KPI rollup across all of the organization's campaigns, optionally bounded
+     * to [$since, $until) so a window can be compared with the one before it.
      */
-    public function organizationKpi(?Carbon $since = null): AdKpi
+    public function organizationKpi(?Carbon $since = null, ?Carbon $until = null): AdKpi
     {
         $metrics = AdMetric::query()
             ->when($since, fn ($q) => $q->where('date', '>=', $since))
+            ->when($until, fn ($q) => $q->where('date', '<', $until))
             ->get();
 
         return AdKpi::from(

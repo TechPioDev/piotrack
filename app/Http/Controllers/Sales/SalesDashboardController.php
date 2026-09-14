@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\PipelineStage;
 use App\Models\SalesAlert;
 use App\Models\TargetAccount;
+use App\Services\Analytics\PeriodComparison;
 use App\Services\Sales\LeadScoringService;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +20,7 @@ class SalesDashboardController extends Controller
     public function __invoke(): Response
     {
         $contacts = Contact::query()->get(['id', 'lead_score']);
+        $period = new PeriodComparison;
 
         // Open pipeline value by stage (design-shell module). Values stay in
         // minor units; the page formats currency. Won/lost stages are excluded:
@@ -53,7 +55,15 @@ class SalesDashboardController extends Controller
             'stats' => [
                 'unread_alerts' => SalesAlert::where('is_read', false)->count(),
                 'upcoming_bookings' => Booking::where('status', 'booked')->where('scheduled_at', '>=', now())->count(),
+                'next_booking_at' => Booking::where('status', 'booked')->where('scheduled_at', '>=', now())
+                    ->orderBy('scheduled_at')->first()?->scheduled_at->toIso8601String(),
                 'target_accounts' => TargetAccount::count(),
+                'tier_one_accounts' => TargetAccount::where('tier', 1)->count(),
+            ],
+            // Bookings and alerts are events; compare them with the 30 days before.
+            'flows' => [
+                'meetings_booked' => $period->count(Booking::query(), 'created_at'),
+                'alerts_raised' => $period->count(SalesAlert::query(), 'created_at'),
             ],
             'recentAlerts' => SalesAlert::with('contact:id,first_name,last_name')->latest('id')->limit(6)->get()
                 ->map(fn (SalesAlert $a) => [

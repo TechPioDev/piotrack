@@ -7,6 +7,7 @@ use App\Models\AdCampaign;
 use App\Models\AdMetric;
 use App\Models\RetargetingAudience;
 use App\Services\Advertising\AdMetricsService;
+use App\Services\Analytics\PeriodComparison;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,9 +33,22 @@ class AdDashboardController extends Controller
             ])
             ->values();
 
+        // The KPI window is the same 30 days the trend draws, compared with
+        // the 30 before; ratios (CTR, CPA, ROAS) are shown, not delta'd.
+        $period = new PeriodComparison;
+        $kpi = $this->metrics->organizationKpi($period->windowStart(1));
+        $previous = $this->metrics->organizationKpi($period->windowStart(2), $period->windowStart(1));
+
         return Inertia::render('advertising/dashboard', [
             'trend' => $daily,
-            'kpi' => $this->metrics->organizationKpi(now()->subDays(30))->toArray(),
+            'kpi' => $kpi->toArray(),
+            'flows' => [
+                'spend' => PeriodComparison::of($kpi->spend, $previous->spend),
+                'impressions' => PeriodComparison::of($kpi->impressions, $previous->impressions),
+                'clicks' => PeriodComparison::of($kpi->clicks, $previous->clicks),
+                'conversions' => PeriodComparison::of($kpi->conversions, $previous->conversions),
+                'revenue' => PeriodComparison::of($kpi->revenue, $previous->revenue),
+            ],
             'stats' => [
                 'campaigns' => AdCampaign::count(),
                 'active' => AdCampaign::where('status', 'active')->count(),
@@ -45,7 +59,7 @@ class AdDashboardController extends Controller
                 'name' => $c->name,
                 'platform' => $c->platform,
                 'status' => $c->status,
-                'kpi' => $this->metrics->campaignKpi($c, now()->subDays(30))->toArray(),
+                'kpi' => $this->metrics->campaignKpi($c, $period->windowStart(1))->toArray(),
             ]),
         ]);
     }

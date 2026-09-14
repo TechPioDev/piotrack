@@ -161,3 +161,75 @@ report tables have no sticky header. **Score after UI-P2: 78/100** (mean 77.5).
 
 Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
 Vitest **60** ✓ · Pest 1,086 / 5,706 ✓.
+
+## UI-P3 — information density (2026-09-14)
+
+The category had been carried from August without a method. Defined here as four
+measurements at 1052×820: values visible above the fold, KPI tiles that carry
+context (a comparison, share or supporting fact — not just label + number), dead
+space (narrow blocks, duplicated numbers), and tile legibility (width, wrapped lines).
+
+**Measured before** on the six domain dashboards (marketing, SEO, ads, content,
+sales, AI): **41 KPI tiles, 4 with any context (10%)**. Marketing's six tiles were
+bare inventory counts; SEO and ads squeezed seven tiles into a 756 px content area
+(98–116 px wide, labels and values wrapping to two lines, 158 px tall); ads kept a
+second row of three stat cards pinned to `max-w-md`; sales repeated the lead
+temperature numbers already in its bar legend as three extra boxes and put its stat
+cards below the charts; the AI totals were all-time numbers placed after two detail
+cards. The main dashboard, by contrast, had deltas on 5 of 8 tiles.
+
+**Changes**
+
+- `App\Services\Analytics\PeriodComparison` — the command center's private
+  "this window vs the one before" rule, extracted so every dashboard computes a
+  delta identically (the command center now delegates to it; its 8 tests pass
+  unchanged). Honesty rule kept: only events on the timestamp that records them
+  (`sent_at`, `published_at`, `enrolled_at`, `checked_at`, a submission's or
+  booking's `created_at`, an ad metric's `date`) get a delta; stocks and ratios
+  get a supporting fact instead; a zero previous window is "new", never +∞.
+- `StatCard` gained a `hint` context line; `formatDelta`, `countOf` and
+  `shareOf` moved into `lib/format` so the six dashboards and the command
+  center render context the same way.
+- **Marketing:** inventory counts became activity — new contacts, form
+  submissions and messages sent (by `sent_at`, with open rate) with 30-day deltas;
+  leads as a share of contacts; workflows with enrollments; lists with members.
+- **SEO:** audits run and AI checks with deltas; "Avg score" shows "—" with no
+  audits instead of a fabricated 0; Top 3 folded into the Page 1 tile's context
+  so six tiles fill two even rows.
+- **Ads:** seven KPI tiles + the narrow three-card row became six tiles — spend,
+  impressions, clicks, conversions and revenue with deltas against the previous
+  30 days; CTR, CPC, CPA, ROAS and the campaign/audience counts ride along as
+  context, so no number was dropped. The KPI window now matches the trend chart's
+  30 days exactly (it was 31). Money on eight pages gained thousands separators.
+- **Content:** pieces and posts published (by `published_at`) with deltas; live
+  vs total, scheduled posts, placements from prospects, rating with review count and
+  positive share ("—" with no reviews).
+- **Sales:** tiles moved above the charts — meetings booked with delta and next
+  booking date, hot leads as a share of scored contacts, unread alerts with alerts
+  raised, target accounts with tier 1; the duplicated temperature boxes removed.
+- **AI:** totals moved to the top as the summary — requests with a 30-day delta,
+  failure rate, tokens and cost per request.
+- Six-tile grids go three-across below `xl`, so tiles never fall under 176 px.
+
+Tests: `tests/Feature/Qa/DashboardContextTest.php` (exact window boundaries on
+days 0/29/30/59/60; messages counted by `sent_at` not queue time; ad volumes
+window-against-window with ratios never delta'd and the KPI row on the same window;
+drafts never counted as published; no fabricated audit score; tenant isolation on
+four dashboards' flows) and `resources/js/components/stat-card.test.tsx`
+(delta signs, "new" instead of infinity, nothing when both windows are empty,
+pluralization, no share without a base, hint rendering).
+
+**Measured after** (same pages, same frame): **26 KPI tiles, 26 with context
+(100%)** — fewer boxes carrying more information; minimum tile width 176 px
+(was 98); every label and hint on one line; no duplicated numbers; no narrow rows;
+0 console errors.
+
+Category movement: **Information density 50 → 80** and **Dashboards 80 → 85**
+(summary-first, contextual tiles on all six domain dashboards).
+Held back from 100, stated plainly: /analytics still shows 20+ bare tiles over 2.6
+screens (including an eight-tile ads block that repeats /ads), and the main
+dashboard's onboarding checklist pushes its KPIs below the fold for tenants that
+haven't finished setup. **Score after UI-P3: 80/100** (mean 80.4).
+
+Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
+Vitest **67** ✓ · Pest **1,092 / 5,731** ✓.

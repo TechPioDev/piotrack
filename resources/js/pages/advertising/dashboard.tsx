@@ -4,6 +4,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { countOf, formatDelta, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 
@@ -36,29 +37,33 @@ type CampaignRow = {
     kpi: Kpi;
 };
 
-const SMALL_STATS: { key: keyof Stats; label: string }[] = [
-    { key: 'campaigns', label: 'Campaigns' },
-    { key: 'active', label: 'Active' },
-    { key: 'audiences', label: 'Audiences' },
-];
-
 function money(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function statusVariant(status: string): 'default' | 'secondary' {
     return status === 'active' ? 'default' : 'secondary';
 }
 
-function kpiCards(kpi: Kpi): { label: string; value: string | number }[] {
+type Flows = Record<'spend' | 'impressions' | 'clicks' | 'conversions' | 'revenue', Compared>;
+
+/**
+ * Volumes carry their change against the previous 30 days; the ratios derived
+ * from them ride along as context, so no number from the old tiles is lost.
+ */
+function kpiTiles(kpi: Kpi, flows: Flows, stats: Stats) {
     return [
-        { label: 'Spend', value: money(kpi.spend) },
-        { label: 'Impressions', value: kpi.impressions },
-        { label: 'Clicks', value: kpi.clicks },
-        { label: 'CTR', value: `${kpi.ctr}%` },
-        { label: 'Conversions', value: kpi.conversions },
-        { label: 'CPA', value: money(kpi.cpa) },
-        { label: 'ROAS', value: `${kpi.roas}x` },
+        { label: 'Spend', value: money(kpi.spend), delta: formatDelta(flows.spend), hint: `was ${money(flows.spend.previous)}` },
+        { label: 'Impressions', value: kpi.impressions.toLocaleString('en-US'), delta: formatDelta(flows.impressions), hint: `CTR ${kpi.ctr}%` },
+        { label: 'Clicks', value: kpi.clicks.toLocaleString('en-US'), delta: formatDelta(flows.clicks), hint: `CPC ${money(kpi.cpc)}` },
+        {
+            label: 'Conversions',
+            value: kpi.conversions.toLocaleString('en-US'),
+            delta: formatDelta(flows.conversions),
+            hint: `CPA ${money(kpi.cpa)}`,
+        },
+        { label: 'Revenue', value: money(kpi.revenue), delta: formatDelta(flows.revenue), hint: `ROAS ${kpi.roas}x` },
+        { label: 'Active campaigns', value: stats.active, hint: `of ${stats.campaigns} · ${countOf(stats.audiences, 'audience')}` },
     ];
 }
 
@@ -67,11 +72,13 @@ type TrendDay = { label: string; spend: number; clicks: number };
 export default function AdvertisingDashboard({
     trend,
     kpi,
+    flows,
     stats,
     campaigns,
 }: {
     trend: TrendDay[];
     kpi: Kpi;
+    flows: Flows;
     stats: Stats;
     campaigns: CampaignRow[];
 }) {
@@ -79,11 +86,11 @@ export default function AdvertisingDashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Advertising" />
             <div className="space-y-6 p-4">
-                <PageHeader title="Advertising" description="Paid media performance across platforms." />
+                <PageHeader title="Advertising" description="Paid media performance across platforms — the last 30 days against the 30 before." />
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-                    {kpiCards(kpi).map((card) => (
-                        <StatCard key={card.label} label={card.label} value={card.value} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                    {kpiTiles(kpi, flows, stats).map((tile) => (
+                        <StatCard key={tile.label} label={tile.label} value={tile.value} delta={tile.delta} hint={tile.hint} />
                     ))}
                 </div>
 
@@ -112,17 +119,6 @@ export default function AdvertisingDashboard({
                             />
                         </CardContent>
                     </Card>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 sm:max-w-md">
-                    {SMALL_STATS.map((stat) => (
-                        <Card key={stat.key}>
-                            <CardContent className="p-4">
-                                <p className="text-muted-foreground text-sm">{stat.label}</p>
-                                <p className="text-2xl font-semibold">{stats[stat.key]}</p>
-                            </CardContent>
-                        </Card>
-                    ))}
                 </div>
 
                 <div>

@@ -106,7 +106,7 @@ const textareaClass =
     'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-28 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden';
 
 function money(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function statusVariant(status: string): 'default' | 'secondary' {

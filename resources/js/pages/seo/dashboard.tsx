@@ -5,6 +5,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { countOf, formatDelta, shareOf, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 
@@ -18,7 +19,12 @@ type Stats = {
     top_three: number;
     locations: number;
     ai_checks: number;
+    tracked: number;
+    geo_keywords: number;
+    latest_score: number | null;
 };
+
+type Flows = { audits: Compared; ai_checks: Compared };
 
 type RecentAudit = {
     id: number;
@@ -26,16 +32,6 @@ type RecentAudit = {
     score: number;
     issues_count: number;
 };
-
-const STAT_CARDS: { key: keyof Stats; label: string }[] = [
-    { key: 'audits', label: 'Audits' },
-    { key: 'avg_score', label: 'Avg score' },
-    { key: 'keywords', label: 'Keywords' },
-    { key: 'page_one', label: 'Page 1' },
-    { key: 'top_three', label: 'Top 3' },
-    { key: 'locations', label: 'Locations' },
-    { key: 'ai_checks', label: 'AI checks' },
-];
 
 function scoreVariant(score: number): 'default' | 'secondary' | 'destructive' {
     if (score >= 80) return 'default';
@@ -45,24 +41,47 @@ function scoreVariant(score: number): 'default' | 'secondary' | 'destructive' {
 
 export default function SeoDashboard({
     stats,
+    flows,
     recentAudits,
     distribution,
     auditTrend,
 }: {
     stats: Stats;
+    flows: Flows;
     recentAudits: RecentAudit[];
     distribution: BarItem[];
     auditTrend: LinePoint[];
 }) {
+    const ofTracked = (count: number) => {
+        const share = shareOf(count, stats.tracked);
+
+        return share ? `${share} of tracked` : 'None tracked yet';
+    };
+    const tiles = [
+        { label: 'Audits run', value: flows.audits.value, delta: formatDelta(flows.audits), hint: `${stats.audits} all time` },
+        {
+            label: 'Avg score',
+            value: stats.latest_score !== null ? stats.avg_score : '—',
+            hint: stats.latest_score !== null ? `latest audit ${stats.latest_score}` : 'No audits yet',
+        },
+        { label: 'Keywords', value: stats.keywords, hint: `${stats.tracked} tracked` },
+        { label: 'Page 1', value: stats.page_one, hint: `${stats.top_three} in top 3 · ${ofTracked(stats.page_one)}` },
+        { label: 'Locations', value: stats.locations, hint: countOf(stats.geo_keywords, 'geo keyword') },
+        { label: 'AI checks', value: flows.ai_checks.value, delta: formatDelta(flows.ai_checks), hint: `${stats.ai_checks} all time` },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="SEO" />
             <div className="space-y-6 p-4">
-                <PageHeader title="SEO" description="Search intelligence, rankings and AI visibility at a glance." />
+                <PageHeader
+                    title="SEO"
+                    description="Search intelligence, rankings and AI visibility — audits and AI checks against the previous 30 days."
+                />
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-                    {STAT_CARDS.map((card) => (
-                        <StatCard key={card.key} label={card.label} value={stats[card.key]} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                    {tiles.map((tile) => (
+                        <StatCard key={tile.label} label={tile.label} value={tile.value} delta={tile.delta} hint={tile.hint} />
                     ))}
                 </div>
 

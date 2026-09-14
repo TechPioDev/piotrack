@@ -1,9 +1,11 @@
 import { BarList, type BarItem } from '@/components/charts/bar-list';
 import { SegmentBar } from '@/components/charts/segment-bar';
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { formatDelta, shareOf, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 
@@ -21,8 +23,12 @@ type Temperature = {
 type Stats = {
     unread_alerts: number;
     upcoming_bookings: number;
+    next_booking_at: string | null;
     target_accounts: number;
+    tier_one_accounts: number;
 };
+
+type Flows = { meetings_booked: Compared; alerts_raised: Compared };
 
 type RecentAlert = {
     id: number;
@@ -32,34 +38,50 @@ type RecentAlert = {
     contact: string | null;
 };
 
-const temperatureRow: { key: keyof Temperature; label: string; variant: 'default' | 'secondary' | 'destructive' }[] = [
-    { key: 'hot', label: 'Hot', variant: 'destructive' },
-    { key: 'warm', label: 'Warm', variant: 'default' },
-    { key: 'cold', label: 'Cold', variant: 'secondary' },
-];
-
 export default function SalesDashboard({
     pipeline,
     temperature,
     stats,
+    flows,
     recentAlerts,
 }: {
     pipeline: BarItem[];
     temperature: Temperature;
     stats: Stats;
+    flows: Flows;
     recentAlerts: RecentAlert[];
 }) {
-    const statCards: { label: string; value: number }[] = [
-        { label: 'Unread alerts', value: stats.unread_alerts },
-        { label: 'Upcoming bookings', value: stats.upcoming_bookings },
-        { label: 'Target accounts', value: stats.target_accounts },
+    const hotShare = shareOf(temperature.hot, temperature.hot + temperature.warm + temperature.cold);
+    const nextBooking = stats.next_booking_at
+        ? new Date(stats.next_booking_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
+    const tiles = [
+        {
+            label: 'Meetings booked',
+            value: flows.meetings_booked.value,
+            delta: formatDelta(flows.meetings_booked),
+            hint: nextBooking ? `${stats.upcoming_bookings} upcoming · next ${nextBooking}` : 'None upcoming',
+        },
+        {
+            label: 'Hot leads',
+            value: temperature.hot,
+            hint: hotShare ? `${hotShare} of scored contacts` : 'No scored contacts yet',
+        },
+        { label: 'Unread alerts', value: stats.unread_alerts, hint: `${flows.alerts_raised.value} raised in 30 days` },
+        { label: 'Target accounts', value: stats.target_accounts, hint: `${stats.tier_one_accounts} tier 1` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Sales" />
             <div className="space-y-6 p-4">
-                <PageHeader title="Sales" description="Lead temperature, alerts, and pipeline signals at a glance." />
+                <PageHeader title="Sales" description="Lead temperature, alerts and pipeline signals — meetings against the previous 30 days." />
+
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {tiles.map((tile) => (
+                        <StatCard key={tile.label} label={tile.label} value={tile.value} delta={tile.delta} hint={tile.hint} />
+                    ))}
+                </div>
 
                 <div className="grid gap-4 lg:grid-cols-3">
                     <Card className="lg:col-span-2">
@@ -87,27 +109,8 @@ export default function SalesDashboard({
                                 ariaLabel="Contacts by lead temperature"
                                 emptyText="No scored contacts yet."
                             />
-                            <div className="mt-4 grid grid-cols-3 gap-2">
-                                {temperatureRow.map((item) => (
-                                    <div key={item.key} className="rounded-lg border p-2 text-center">
-                                        <Badge variant={item.variant}>{item.label}</Badge>
-                                        <p className="mt-1 text-xl font-semibold tabular-nums">{temperature[item.key]}</p>
-                                    </div>
-                                ))}
-                            </div>
                         </CardContent>
                     </Card>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {statCards.map((card) => (
-                        <Card key={card.label}>
-                            <CardContent className="p-4">
-                                <p className="text-muted-foreground text-sm">{card.label}</p>
-                                <p className="text-2xl font-semibold">{card.value}</p>
-                            </CardContent>
-                        </Card>
-                    ))}
                 </div>
 
                 <div>

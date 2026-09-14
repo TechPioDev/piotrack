@@ -1,8 +1,10 @@
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { formatDelta, shareOf, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Sparkles, TriangleAlert } from 'lucide-react';
@@ -65,7 +67,7 @@ type RecentRequest = {
 };
 
 function money(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatTime(iso: string | null): string {
@@ -193,18 +195,36 @@ export default function AiDashboard({
     credits,
     recent,
     calibration,
+    flows,
 }: {
     usage: Usage;
     driver: Driver;
     credits: Credits;
     recent: RecentRequest[];
     calibration: Calibration;
+    flows: { requests: Compared };
 }) {
-    const totals: { label: string; value: string | number }[] = [
-        { label: 'Requests', value: usage.total_requests },
-        { label: 'Failed', value: usage.failed_requests },
-        { label: 'Tokens', value: usage.total_tokens },
-        { label: 'Estimated cost', value: money(usage.total_cost) },
+    const requests = usage.total_requests;
+    const perRequest = (total: number) => (requests > 0 ? total / requests : null);
+    const avgTokens = perRequest(usage.total_tokens);
+    const avgCost = perRequest(usage.total_cost);
+    const tiles = [
+        { label: 'Requests', value: flows.requests.value.toLocaleString('en-US'), delta: formatDelta(flows.requests), hint: `${requests} all time` },
+        {
+            label: 'Failed',
+            value: usage.failed_requests.toLocaleString('en-US'),
+            hint: requests > 0 ? `${shareOf(usage.failed_requests, requests)} of all requests` : 'No requests yet',
+        },
+        {
+            label: 'Tokens',
+            value: usage.total_tokens.toLocaleString('en-US'),
+            hint: avgTokens !== null ? `~${Math.round(avgTokens).toLocaleString('en-US')} per request` : 'No requests yet',
+        },
+        {
+            label: 'Estimated cost',
+            value: money(usage.total_cost),
+            hint: avgCost !== null ? `~${money(avgCost)} per request` : 'No requests yet',
+        },
     ];
 
     return (
@@ -215,20 +235,15 @@ export default function AiDashboard({
 
                 <DriverNotice driver={driver} />
 
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {tiles.map((tile) => (
+                        <StatCard key={tile.label} label={tile.label} value={tile.value} delta={tile.delta} hint={tile.hint} />
+                    ))}
+                </div>
+
                 <CreditsCard credits={credits} />
 
                 <CalibrationCard calibration={calibration} />
-
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {totals.map((total) => (
-                        <Card key={total.label}>
-                            <CardContent className="p-4">
-                                <p className="text-muted-foreground text-sm">{total.label}</p>
-                                <p className="text-2xl font-semibold">{total.value}</p>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
 
                 <div>
                     <h3 className="mb-2 text-sm font-medium">Usage by feature</h3>

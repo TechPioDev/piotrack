@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AiRequest;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\ScoreCalibration;
+use App\Services\Analytics\PeriodComparison;
 use App\Support\CurrentOrganization;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,6 +27,7 @@ class AiDashboardController extends Controller
 
         return Inertia::render('ai/dashboard', [
             'usage' => $gateway->usageSummary(),
+            'flows' => ['requests' => (new PeriodComparison)->count(AiRequest::query(), 'created_at')],
             // AISA-012/013: advisory-score quality as the tenant's own measured
             // number (scored deals vs actual outcomes), never our claim.
             'calibration' => $calibration->report(),

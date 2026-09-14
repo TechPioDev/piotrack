@@ -1,9 +1,11 @@
 import { BarList } from '@/components/charts/bar-list';
 import { SegmentBar } from '@/components/charts/segment-bar';
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { countOf, formatDelta, shareOf, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 
@@ -16,8 +18,12 @@ type Stats = {
     pieces: number;
     published: number;
     social_posts: number;
+    scheduled_posts: number;
     placements: number;
+    prospects: number;
 };
+
+type Flows = { pieces_published: Compared; posts_published: Compared };
 
 type Reviews = {
     count: number;
@@ -40,21 +46,37 @@ function statusVariant(status: string): 'default' | 'secondary' {
 
 export default function ContentDashboard({
     stats,
+    flows,
     byStatus,
     reviews,
     recentPieces,
 }: {
     stats: Stats;
+    flows: Flows;
     byStatus: Record<string, number>;
     reviews: Reviews;
     recentPieces: RecentPiece[];
 }) {
-    const kpiCards: { label: string; value: string | number }[] = [
-        { label: 'Pieces', value: stats.pieces },
-        { label: 'Published', value: stats.published },
-        { label: 'Social posts', value: stats.social_posts },
-        { label: 'Placements', value: stats.placements },
-        { label: 'Reviews', value: `${reviews.average} ★` },
+    const positiveShare = shareOf(reviews.by_sentiment.positive, reviews.count);
+    const tiles = [
+        {
+            label: 'Pieces published',
+            value: flows.pieces_published.value,
+            delta: formatDelta(flows.pieces_published),
+            hint: `${stats.published} live of ${stats.pieces}`,
+        },
+        {
+            label: 'Posts published',
+            value: flows.posts_published.value,
+            delta: formatDelta(flows.posts_published),
+            hint: `${stats.scheduled_posts} scheduled · ${stats.social_posts} total`,
+        },
+        { label: 'Placements won', value: stats.placements, hint: `from ${countOf(stats.prospects, 'prospect')}` },
+        {
+            label: 'Review rating',
+            value: reviews.count > 0 ? `${reviews.average} ★` : '—',
+            hint: reviews.count > 0 ? `${countOf(reviews.count, 'review')} · ${positiveShare} positive` : 'No reviews yet',
+        },
     ];
 
     const pipeline = [...STATUS_ORDER.filter((s) => s in byStatus), ...Object.keys(byStatus).filter((s) => !STATUS_ORDER.includes(s))].map(
@@ -68,17 +90,11 @@ export default function ContentDashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Content" />
             <div className="space-y-6 p-4">
-                <PageHeader title="Content" description="Content, social, reputation, and authority at a glance." />
+                <PageHeader title="Content" description="Content, social, reputation and authority — publishing against the previous 30 days." />
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                    {kpiCards.map((card) => (
-                        <Card key={card.label}>
-                            <CardContent className="p-4">
-                                <p className="text-muted-foreground text-sm">{card.label}</p>
-                                <p className="text-2xl font-semibold">{card.value}</p>
-                                {card.label === 'Reviews' && <p className="text-muted-foreground text-xs">{reviews.count} total</p>}
-                            </CardContent>
-                        </Card>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {tiles.map((tile) => (
+                        <StatCard key={tile.label} label={tile.label} value={tile.value} delta={tile.delta} hint={tile.hint} />
                     ))}
                 </div>
 

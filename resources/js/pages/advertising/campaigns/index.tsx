@@ -29,7 +29,7 @@ type Objective = 'leads' | 'awareness' | 'traffic' | 'conversions';
 const OBJECTIVES: Objective[] = ['leads', 'awareness', 'traffic', 'conversions'];
 
 function money(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function statusVariant(status: string): 'default' | 'secondary' {

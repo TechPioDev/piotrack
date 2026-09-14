@@ -8,6 +8,7 @@ use App\Models\Keyword;
 use App\Models\SeoAudit;
 use App\Models\SeoLocation;
 use App\Seo\SeoProviderManager;
+use App\Services\Analytics\PeriodComparison;
 use App\Services\Seo\RankTracker;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,6 +18,7 @@ class SeoDashboardController extends Controller
     public function __invoke(): Response
     {
         $trackedKeywords = Keyword::where('is_tracked', true)->get();
+        $period = new PeriodComparison;
 
         return Inertia::render('seo/dashboard', [
             // Stated plainly so fixture positions are never mistaken for real
@@ -34,6 +36,15 @@ class SeoDashboardController extends Controller
                 'top_three' => $trackedKeywords->filter(fn (Keyword $k) => RankTracker::isTopThree($k->current_position))->count(),
                 'locations' => SeoLocation::count(),
                 'ai_checks' => AiVisibilityCheck::count(),
+                'tracked' => $trackedKeywords->count(),
+                'geo_keywords' => Keyword::whereNotNull('location')->count(),
+                'latest_score' => SeoAudit::latest('id')->value('score'),
+            ],
+            // Audits and AI checks are events with their own timestamps, so
+            // they compare against the previous 30 days; rankings are a state.
+            'flows' => [
+                'audits' => $period->count(SeoAudit::query(), 'created_at'),
+                'ai_checks' => $period->count(AiVisibilityCheck::query(), 'checked_at'),
             ],
             'recentAudits' => SeoAudit::latest('id')->limit(5)->get()
                 ->map(fn (SeoAudit $a) => ['id' => $a->id, 'url' => $a->url, 'score' => $a->score, 'issues_count' => $a->issues_count]),

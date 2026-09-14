@@ -13,12 +13,15 @@ export function StatCard({
     label,
     value,
     delta,
+    hint,
     icon: Icon,
     className,
 }: {
     label: string;
     value: string | number;
     delta?: { value: string; direction: 'up' | 'down' | 'neutral' };
+    /** The context a bare number lacks: a share, a total, the previous value. */
+    hint?: string;
     icon?: LucideIcon;
     className?: string;
 }) {
@@ -57,6 +60,7 @@ export function StatCard({
                     </span>
                 )}
             </div>
+            {hint && <p className="text-muted-foreground mt-1 text-xs">{hint}</p>}
         </div>
     );
 }

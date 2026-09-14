@@ -5,6 +5,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
+import { countOf, formatDelta, shareOf, type Compared } from '@/lib/format';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 
@@ -15,11 +16,21 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Marketing', href: '/marketing' 
 
 type Stats = {
     lists: number;
+    list_members: number;
     forms: number;
     campaigns: number;
     workflows: number;
+    workflows_total: number;
     contacts: number;
     leads: number;
+};
+
+type Flows = {
+    new_contacts: Compared;
+    submissions: Compared;
+    messages_sent: Compared;
+    messages_opened: number;
+    enrollments: Compared;
 };
 
 type RecentCampaign = {
@@ -32,26 +43,50 @@ type RecentCampaign = {
     clicked: number;
 };
 
-const STAT_CARDS: { key: keyof Stats; label: string }[] = [
-    { key: 'contacts', label: 'Contacts' },
-    { key: 'leads', label: 'Leads' },
-    { key: 'lists', label: 'Lists' },
-    { key: 'forms', label: 'Forms' },
-    { key: 'campaigns', label: 'Campaigns' },
-    { key: 'workflows', label: 'Workflows' },
-];
-
 export default function MarketingDashboard({
     trend,
     stats,
+    flows,
     lifecycle,
     recentCampaigns,
 }: {
     trend: LinePoint[];
     stats: Stats;
+    flows: Flows;
     lifecycle: Record<string, number>;
     recentCampaigns: RecentCampaign[];
 }) {
+    // Activity leads with its change against the previous 30 days; stock
+    // counts carry a supporting fact instead of an invented trend.
+    const leadShare = shareOf(stats.leads, stats.contacts);
+    const tiles = [
+        {
+            label: 'New contacts',
+            value: flows.new_contacts.value,
+            delta: formatDelta(flows.new_contacts),
+            hint: `${stats.contacts.toLocaleString('en-US')} total`,
+        },
+        { label: 'Leads', value: stats.leads, hint: leadShare ? `${leadShare} of contacts` : 'No contacts yet' },
+        {
+            label: 'Form submissions',
+            value: flows.submissions.value,
+            delta: formatDelta(flows.submissions),
+            hint: `across ${countOf(stats.forms, 'form')}`,
+        },
+        {
+            label: 'Messages sent',
+            value: flows.messages_sent.value,
+            delta: formatDelta(flows.messages_sent),
+            hint: flows.messages_sent.value > 0 ? `${shareOf(flows.messages_opened, flows.messages_sent.value)} opened` : 'None sent yet',
+        },
+        {
+            label: 'Active workflows',
+            value: stats.workflows,
+            hint: `of ${stats.workflows_total} · ${flows.enrollments.value.toLocaleString('en-US')} enrolled`,
+        },
+        { label: 'Lists', value: stats.lists, hint: countOf(stats.list_members, 'member') },
+    ];
+
     const lifecycleSegments = [
         ...LIFECYCLE_ORDER.filter((stage) => stage in lifecycle),
         ...Object.keys(lifecycle).filter((s) => !LIFECYCLE_ORDER.includes(s)),
@@ -61,11 +96,20 @@ export default function MarketingDashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Marketing" />
             <div className="space-y-6 p-4">
-                <PageHeader title="Marketing" description="Lists, forms, campaigns and automation at a glance." />
+                <PageHeader
+                    title="Marketing"
+                    description="Lists, forms, campaigns and automation — activity in the last 30 days against the 30 before."
+                />
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                    {STAT_CARDS.map((card) => (
-                        <StatCard key={card.key} label={card.label} value={stats[card.key].toLocaleString('en-US')} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                    {tiles.map((tile) => (
+                        <StatCard
+                            key={tile.label}
+                            label={tile.label}
+                            value={tile.value.toLocaleString('en-US')}
+                            delta={tile.delta}
+                            hint={tile.hint}
+                        />
                     ))}
                 </div>
 

@@ -17,7 +17,7 @@ type Journey = {
 };
 
 function money(cents: number): string {
-    return `$${(cents / 100).toFixed(2)}`;
+    return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function share(value: number, total: number): string {

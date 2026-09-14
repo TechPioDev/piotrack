@@ -172,11 +172,7 @@ class CommandCenterService
      */
     private function compared(int $current, int $previous): array
     {
-        return [
-            'value' => $current,
-            'previous' => $previous,
-            'delta_pct' => $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : null,
-        ];
+        return PeriodComparison::of($current, $previous);
     }
 
     /**
@@ -186,7 +182,7 @@ class CommandCenterService
      */
     private function windowStart(int $windowsBack): Carbon
     {
-        return now()->subDays($this->windowDays * $windowsBack - 1)->startOfDay();
+        return (new PeriodComparison($this->windowDays))->windowStart($windowsBack);
     }
 
     /**
