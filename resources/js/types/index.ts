@@ -30,6 +30,8 @@ export interface NavItem {
     url: string;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** Other words people use for the page, matched by the command palette. */
+    keywords?: string;
 }
 
 export interface Entitlements {

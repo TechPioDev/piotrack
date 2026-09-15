@@ -13,7 +13,8 @@ import { ChevronRight } from 'lucide-react';
  * earn a header of its own.
  *
  * When the sidebar is collapsed to the icon rail there is no room for headers,
- * so every item stays visible and reachable by its icon.
+ * so every item stays visible and reachable by its icon, and its tooltip names
+ * the section ("SEO · Overview") that the missing header would have.
  */
 export function NavMain({
     items = [],
@@ -35,7 +36,7 @@ export function NavMain({
         <SidebarMenu>
             {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={item.url === activeUrl} tooltip={item.title}>
+                    <SidebarMenuButton asChild isActive={item.url === activeUrl} tooltip={label ? `${label} · ${item.title}` : item.title}>
                         <Link href={item.url} prefetch>
                             {item.icon && <item.icon />}
                             <span>{item.title}</span>

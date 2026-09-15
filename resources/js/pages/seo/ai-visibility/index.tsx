@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'AI Visibility', href: '/seo/ai-visibility' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'AI answer checks', href: '/seo/ai-visibility' }];
 
 type Check = {
     id: number;
@@ -85,9 +85,18 @@ export default function AiVisibility({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="AI Visibility" />
+            <Head title="AI answer checks" />
             <div className="space-y-6 p-4">
-                <Heading title="AI Visibility" description="Track how AI answer engines mention your brand" />
+                <div>
+                    <Heading title="AI answer checks" description="Check how an AI answer engine responds to a prompt, then act on what it cites" />
+                    <p className="text-muted-foreground -mt-6 text-sm">
+                        Trends, competitors and the scheduled prompt library are in the{' '}
+                        <Link href="/ai/visibility" className="text-foreground underline underline-offset-4">
+                            AI visibility report
+                        </Link>
+                        .
+                    </p>
+                </div>
 
                 {aiSource && !aiSource.live && (
                     <PartialFailure

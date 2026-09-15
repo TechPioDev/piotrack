@@ -2,35 +2,16 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { usePermissions } from '@/hooks/use-permissions';
+import { settingsItems } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
-import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-
-const accountNavItems: NavItem[] = [
-    { title: 'Profile', url: '/settings/profile', icon: null },
-    { title: 'Password', url: '/settings/password', icon: null },
-    { title: 'Two-factor auth', url: '/settings/two-factor', icon: null },
-    { title: 'API tokens', url: '/settings/api-tokens', icon: null },
-    { title: 'Notifications', url: '/settings/notifications', icon: null },
-    { title: 'Appearance', url: '/settings/appearance', icon: null },
-];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const { can } = usePermissions();
 
-    // Organization settings are permission-gated (RBAC-005).
-    const organizationNavItems: NavItem[] = [
-        can('organization.view') && { title: 'Organization', url: '/settings/organization', icon: null },
-        can('organization.view') && { title: 'Franchise', url: '/settings/franchise', icon: null },
-        can('members.view') && { title: 'Members', url: '/settings/members', icon: null },
-        can('teams.view') && { title: 'Teams', url: '/settings/teams', icon: null },
-        can('billing.view') && { title: 'Billing', url: '/billing', icon: null },
-        can('files.view') && { title: 'Files', url: '/settings/files', icon: null },
-        can('integrations.view') && { title: 'Integrations', url: '/settings/integrations', icon: null },
-        can('audit.view') && { title: 'Audit log', url: '/settings/audit-log', icon: null },
-    ].filter(Boolean) as NavItem[];
-
-    const sidebarNavItems: NavItem[] = [...organizationNavItems, ...accountNavItems];
+    // Organization settings are permission-gated (RBAC-005); the list is shared
+    // with the command palette so every settings page is findable by name.
+    const sidebarNavItems = settingsItems(can);
 
     const currentPath = window.location.pathname;
 

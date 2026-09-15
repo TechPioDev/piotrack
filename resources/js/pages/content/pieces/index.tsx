@@ -15,7 +15,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { PenLine } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Content', href: '/content/pieces' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Content library', href: '/content/pieces' }];
 
 type Piece = {
     id: number;
@@ -101,10 +101,10 @@ export default function ContentPieces({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Content" />
+            <Head title="Content library" />
             <div className="space-y-4 p-4">
                 <div className="flex items-center justify-between gap-2">
-                    <Heading title="Content" description={`${pieces.length} total`} />
+                    <Heading title="Content library" description={`${pieces.length} total`} />
                     {canManage && (
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>

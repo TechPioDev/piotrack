@@ -11,11 +11,11 @@ import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'AI Visibility', href: '/ai/visibility' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'AI visibility report', href: '/ai/visibility' }];
 
 type Frequencies = {
     checks: number;
@@ -232,10 +232,19 @@ export default function AiVisibility({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="AI Visibility" />
+            <Head title="AI visibility report" />
             <div className="space-y-6 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Heading title="AI visibility" description="How often AI answer engines mention, cite and recommend you" />
+                    <div>
+                        <Heading title="AI visibility report" description="How often AI answer engines mention, cite and recommend you" />
+                        <p className="text-muted-foreground -mt-6 text-sm">
+                            To check a single prompt on demand, use{' '}
+                            <Link href="/seo/ai-visibility" className="text-foreground underline underline-offset-4">
+                                SEO › AI answer checks
+                            </Link>
+                            .
+                        </p>
+                    </div>
                     {canManage && (
                         <div className="flex flex-wrap gap-2">
                             <Button variant="secondary" onClick={runChecks}>

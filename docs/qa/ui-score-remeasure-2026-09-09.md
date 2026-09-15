@@ -303,3 +303,79 @@ and long provider calls (AI drafts) show only a disabled button, no progress det
 
 Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
 Vitest **75** ✓ · Pest **1,096 / 5,782** ✓.
+
+## UI-P5 — navigation (2026-09-15)
+
+Measured with the demo org at 1052×820 by visiting every one of the 65 sidebar
+destinations in turn (clicking the real sidebar links), reading the active item,
+the header breadcrumb, the page `h1` and the tab title; plus the search endpoint
+queried with six page names, and the collapsed icon rail.
+
+**Measured before**
+
+- Active highlight correct on **65 / 65** pages (the longest-match rule held).
+- **58 / 65** headers named only the page, never its section — and six collided:
+  "Campaigns" (marketing and ads), "AI Visibility" (SEO and AI), "Content" (the
+  content overview and the content list). The same three pairs shared an identical
+  `h1` and browser-tab title.
+- Seven links were named "Dashboard"; **12 icons were shared by two links each**, so
+  the collapsed icon rail (icons plus a bare-title tooltip) had 24 ambiguous targets.
+- Search found **0 of 6** page names ("keywords", "billing", "attribution",
+  "members", "deals", "booking"): it covered records only. Results had no arrow-key
+  navigation, and the shortcut hint read "⌘K" on Windows.
+- Settings, members and billing were reachable only through the avatar menu.
+- No skip link: a keyboard user tabbed through 65 sidebar links to reach a page.
+
+**Changes**
+
+- `resources/js/lib/navigation.ts` — one definition of every destination (section,
+  name, icon, permission, search words). The sidebar, the settings menu, the header
+  breadcrumb and the command palette all read it, so names and permission gates
+  cannot drift between them.
+- Every sidebar link has its own icon; section dashboards are "Overview", and the
+  icon-rail tooltip names the section ("SEO · Overview").
+- Section breadcrumbs derived in the header for every page — "Advertising › Ad
+  campaigns", "CRM › Contacts › Ann Lee", "Settings › Members" — with a repeated
+  section word dropped ("AI Agent" → "AI › Agent").
+- Distinct names for the three colliding pages: "Ad campaigns"; "Content library"
+  (sidebar "Library"); and, for the two AI visibility pages, "AI answer checks" (SEO:
+  run a prompt, act on cited sources) and "AI visibility report" (AI: prompt library,
+  trends, competitors) — each page now links to the other.
+- Command palette: pages matched instantly by name, section or the words people use
+  ("pipeline" → Deals, "invoices" → Billing, "seo key" → Keywords), only pages the
+  user may open; arrow keys move through pages and records, Enter opens; the hint
+  shows Ctrl K on Windows and ⌘K on Apple devices.
+- "Skip to content" link as the first tab stop, focusing the main region.
+
+Tests: `resources/js/components/navigation.test.tsx` — unique icons, one link per
+page, names repeated only across sections, permission filtering, page search
+including word-start matching ("ads" never finds Leads), section breadcrumbs, a
+source sweep that fails when two pages would show the same header (**proven by
+restoring the old "Content" title: it fails on exactly `/content` vs
+`/content/pieces`**), and the palette driven by keyboard alone. The existing nine
+sidebar tests pass unchanged.
+
+**Measured after** (same 65-page pass): active highlight **65 / 65**; section named in
+**54 / 65** headers, the other 11 being the section overviews themselves plus
+Dashboard and Portal; duplicate headers, `h1`s and tab titles **0** (was 6, 6, 6);
+duplicate icons **0** (was 12 pairs); icon-rail tooltip "SEO · Overview"; page names
+found by search **6 / 6** — live, Ctrl K → "keywords" → Enter landed on /seo/keywords
+with header "SEO › Keywords"; skip link is the first tab stop and moves focus to
+`main-content`; at 375 px the longest trail ("Delivery › Strategy › Research") wraps
+inside the 64 px header with 0 px overflow.
+
+Two things the preview could not show, stated plainly: the skip link's focused state
+(the preview window never holds OS focus, so `:focus` styles cannot apply there —
+the compiled rule and the off-screen resting position were verified instead), and
+Escape closing the palette (a synthetic key event did not reach the unchanged Radix
+dialog). Reading the compiled CSS caught a real bug in the first skip-link version
+(`focus:not-sr-only` zeroing its padding), replaced with an off-screen/slide-in
+pattern.
+
+Category movement: **Navigation 65 → 88.** Held back: the sidebar still holds 65
+links in 13 groups with one section open at a time, so reaching another section by
+mouse is two clicks, and the palette does not yet offer recently visited pages.
+**Score after UI-P5: 84/100** (mean 84.4).
+
+Gate: pint ✓ · phpstan 0 ✓ · prettier ✓ · eslint ✓ · tsc ✓ · build ✓ ·
+Vitest **90** ✓ · Pest **1,096 / 5,782** ✓.

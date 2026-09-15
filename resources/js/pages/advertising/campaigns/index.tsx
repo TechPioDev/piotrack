@@ -14,7 +14,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Target } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Campaigns', href: '/ads/campaigns' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Ad campaigns', href: '/ads/campaigns' }];
 
 type Campaign = {
     id: number;
@@ -152,10 +152,10 @@ export default function Campaigns({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Campaigns" />
+            <Head title="Ad campaigns" />
             <div className="space-y-4 p-4">
                 <div className="flex items-center justify-between gap-2">
-                    <Heading title="Campaigns" description={`${campaigns.length} total`} />
+                    <Heading title="Ad campaigns" description={`${campaigns.length} total`} />
                     {canManage && (
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
