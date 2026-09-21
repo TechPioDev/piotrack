@@ -179,8 +179,8 @@ const css = (accent: string) => `
 *, *::before, *::after { box-sizing: border-box; }
 .root {
     position: fixed; z-index: 2147483000; bottom: 20px;
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    color: #0b1a23; line-height: 1.5;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #1f2a37; line-height: 1.5; -webkit-font-smoothing: antialiased;
 }
 .root.left { left: 20px; } .root.right { right: 20px; }
 button { font: inherit; cursor: pointer; }
@@ -200,7 +200,7 @@ button { font: inherit; cursor: pointer; }
 /* Teaser */
 .teaser {
     position: absolute; bottom: 74px; width: max-content; max-width: 260px;
-    background: #fff; border: 1px solid #dbe8e8; border-radius: 14px;
+    background: #fff; border: 1px solid #e3e6ea; border-radius: 14px;
     padding: 12px 36px 12px 14px; font-size: 14px; font-weight: 500;
     box-shadow: 0 12px 30px -12px rgba(11,26,35,.35);
     animation: pop .25s ease;
@@ -208,95 +208,150 @@ button { font: inherit; cursor: pointer; }
 .root.right .teaser { right: 0; } .root.left .teaser { left: 0; }
 .teaser-close {
     position: absolute; top: 6px; right: 6px; width: 22px; height: 22px;
-    border: 0; background: transparent; color: #6b8792; border-radius: 6px; line-height: 1;
+    border: 0; background: transparent; color: #6b7682; border-radius: 6px; line-height: 1;
 }
-.teaser-close:hover { background: #eef4f4; }
+.teaser-close:hover { background: #f2f3f5; }
 
-/* Panel */
+/* Panel: a fixed-height window, so nothing jumps as answers come and go */
 .panel {
-    position: absolute; bottom: 74px; width: 372px; max-height: min(620px, calc(100vh - 120px));
+    position: absolute; bottom: 76px; width: 400px; height: min(680px, calc(100vh - 112px));
     display: flex; flex-direction: column; overflow: hidden;
-    background: #fff; border: 1px solid #dbe8e8; border-radius: 18px;
-    box-shadow: 0 24px 60px -20px rgba(11,26,35,.45);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 5px 40px rgba(15,23,42,.16), 0 1px 3px rgba(15,23,42,.08);
     animation: pop .22s ease;
+    transition: width .2s ease, height .2s ease;
 }
+.panel.expanded { width: min(760px, calc(100vw - 40px)); height: calc(100vh - 112px); }
 .root.right .panel { right: 0; } .root.left .panel { left: 0; }
 @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .panel, .teaser { animation: none; } .launcher { transition: none; } }
 
-.head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: ${accent}; color: #fff; }
+/* Header */
+.head { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 16px 10px 16px 20px; background: ${accent}; color: #fff; }
+.head-ava { position: relative; flex: 0 0 auto; }
 .avatar {
-    width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto;
-    background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px;
+    width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+    background: rgba(255,255,255,.22); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px;
 }
-.avatar.logo { background: #fff; padding: 3px; overflow: hidden; }
-.avatar.logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.head-text { min-width: 0; }
-.head-title { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.head-sub { font-size: 12px; opacity: .85; }
-.head-close { margin-left: auto; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #fff; font-size: 18px; line-height: 1; }
-.head-close:hover { background: rgba(255,255,255,.18); }
-.head-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.avatar.logo { background: #fff; padding: 4px; }
+.avatar.logo img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 50%; }
+.online { position: absolute; right: -1px; bottom: 1px; width: 13px; height: 13px; border-radius: 50%; background: #22c55e; border: 2px solid #fff; }
+.head-text { flex: 1 1 auto; min-width: 0; }
+.head-title { font-weight: 700; font-size: 18px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-sub { font-size: 12.5px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.head-btn {
+    flex: 0 0 auto; width: 40px; height: 40px; border: 0; border-radius: 10px;
+    background: transparent; color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.head-btn svg { width: 22px; height: 22px; }
+.head-btn:hover { background: rgba(255,255,255,.16); }
+.head-btn:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 
-.log { flex: 1 1 auto; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f7fbfb; }
-.msg { max-width: 85%; padding: 10px 13px; border-radius: 14px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg.bot { background: #fff; border: 1px solid #e6eeee; border-bottom-left-radius: 4px; align-self: flex-start; }
-.msg.visitor { background: ${accent}; color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
-.typing { align-self: flex-start; display: flex; gap: 4px; padding: 12px 14px; background: #fff; border: 1px solid #e6eeee; border-radius: 14px; }
-.typing i { width: 6px; height: 6px; border-radius: 50%; background: #9db3bb; animation: blink 1.2s infinite; }
+/* Conversation */
+.log {
+    position: relative; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+    padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 14px; background: #fff;
+    scrollbar-width: thin; scrollbar-color: #d3d8de transparent;
+}
+.log::-webkit-scrollbar { width: 6px; }
+.log::-webkit-scrollbar-thumb { background: #d3d8de; border-radius: 3px; }
+.log::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.group { display: flex; gap: 12px; align-items: flex-start; max-width: 94%; }
+.group .avatar { width: 36px; height: 36px; font-size: 12px; background: ${accent}; }
+.group .avatar.logo { background: #fff; padding: 3px; box-shadow: 0 0 0 1px #e5e8ec; }
+.stack { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.msg { padding: 12px 16px; border-radius: 14px; font-size: 15px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot { background: #f2f3f5; color: #1f2a37; }
+.msg.visitor { align-self: flex-end; max-width: 80%; background: ${accent}; color: #fff; }
+.typing { display: flex; gap: 4px; padding: 16px; background: #f2f3f5; border-radius: 14px; }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: #9aa3ad; animation: blink 1.2s infinite; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%,60%,100% { opacity: .3; } 30% { opacity: 1; } }
 
-.foot { border-top: 1px solid #e6eeee; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+/* Answers, offered in the conversation right under the question they answer */
+.choices { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 100%; }
 .choice {
-    text-align: left; width: 100%; padding: 11px 13px; font-size: 14px; font-weight: 600;
-    background: #fff; color: ${accent}; border: 1.5px solid #d6e6e4; border-radius: 11px;
-    transition: background .15s ease, border-color .15s ease;
+    max-width: 100%; text-align: left; padding: 10px 16px; font-size: 14.5px; font-weight: 600; line-height: 1.4;
+    background: #fff; color: #2d3e50; border: 1px solid #9aa5b1; border-radius: 12px;
+    transition: border-color .15s ease, background .15s ease;
 }
-.choice:hover { background: #f0faf8; border-color: ${accent}; }
+.choice:hover { border-color: ${accent}; background: ${accent}14; }
 .choice:focus-visible { outline: 2px solid ${accent}; outline-offset: 2px; }
-.row { display: flex; gap: 8px; }
-.row input {
-    flex: 1 1 auto; min-width: 0; padding: 11px 13px; font-size: 14px;
-    border: 1.5px solid #d6e6e4; border-radius: 11px; background: #fff; color: inherit;
+.choice.quiet { font-weight: 500; color: #5b6673; border-style: dashed; }
+.cta {
+    display: inline-block; padding: 10px 18px; border-radius: 12px;
+    background: ${accent}; color: #fff; font-weight: 700; font-size: 14.5px; text-decoration: none;
 }
-.row input:focus { outline: 2px solid ${accent}; outline-offset: -1px; border-color: ${accent}; }
-.send { flex: 0 0 auto; padding: 0 16px; border: 0; border-radius: 11px; background: ${accent}; color: #fff; font-weight: 700; }
-.send:disabled { opacity: .55; cursor: not-allowed; }
-.skip { border: 0; background: transparent; color: #6b8792; font-size: 13px; text-decoration: underline; padding: 2px; align-self: flex-start; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.chip {
-    border: 1px solid ${accent}55; background: #fff; color: ${accent};
-    border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+.cta:focus-visible { outline: 2px solid ${accent}; outline-offset: 2px; }
+.note { font-size: 12.5px; color: #5b6673; }
+
+/* Privacy notice and the message box */
+.notice { flex: 0 0 auto; padding: 14px 20px; background: #f5f5f4; color: #4b5563; font-size: 13px; line-height: 1.6; }
+.notice a { color: inherit; text-decoration: underline; }
+.foot { flex: 0 0 auto; display: flex; flex-direction: column; gap: 6px; padding: 12px 16px 8px; background: #fff; border-top: 1px solid #eef0f2; }
+.notice + .foot { border-top: 0; }
+.err { color: #b42318; font-size: 13px; padding: 0 8px; }
+.compose {
+    display: flex; align-items: center; gap: 4px; min-height: 50px; padding: 4px 5px 4px 20px;
+    border: 1px solid #c5ccd3; border-radius: 999px; background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
 }
-.chip:hover { background: ${accent}11; }
-.err { color: #c02a1b; font-size: 13px; }
-.consent { font-size: 12.5px; color: #5b7480; }
-.consent a { color: ${accent}; }
-.brand { text-align: center; font-size: 11px; color: #8aa2ab; padding: 2px 0 0; }
-.cta { display: block; text-align: center; padding: 11px; border-radius: 11px; background: ${accent}; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none; }
+.compose:focus-within { border-color: ${accent}; box-shadow: 0 0 0 3px ${accent}26; }
+.compose input {
+    flex: 1 1 auto; min-width: 0; padding: 10px 0; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 15px; color: #1f2a37;
+}
+.compose input::placeholder { color: #8a939d; }
+.compose input:disabled { cursor: not-allowed; }
+.send {
+    flex: 0 0 auto; width: 40px; height: 40px; border: 0; border-radius: 50%;
+    background: transparent; color: #8a939d; display: flex; align-items: center; justify-content: center;
+    transition: color .15s ease, background .15s ease;
+}
+.send svg { width: 21px; height: 21px; }
+.send.ready { color: ${accent}; }
+.send:hover:not(:disabled) { background: #f2f3f5; }
+.send:disabled { cursor: not-allowed; opacity: .5; }
+.send:focus-visible { outline: 2px solid ${accent}; outline-offset: 1px; }
+.brand { text-align: center; font-size: 11px; color: #9aa3ad; }
+
+@media (prefers-reduced-motion: reduce) {
+    .panel, .teaser { animation: none; transition: none; }
+    .launcher, .choice, .compose, .send { transition: none; }
+    .typing i { animation: none; opacity: .6; }
+}
 
 @media (max-width: 480px) {
     .root { bottom: 16px; }
     .root.left { left: 16px; } .root.right { right: 16px; }
-    .panel {
-        position: fixed; inset: 0; width: 100vw; max-height: 100vh; height: 100dvh;
-        border-radius: 0; border: 0;
-    }
+    .panel, .panel.expanded { position: fixed; inset: 0; width: 100vw; height: 100dvh; border-radius: 0; }
+    .expand { display: none; }
 }
 `;
+
+const svg = (paths: string) =>
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+const ICON_EXPAND = svg('<path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10 20H4v-6"/><path d="M4 20l7-7"/>');
+const ICON_SHRINK = svg('<path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M4 14h6v6"/><path d="M10 14l-7 7"/>');
+const ICON_CLOSE = svg('<path d="M6 6l12 12"/><path d="M18 6L6 18"/>');
+const ICON_SEND = svg('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>');
+
+/** What the box is for once a person has the chat: plain messages, no script. */
+const LIVE_NODE: ChatNode = { id: '_live', type: 'input', text: 'Write a message', input: 'text', optional: false, live: true };
 
 class ChatWidget {
     private root!: ShadowRoot;
     private el!: HTMLDivElement;
     private log!: HTMLDivElement;
     private foot!: HTMLDivElement;
+    private input!: HTMLInputElement;
+    private sendButton!: HTMLButtonElement;
     private panel: HTMLDivElement | null = null;
     private token: string | null = null;
     private open = false;
     private busy = false;
     private live = false;
+    private expanded = false;
     private lastSeenId = 0;
     // The question on screen, kept so a refused answer can put its controls back.
     private lastNode: ChatNode | null = null;
@@ -324,10 +379,24 @@ class ChatWidget {
         this.maybeTeaser();
     }
 
+    private initials(): string {
+        return this.config.theme.company.trim().slice(0, 2).toUpperCase();
+    }
+
+    /** A round avatar: the company's uploaded logo, or its initials. */
+    private avatar(): HTMLDivElement {
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+        avatar.textContent = this.initials();
+        this.showLogo(avatar, this.initials());
+        return avatar;
+    }
+
     /**
      * The company's uploaded logo in place of its initials. Built with DOM calls
      * rather than markup so the URL is never parsed as HTML, and it falls back
-     * to the initials if the image fails to load, so the header never shows a
+     * to the initials if the image fails to load, so the chat never shows a
      * broken-image icon on the customer's site.
      */
     private showLogo(avatar: HTMLDivElement, initials: string) {
@@ -420,30 +489,49 @@ class ChatWidget {
         panel.setAttribute('role', 'dialog');
         panel.setAttribute('aria-modal', 'false');
         panel.setAttribute('aria-label', `Chat with ${this.config.theme.company}`);
-
-        const initials = this.config.theme.company.trim().slice(0, 2).toUpperCase();
         panel.innerHTML = `
             <div class="head">
-                <div class="avatar" aria-hidden="true">${escape(initials)}</div>
+                <div class="head-ava"><span class="online" aria-hidden="true"></span></div>
                 <div class="head-text">
                     <div class="head-title">${escape(this.config.theme.title)}</div>
                     <div class="head-sub">Typically replies in a few minutes</div>
                 </div>
-                <button class="head-close" aria-label="Close chat">×</button>
+                <button type="button" class="head-btn expand"></button>
+                <button type="button" class="head-btn head-close" aria-label="Close chat">${ICON_CLOSE}</button>
             </div>
             <div class="log" role="log" aria-live="polite" aria-atomic="false"></div>
-            <div class="foot"></div>
+            <div class="foot">
+                <div class="compose">
+                    <input type="text" placeholder="Write a message…" aria-label="Write a message" autocomplete="off" maxlength="1000">
+                    <button type="button" class="send" aria-label="Send message">${ICON_SEND}</button>
+                </div>
+                <div class="brand">Powered by Piotrack</div>
+            </div>
         `;
         this.el.appendChild(panel);
         this.panel = panel;
-        this.showLogo(panel.querySelector('.avatar') as HTMLDivElement, initials);
+        panel.querySelector('.head-ava')?.prepend(this.avatar());
         this.log = panel.querySelector('.log') as HTMLDivElement;
         this.foot = panel.querySelector('.foot') as HTMLDivElement;
+        this.input = panel.querySelector('.compose input') as HTMLInputElement;
+        this.sendButton = panel.querySelector('.send') as HTMLButtonElement;
+        this.renderNotice();
+        this.setExpanded(this.expanded);
 
         panel.querySelector('.head-close')?.addEventListener('click', () => this.close());
+        panel.querySelector('.expand')?.addEventListener('click', () => this.setExpanded(!this.expanded));
         panel.addEventListener('keydown', (e) => {
             if ((e as KeyboardEvent).key === 'Escape') this.close();
         });
+        this.input.addEventListener('input', () => this.sendButton.classList.toggle('ready', this.input.value.trim() !== ''));
+        this.input.addEventListener('keydown', (e) => {
+            if ((e as KeyboardEvent).key === 'Enter') {
+                e.preventDefault();
+                this.submit();
+            }
+        });
+        this.sendButton.addEventListener('click', () => this.submit());
+        this.setComposer(false);
 
         // Count one open per page load: a visitor toggling the panel is still a
         // single opened chat, and counting each toggle would push the funnel's
@@ -463,9 +551,57 @@ class ChatWidget {
     }
 
     /**
+     * The standing privacy line above the message box, linking the company's
+     * own policy. Shown only when the company has given one to link to.
+     */
+    private renderNotice() {
+        const url = this.config.privacy_url;
+        if (!url || !/^https?:\/\//i.test(url)) return;
+
+        const notice = document.createElement('div');
+        notice.className = 'notice';
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Privacy Policy';
+        notice.append(
+            'By using this chat, you agree to it being recorded and to your details being used to respond to you, as set out in our ',
+            link,
+            '.',
+        );
+        this.foot.before(notice);
+    }
+
+    private setExpanded(on: boolean) {
+        this.expanded = on;
+        this.panel?.classList.toggle('expanded', on);
+        const button = this.panel?.querySelector('.expand');
+        if (!button) return;
+        button.innerHTML = on ? ICON_SHRINK : ICON_EXPAND;
+        button.setAttribute('aria-label', on ? 'Make the chat smaller' : 'Make the chat bigger');
+        button.setAttribute('aria-pressed', String(on));
+    }
+
+    private setComposer(enabled: boolean, placeholder = 'Write a message…') {
+        this.input.disabled = !enabled;
+        this.sendButton.disabled = !enabled;
+        this.input.placeholder = placeholder;
+    }
+
+    /** Send what is in the box: an answer, a question for the assistant, or a message to the team. */
+    private submit() {
+        const value = this.input.value.trim();
+        if (!value || this.busy || !this.lastNode) return;
+        this.input.value = '';
+        this.sendButton.classList.remove('ready');
+        void this.send({ value }, value);
+    }
+
+    /**
      * Re-render a conversation the visitor already started: the whole
      * transcript, then whatever the chat is waiting for - the current
-     * question's own options, or the live composer if a person has it.
+     * question's own options, or the message box if a person has it.
      */
     private async restore() {
         this.typing(true);
@@ -481,46 +617,18 @@ class ChatWidget {
                 this.lastSeenId = Math.max(this.lastSeenId, m.id);
                 this.bubble(m.role === 'visitor' ? 'visitor' : 'bot', m.body);
             });
-            this.foot.innerHTML = '';
             if (data.live && !data.closed) {
                 this.live = true;
                 this.startPolling();
-                this.renderLiveComposer();
+                this.controls(LIVE_NODE);
             } else if (data.node && !data.closed) {
                 this.controls(data.node);
             } else {
-                this.brand();
+                this.ended();
             }
         } catch {
             this.fail();
         }
-    }
-
-    /** A plain free-text composer, used when a human is handling the chat. */
-    private renderLiveComposer() {
-        this.foot.innerHTML = '';
-        const row = document.createElement('div');
-        row.className = 'row';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.setAttribute('aria-label', 'Type a message');
-        input.placeholder = 'Type your message…';
-        const send = document.createElement('button');
-        send.className = 'send';
-        send.textContent = 'Send';
-        const submit = () => {
-            const value = input.value.trim();
-            if (!value) return;
-            input.value = '';
-            void this.send({ value }, value);
-        };
-        send.addEventListener('click', submit);
-        input.addEventListener('keydown', (e) => {
-            if ((e as KeyboardEvent).key === 'Enter') submit();
-        });
-        row.append(input, send);
-        this.foot.appendChild(row);
-        this.brand();
     }
 
     private async begin() {
@@ -549,8 +657,11 @@ class ChatWidget {
     private async send(payload: { option?: string; value?: string }, echo: string) {
         if (this.busy || !this.token) return;
         this.busy = true;
-        this.bubble('visitor', echo);
-        this.foot.innerHTML = '';
+        // Once an answer is given the offered ones go, as in any chat app:
+        // the visitor's reply now stands where the buttons were.
+        this.clearAnswers();
+        this.clearError();
+        const echoed = this.bubble('visitor', echo);
         this.typing(true);
 
         try {
@@ -562,9 +673,11 @@ class ChatWidget {
             this.typing(false);
             if (status === 422 && payloadErr?.errors) {
                 const message = Object.values(payloadErr.errors)[0]?.[0] ?? 'Please check that answer.';
-                // The answer was refused, so the question is still open: put its
-                // buttons (or its box, holding what was typed) back under the error.
-                if (this.lastNode) this.controls(this.lastNode, payload.value);
+                // Refused, so nothing was said: take the reply back out of the
+                // transcript, put the question's answers back, and return what
+                // was typed to the box to be corrected rather than retyped.
+                echoed.remove();
+                if (this.lastNode) this.controls(this.lastNode, payload.value ?? '');
                 this.error(message);
             } else {
                 this.fail();
@@ -613,7 +726,6 @@ class ChatWidget {
             if (typeof m.id === 'number') this.lastSeenId = Math.max(this.lastSeenId, m.id);
             this.bubble('bot', m.body);
         });
-        this.foot.innerHTML = '';
 
         if (reply.booking_url) {
             const link = document.createElement('a');
@@ -622,7 +734,7 @@ class ChatWidget {
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             link.textContent = 'Choose a time';
-            this.foot.appendChild(link);
+            this.botStack().appendChild(link);
         }
 
         if (reply.live) {
@@ -634,9 +746,8 @@ class ChatWidget {
 
         const node = reply.node;
         if (!node) {
-            this.lastNode = null;
             this.stopPolling();
-            this.brand();
+            this.ended();
             return;
         }
 
@@ -644,114 +755,150 @@ class ChatWidget {
     }
 
     /**
-     * The controls under the transcript for the question being asked: its
-     * option buttons, or a text box (optionally holding a refused answer so
-     * the visitor can correct it rather than retype it).
+     * Get ready for the question being asked: its answers as buttons under it
+     * in the conversation, and the message box set up for the reply - an email
+     * keyboard for an email, and so on. The box stays usable on every step;
+     * a typed reply that names one of the answers counts as picking it.
      */
     private controls(node: ChatNode, prefill = '') {
         this.lastNode = node;
+        this.clearAnswers();
+
+        const answers = document.createElement('div');
+        answers.className = 'choices';
+        const offer = (label: string, pick: () => void, quiet = false) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = quiet ? 'choice quiet' : 'choice';
+            button.textContent = label;
+            button.addEventListener('click', pick);
+            answers.appendChild(button);
+        };
 
         if (node.type === 'choice' || node.type === 'consent') {
-            if (node.type === 'consent') {
+            (node.options ?? []).forEach((option) => offer(option.label, () => void this.send({ option: option.id }, option.label)));
+            if (node.type === 'consent' && !this.panel?.querySelector('.notice')) {
                 const note = document.createElement('div');
-                note.className = 'consent';
-                if (node.privacy_url) {
-                    const a = document.createElement('a');
-                    a.href = node.privacy_url;
-                    a.target = '_blank';
-                    a.rel = 'noopener noreferrer';
-                    a.textContent = 'Privacy Policy';
-                    note.append('See our ', a, '.');
-                } else {
-                    note.textContent = 'Your details are only used to respond to this enquiry.';
-                }
-                this.foot.appendChild(note);
+                note.className = 'note';
+                note.textContent = 'Your details are only used to respond to this enquiry.';
+                answers.appendChild(note);
             }
-            (node.options ?? []).forEach((option) => {
-                const button = document.createElement('button');
-                button.className = 'choice';
-                button.textContent = option.label;
-                button.addEventListener('click', () => this.send({ option: option.id }, option.label));
-                this.foot.appendChild(button);
-            });
-            (this.foot.querySelector('.choice') as HTMLElement)?.focus();
         }
 
-        if (node.type === 'input') {
+        const asks = node.type === 'input' && !node.live;
+        if (asks) {
             // Suggested questions (CHAT-045): tappable prompts so a visitor
-            // knows what the assistant can answer. Tapping sends the question
-            // exactly as if it had been typed.
-            if (node.suggestions?.length) {
-                const chips = document.createElement('div');
-                chips.className = 'chips';
-                node.suggestions.slice(0, 4).forEach((question) => {
-                    const chip = document.createElement('button');
-                    chip.className = 'chip';
-                    chip.textContent = question;
-                    chip.addEventListener('click', () => this.send({ value: question }, question));
-                    chips.appendChild(chip);
-                });
-                this.foot.appendChild(chips);
-            }
-
-            const row = document.createElement('div');
-            row.className = 'row';
-            const input = document.createElement('input');
-            input.type = node.input === 'email' ? 'email' : node.input === 'phone' ? 'tel' : node.input === 'number' ? 'number' : 'text';
-            input.setAttribute('aria-label', node.text);
-            input.placeholder = 'Type your answer…';
-            input.value = prefill;
-            const send = document.createElement('button');
-            send.className = 'send';
-            send.textContent = 'Send';
-            const submit = () => {
-                const value = input.value.trim();
-                if (!value && !node.optional) return;
-                this.send({ value }, value || '—');
-            };
-            send.addEventListener('click', submit);
-            input.addEventListener('keydown', (e) => {
-                if ((e as KeyboardEvent).key === 'Enter') submit();
-            });
-            row.append(input, send);
-            this.foot.appendChild(row);
-
-            if (node.optional) {
-                const skip = document.createElement('button');
-                skip.className = 'skip';
-                skip.textContent = 'Skip this';
-                skip.addEventListener('click', () => this.send({ value: '' }, '—'));
-                this.foot.appendChild(skip);
-            }
-            input.focus();
+            // knows what the assistant can answer, sent exactly as if typed.
+            (node.suggestions ?? []).slice(0, 4).forEach((question) => offer(question, () => void this.send({ value: question }, question)));
+            if (node.optional) offer('Skip this', () => void this.send({ value: '' }, '—'), true);
         }
 
-        this.brand();
-        // The controls just took height from the transcript; keep the question
-        // they answer in view rather than scrolled off above them.
-        this.log.scrollTop = this.log.scrollHeight;
+        if (answers.childElementCount > 0) this.botStack().appendChild(answers);
+
+        const kind = asks ? node.input : 'text';
+        this.input.type = kind === 'email' ? 'email' : kind === 'phone' ? 'tel' : 'text';
+        this.input.inputMode = kind === 'email' ? 'email' : kind === 'phone' ? 'tel' : kind === 'number' ? 'decimal' : 'text';
+        this.input.setAttribute('autocomplete', kind === 'email' ? 'email' : kind === 'phone' ? 'tel' : 'off');
+        this.input.setAttribute('aria-label', asks ? node.text : 'Write a message');
+        this.setComposer(true, asks ? 'Type your answer…' : 'Write a message…');
+        this.input.value = prefill;
+        this.sendButton.classList.toggle('ready', prefill.trim() !== '');
+
+        const first = answers.querySelector('.choice') as HTMLElement | null;
+        if (first && !asks) first.focus({ preventScroll: true });
+        else this.input.focus({ preventScroll: true });
+
+        this.reveal();
     }
 
-    private bubble(role: 'bot' | 'visitor', body: string) {
+    /** The conversation is over: say so in the box, and offer a fresh start. */
+    private ended() {
+        this.lastNode = null;
+        this.clearAnswers();
+        this.setComposer(false, 'This chat has ended');
+
+        const answers = document.createElement('div');
+        answers.className = 'choices';
+        const again = document.createElement('button');
+        again.type = 'button';
+        again.className = 'choice';
+        again.textContent = 'Start a new chat';
+        again.addEventListener('click', () => {
+            this.token = null;
+            this.lastSeenId = 0;
+            this.live = false;
+            this.log.innerHTML = '';
+            this.clearError();
+            void this.begin();
+        });
+        answers.appendChild(again);
+        this.botStack().appendChild(answers);
+        this.reveal();
+    }
+
+    private clearAnswers() {
+        this.log.querySelectorAll('.choices').forEach((el) => el.remove());
+    }
+
+    /**
+     * The bot's current run of messages. Consecutive lines share one avatar,
+     * as in any messenger; a visitor reply starts a new run after it.
+     */
+    private botStack(): HTMLDivElement {
+        const last = this.log.lastElementChild;
+        if (last?.classList.contains('group')) return last.querySelector('.stack') as HTMLDivElement;
+
+        const group = document.createElement('div');
+        group.className = 'group';
+        const stack = document.createElement('div');
+        stack.className = 'stack';
+        group.append(this.avatar(), stack);
+        this.log.appendChild(group);
+        return stack;
+    }
+
+    private bubble(role: 'bot' | 'visitor', body: string): HTMLDivElement {
         const div = document.createElement('div');
         div.className = `msg ${role}`;
         div.textContent = body;
-        this.log.appendChild(div);
+        if (role === 'bot') this.botStack().appendChild(div);
+        else this.log.appendChild(div);
         this.log.scrollTop = this.log.scrollHeight;
+        return div;
+    }
+
+    /**
+     * Scroll to the newest line - but never past the top of the question
+     * being asked, so a long list of answers cannot push it out of view.
+     */
+    private reveal() {
+        const bottom = this.log.scrollHeight - this.log.clientHeight;
+        const last = this.log.lastElementChild;
+        const lines = last?.classList.contains('group') ? last.querySelectorAll<HTMLElement>('.msg') : null;
+        const question = lines && lines.length > 0 ? lines[lines.length - 1] : null;
+        this.log.scrollTop = question ? Math.min(bottom, question.offsetTop - 16) : bottom;
     }
 
     private typing(on: boolean) {
-        this.log.querySelector('.typing')?.remove();
+        const current = this.log.querySelector('.typing');
+        if (current) {
+            const stack = current.parentElement;
+            current.remove();
+            // A run started only to hold the dots goes with them.
+            if (stack && stack.childElementCount === 0) stack.parentElement?.remove();
+        }
         if (!on) return;
         const dots = document.createElement('div');
         dots.className = 'typing';
+        dots.setAttribute('role', 'status');
         dots.setAttribute('aria-label', 'Typing');
         dots.innerHTML = '<i></i><i></i><i></i>';
-        this.log.appendChild(dots);
+        this.botStack().appendChild(dots);
         this.log.scrollTop = this.log.scrollHeight;
     }
 
     private error(message: string) {
+        this.clearError();
         const div = document.createElement('div');
         div.className = 'err';
         div.setAttribute('role', 'alert');
@@ -759,17 +906,14 @@ class ChatWidget {
         this.foot.prepend(div);
     }
 
-    private brand() {
-        if (this.foot.querySelector('.brand')) return;
-        const div = document.createElement('div');
-        div.className = 'brand';
-        div.textContent = 'Powered by Piotrack';
-        this.foot.appendChild(div);
+    private clearError() {
+        this.foot.querySelector('.err')?.remove();
     }
 
     /** Never break the host site: show a calm fallback instead of an error. */
     private fail() {
         this.typing(false);
+        this.clearAnswers();
         const contact = this.config.fallback_contact;
         this.bubble(
             'bot',
@@ -777,8 +921,8 @@ class ChatWidget {
                 ? `Sorry — our chat is temporarily unavailable. Please contact us at ${contact} and we will get back to you.`
                 : 'Sorry — our chat is temporarily unavailable. Please use the contact details on this page and we will get back to you.',
         );
-        this.foot.innerHTML = '';
-        this.brand();
+        this.lastNode = null;
+        this.setComposer(false, 'Chat unavailable right now');
     }
 
     private track(type: string) {

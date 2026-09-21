@@ -86,6 +86,7 @@ class ChatFlowEngine
         // options are valid: a malformed reply is rejected rather than silently
         // treated as a decline, which would strand the visitor's conversation.
         if ($currentId === '_consent_gate') {
+            $payload = $this->typedOption($payload, $this->consentNode($widget)['options']);
             $choice = $payload['option'] ?? null;
             if (! in_array($choice, ['accept', 'decline'], true)) {
                 throw ValidationException::withMessages(['option' => 'Please choose whether to continue.']);
@@ -108,6 +109,15 @@ class ChatFlowEngine
         $node = $flow['nodes'][$currentId] ?? null;
         if ($node === null) {
             throw ValidationException::withMessages(['node' => 'This conversation is out of date. Please reopen the chat.']);
+        }
+
+        // The message box stays open on every step, so a visitor may type
+        // where a button was offered. Match it to the answer it names.
+        if ($node['type'] === 'choice') {
+            $payload = $this->typedOption($payload, $this->publicNode($currentId, $node)['options']);
+        } elseif ($node['type'] === 'booking') {
+            $page = BookingPage::query()->where('is_active', true)->first();
+            $payload = $this->typedOption($payload, $this->bookingNode($currentId, $node, $page !== null ? $this->slots->available($page) : [])['options']);
         }
 
         $next = match ($node['type']) {
@@ -602,6 +612,53 @@ class ChatFlowEngine
         }
 
         return $public;
+    }
+
+    /**
+     * A visitor who typed instead of tapping: accept the reply when it plainly
+     * names exactly one of the offered answers - its label or its id, ignoring
+     * case and punctuation ("pricing", "book demo", "yes"), or a unique part of
+     * a label. Anything else is refused, with the buttons still on screen.
+     * A tapped answer passes through untouched.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<int, array{id: mixed, label: mixed}>  $options
+     * @return array<string, mixed>
+     */
+    private function typedOption(array $payload, array $options): array
+    {
+        $typed = $this->comparable((string) ($payload['value'] ?? ''));
+        if (($payload['option'] ?? '') !== '' || $typed === '') {
+            return $payload;
+        }
+
+        $exact = [];
+        $partial = [];
+        foreach ($options as $option) {
+            $label = $this->comparable((string) $option['label']);
+            if ($typed === $label || $typed === $this->comparable((string) $option['id'])) {
+                $exact[] = (string) $option['id'];
+            } elseif (mb_strlen($typed) >= 3 && (str_contains($label, $typed) || (mb_strlen($label) >= 4 && str_contains($typed, $label)))) {
+                $partial[] = (string) $option['id'];
+            }
+        }
+
+        $match = match (true) {
+            count($exact) === 1 => $exact[0],
+            $exact === [] && count($partial) === 1 => $partial[0],
+            default => null,
+        };
+
+        if ($match === null) {
+            throw ValidationException::withMessages(['option' => 'Please tap one of the options above.']);
+        }
+
+        return [...$payload, 'option' => $match];
+    }
+
+    private function comparable(string $text): string
+    {
+        return trim((string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($text)));
     }
 
     /**
