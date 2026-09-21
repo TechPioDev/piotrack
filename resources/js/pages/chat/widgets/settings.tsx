@@ -1,9 +1,11 @@
+import { FormErrors } from '@/components/form-errors';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { widgetPayload } from '@/lib/chat-widget';
 import { copyText } from '@/lib/clipboard';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -97,37 +99,7 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        // Textareas hold one entry per line; the API wants arrays.
-        form.transform((data) => ({
-            ...data,
-            allowed_domains: String(data.allowed_domains)
-                .split('\n')
-                .map((d) => d.trim())
-                .filter(Boolean),
-            targeting: {
-                ...data.targeting,
-                include: String(data.targeting.include)
-                    .split('\n')
-                    .map((p) => p.trim())
-                    .filter(Boolean),
-                exclude: String(data.targeting.exclude)
-                    .split('\n')
-                    .map((p) => p.trim())
-                    .filter(Boolean),
-            },
-        }));
-
-        form.transform((data) => ({
-            ...data,
-            settings: {
-                ...data.settings,
-                suggested_questions: (data.settings.suggested_questions as string)
-                    .split('\n')
-                    .map((q: string) => q.trim())
-                    .filter(Boolean)
-                    .slice(0, 6),
-            },
-        }));
+        form.transform(widgetPayload);
         form.patch(route('chat.widgets.update', widget.id), { preserveScroll: true });
     };
 
@@ -168,6 +140,7 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${widget.name} — settings`} />
             <form onSubmit={submit} className="space-y-4 p-4">
+                <FormErrors errors={form.errors} />
                 <PageHeader
                     title="Widget settings"
                     description="How this widget looks, who sees it, and when your team is available."

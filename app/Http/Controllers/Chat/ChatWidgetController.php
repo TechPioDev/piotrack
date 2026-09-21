@@ -138,6 +138,34 @@ class ChatWidgetController extends Controller
             'business_hours.timezone' => 'nullable|string|max:64',
             'business_hours.closed_message' => 'nullable|string|max:300',
             'business_hours.days' => 'sometimes|array',
+        ], [
+            'theme.accent.regex' => 'The accent colour must be a hex colour like #0bb39e.',
+        ], [
+            // Refusals are shown to the person editing the widget, so they name
+            // the fields as the settings page labels them, not as payload keys.
+            'theme.title' => 'chat title',
+            'theme.company' => 'company name',
+            'theme.position' => 'position',
+            'consent.message' => 'consent message',
+            'consent.privacy_url' => 'privacy policy link',
+            'settings.teaser' => 'welcome teaser',
+            'settings.teaser_b' => 'teaser B',
+            'settings.teaser_delay' => 'teaser delay',
+            'settings.mode' => 'chat mode',
+            'settings.fallback_contact' => 'fallback contact',
+            'settings.suggested_questions' => 'suggested questions',
+            'settings.suggested_questions.*' => 'suggested question',
+            'allowed_domains' => 'allowed domains',
+            'allowed_domains.*' => 'allowed domain',
+            'targeting.include' => '"only these pages" list',
+            'targeting.include.*' => 'page rule',
+            'targeting.exclude' => '"never these pages" list',
+            'targeting.exclude.*' => 'page rule',
+            'targeting.visitor' => 'show to',
+            'targeting.delay_seconds' => 'wait',
+            'targeting.scroll_percent' => 'scroll depth',
+            'business_hours.timezone' => 'timezone',
+            'business_hours.closed_message' => 'closed message',
         ]);
 
         $widget->update($data);
