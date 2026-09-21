@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('wc/{publicKey}')->name('public.chat.')->group(function () {
     Route::get('config', [PublicChatController::class, 'config'])
         ->middleware('throttle:60,1')->name('config');
+    // An <img> the widget draws on the customer's site: every visitor fetches it,
+    // so the allowance is generous and the response is cached by the browser.
+    Route::get('logo', [PublicChatController::class, 'logo'])
+        ->middleware('throttle:240,1')->name('logo');
     Route::post('events', [PublicChatController::class, 'event'])
         ->middleware('throttle:60,1')->name('event');
     Route::post('conversations', [PublicChatController::class, 'start'])
@@ -79,6 +83,10 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.widget.manage')->name('widgets.store');
         Route::patch('widgets/{widget}', [ChatWidgetController::class, 'update'])
             ->middleware('can:chat.widget.manage')->name('widgets.update');
+        Route::post('widgets/{widget}/logo', [ChatWidgetController::class, 'uploadLogo'])
+            ->middleware('can:chat.widget.manage')->name('widgets.logo.store');
+        Route::delete('widgets/{widget}/logo', [ChatWidgetController::class, 'removeLogo'])
+            ->middleware('can:chat.widget.manage')->name('widgets.logo.destroy');
         Route::delete('widgets/{widget}', [ChatWidgetController::class, 'destroy'])
             ->middleware('can:chat.widget.manage')->name('widgets.destroy');
     });

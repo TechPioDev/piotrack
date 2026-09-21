@@ -1,4 +1,5 @@
 import { FormErrors } from '@/components/form-errors';
+import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,8 @@ import AppLayout from '@/layouts/app-layout';
 import { widgetPayload } from '@/lib/chat-widget';
 import { copyText } from '@/lib/clipboard';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { Check, Copy } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Check, Copy, ImageIcon } from 'lucide-react';
 import { FormEventHandler, useRef, useState } from 'react';
 
 type Widget = {
@@ -24,6 +25,7 @@ type Widget = {
     targeting: Record<string, unknown>;
     business_hours: Record<string, unknown>;
     allowed_domains: string[];
+    logo_url: string | null;
     embed: string;
 };
 
@@ -36,6 +38,75 @@ const DAYS = [
     { key: 'sat', label: 'Saturday' },
     { key: 'sun', label: 'Sunday' },
 ];
+
+/**
+ * The widget logo: uploads on choice rather than with "Save settings", because
+ * a file cannot ride along in the JSON settings payload. preserveState keeps any
+ * unsaved edits elsewhere on the page intact across the upload.
+ */
+function LogoField({ widgetId, logoUrl }: { widgetId: number; logoUrl: string | null }) {
+    const upload = useForm<{ logo: File | null }>({ logo: null });
+    const input = useRef<HTMLInputElement>(null);
+    const [removing, setRemoving] = useState(false);
+
+    const choose = (file: File | undefined) => {
+        if (!file) return;
+        upload.transform(() => ({ logo: file }));
+        upload.post(route('chat.widgets.logo.store', widgetId), {
+            forceFormData: true,
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => {
+                if (input.current) input.current.value = '';
+            },
+        });
+    };
+
+    const remove = () =>
+        router.delete(route('chat.widgets.logo.destroy', widgetId), {
+            preserveScroll: true,
+            preserveState: true,
+            onStart: () => setRemoving(true),
+            onFinish: () => setRemoving(false),
+        });
+
+    return (
+        <div className="grid gap-1">
+            <Label htmlFor="logo">Logo</Label>
+            <div className="flex flex-wrap items-center gap-3">
+                <span className="border-border bg-background flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border p-1">
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="Current logo" className="size-full object-contain" />
+                    ) : (
+                        <ImageIcon className="text-muted-foreground size-5" aria-hidden />
+                    )}
+                </span>
+                <input
+                    ref={input}
+                    id="logo"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="sr-only"
+                    aria-describedby="logo-help"
+                    onChange={(e) => choose(e.target.files?.[0])}
+                    disabled={upload.processing}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => input.current?.click()} disabled={upload.processing}>
+                    {upload.processing ? 'Uploading…' : logoUrl ? 'Replace logo' : 'Upload logo'}
+                </Button>
+                {logoUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={remove} disabled={removing || upload.processing}>
+                        {removing ? 'Removing…' : 'Remove'}
+                    </Button>
+                )}
+            </div>
+            <p id="logo-help" className="text-muted-foreground text-xs">
+                PNG, JPG or WebP, up to 512 KB. Shown in the chat header on your website.
+            </p>
+            <InputError message={upload.errors.logo} />
+        </div>
+    );
+}
 
 /** A titled block of settings, so the page reads as sections rather than a wall of fields. */
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -248,23 +319,45 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                             </div>
                         </div>
 
-                        {/* A live preview of the launcher, so the colour choice is not blind. */}
-                        <div className="border-border bg-muted/30 flex items-center gap-3 rounded-lg border p-3">
-                            <span
-                                className="flex size-11 items-center justify-center rounded-full text-white shadow-md"
-                                style={{ background: form.data.theme.accent }}
-                                aria-hidden
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5">
-                                    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.8L3 21l1.9-5A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
-                                </svg>
-                            </span>
-                            <div className="text-sm">
-                                <div className="font-medium">{form.data.theme.title || 'Chat with us'}</div>
-                                <div className="text-muted-foreground text-xs">
-                                    Launcher preview · {form.data.theme.position === 'bottom-left' ? 'bottom left' : 'bottom right'}
+                        <LogoField widgetId={widget.id} logoUrl={widget.logo_url} />
+
+                        {/* A live preview of the chat header and launcher, so colour and logo choices are not blind. */}
+                        <div className="border-border bg-muted/30 space-y-2 rounded-lg border p-3" aria-hidden>
+                            <div className="flex items-center gap-3">
+                                <div
+                                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-3 py-2 text-white"
+                                    style={{ background: form.data.theme.accent }}
+                                >
+                                    {widget.logo_url ? (
+                                        <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white p-0.5">
+                                            <img src={widget.logo_url} alt="" className="size-full object-contain" />
+                                        </span>
+                                    ) : (
+                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                                            {(form.data.theme.company || widget.name).trim().slice(0, 2).toUpperCase()}
+                                        </span>
+                                    )}
+                                    <span className="truncate text-sm font-semibold">{form.data.theme.title || 'Chat with us'}</span>
                                 </div>
+                                <span
+                                    className="flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md"
+                                    style={{ background: form.data.theme.accent }}
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        className="size-5"
+                                    >
+                                        <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.8-.8L3 21l1.9-5A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
+                                    </svg>
+                                </span>
                             </div>
+                            <p className="text-muted-foreground text-xs">
+                                Chat header and launcher preview · {form.data.theme.position === 'bottom-left' ? 'bottom left' : 'bottom right'}
+                            </p>
                         </div>
                     </Section>
 

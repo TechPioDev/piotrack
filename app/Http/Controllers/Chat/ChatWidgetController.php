@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChatWidget;
+use App\Security\UploadScanner;
 use App\Services\Chat\DefaultChatFlow;
 use App\Support\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -81,6 +83,7 @@ class ChatWidgetController extends Controller
                 'targeting' => $widget->targeting ?? [],
                 'business_hours' => $widget->business_hours ?? [],
                 'allowed_domains' => $widget->allowed_domains ?? [],
+                'logo_url' => $widget->logoUrl(),
                 'embed' => sprintf(
                     '<script src="%s" data-widget="%s" async></script>',
                     url('/widget/piotrack-chat.js'),
@@ -172,6 +175,48 @@ class ChatWidgetController extends Controller
         $this->audit->log('chat.widget.updated', ['fields' => array_keys($data)], resourceType: 'chat_widget', resourceId: (string) $widget->id);
 
         return back()->with('status', 'Widget updated.');
+    }
+
+    /**
+     * The widget's logo, shown in its launcher and chat header. Raster images
+     * only: an uploaded SVG can carry script, and this file is served to every
+     * visitor of the customer's website.
+     */
+    public function uploadLogo(Request $request, ChatWidget $widget, UploadScanner $scanner): RedirectResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:512', 'dimensions:max_width=2000,max_height=2000'],
+        ], [
+            'logo.mimes' => 'The logo must be a PNG, JPG or WebP image.',
+            'logo.max' => 'The logo must be 512 KB or smaller.',
+            'logo.dimensions' => 'The logo must be at most 2000 × 2000 pixels.',
+        ]);
+
+        $upload = $request->file('logo');
+        $scanner->scan($upload);
+
+        $previous = $widget->logo_path;
+        $path = $upload->store("org-{$widget->organization_id}/chat-logos", 'local');
+        $widget->forceFill(['logo_path' => $path])->save();
+
+        if ($previous !== null && $previous !== $path) {
+            Storage::disk('local')->delete($previous);
+        }
+
+        $this->audit->log('chat.widget.logo_uploaded', ['size' => $upload->getSize()], resourceType: 'chat_widget', resourceId: (string) $widget->id);
+
+        return back()->with('status', 'Logo uploaded.');
+    }
+
+    public function removeLogo(ChatWidget $widget): RedirectResponse
+    {
+        if ($widget->logo_path !== null) {
+            Storage::disk('local')->delete($widget->logo_path);
+            $widget->forceFill(['logo_path' => null])->save();
+            $this->audit->log('chat.widget.logo_removed', [], resourceType: 'chat_widget', resourceId: (string) $widget->id);
+        }
+
+        return back()->with('status', 'Logo removed.');
     }
 
     public function destroy(ChatWidget $widget): RedirectResponse

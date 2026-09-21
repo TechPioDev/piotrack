@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
  * @property array<string, mixed>|null $routing
  * @property array<string, mixed>|null $settings
  * @property array<int, string>|null $allowed_domains
+ * @property string|null $logo_path Private-disk path; served publicly only through the widget logo route.
  */
 class ChatWidget extends Model
 {
@@ -44,6 +45,20 @@ class ChatWidget extends Model
         'settings',
         'allowed_domains',
     ];
+
+    /**
+     * Where the embed and the settings page load the logo from. The version
+     * suffix changes with every upload, so browsers never show a replaced logo
+     * from cache.
+     */
+    public function logoUrl(): ?string
+    {
+        if ($this->logo_path === null) {
+            return null;
+        }
+
+        return route('public.chat.logo', ['publicKey' => $this->public_key, 'v' => substr(md5($this->logo_path), 0, 10)]);
+    }
 
     protected static function booted(): void
     {

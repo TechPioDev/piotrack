@@ -12,6 +12,8 @@ use App\Services\Chat\ChatFlowEngine;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The widget's public API. Unauthenticated and cross-origin (the widget lives on
@@ -28,6 +30,31 @@ class PublicChatController extends Controller
         private readonly ChatFlowEngine $engine,
         private readonly ChatCaptureService $capture,
     ) {}
+
+    /**
+     * The widget's logo. Deliberately looser than resolve(): an <img> request
+     * usually carries no Origin and often no Referer, so the domain allow-list
+     * would break the image on the very sites it is meant for — and a logo is a
+     * public brand asset, not tenant data. It still requires a live widget on a
+     * plan with chat, so a paused or unpaid widget exposes nothing.
+     */
+    public function logo(string $publicKey): StreamedResponse
+    {
+        $widget = ChatWidget::withoutGlobalScope('tenant')
+            ->where('public_key', $publicKey)
+            ->where('status', 'active')
+            ->first();
+
+        $organization = $widget?->organization()->first();
+        abort_if($widget === null || $organization === null || ! $this->entitlements->feature($organization, 'chat'), 404);
+        abort_if($widget->logo_path === null || ! Storage::disk('local')->exists($widget->logo_path), 404);
+
+        // The URL carries a version per upload, so a long browser cache is safe.
+        return Storage::disk('local')->response($widget->logo_path, null, [
+            'Cache-Control' => 'public, max-age=604800, immutable',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
 
     public function config(Request $request, string $publicKey): JsonResponse
     {
@@ -47,6 +74,7 @@ class PublicChatController extends Controller
                     ? $theme['position']
                     : 'bottom-right',
                 'company' => $theme['company'] ?? $widget->name,
+                'logo_url' => $widget->logoUrl(),
             ],
             // CHAT-041: with a B teaser configured, the variant is sticky per
             // visitor (hash of the widget-local visitor key the widget sends).

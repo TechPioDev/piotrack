@@ -40,7 +40,7 @@ type Targeting = {
 };
 type Config = {
     name: string;
-    theme: { title: string; accent: string; position: 'bottom-left' | 'bottom-right'; company: string };
+    theme: { title: string; accent: string; position: 'bottom-left' | 'bottom-right'; company: string; logo_url?: string | null };
     teaser: string | null;
     teaser_delay?: number;
     consent_required: boolean;
@@ -230,6 +230,8 @@ button { font: inherit; cursor: pointer; }
     background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 13px;
 }
+.avatar.logo { background: #fff; padding: 3px; overflow: hidden; }
+.avatar.logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .head-text { min-width: 0; }
 .head-title { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .head-sub { font-size: 12px; opacity: .85; }
@@ -318,6 +320,28 @@ class ChatWidget {
         this.renderLauncher();
         this.track('impression');
         this.maybeTeaser();
+    }
+
+    /**
+     * The company's uploaded logo in place of its initials. Built with DOM calls
+     * rather than markup so the URL is never parsed as HTML, and it falls back
+     * to the initials if the image fails to load, so the header never shows a
+     * broken-image icon on the customer's site.
+     */
+    private showLogo(avatar: HTMLDivElement, initials: string) {
+        const url = this.config.theme.logo_url;
+        if (!url) return;
+
+        const img = document.createElement('img');
+        img.alt = '';
+        img.src = url;
+        img.addEventListener('error', () => {
+            avatar.classList.remove('logo');
+            avatar.textContent = initials;
+        });
+        avatar.textContent = '';
+        avatar.classList.add('logo');
+        avatar.appendChild(img);
     }
 
     private renderLauncher() {
@@ -410,6 +434,7 @@ class ChatWidget {
         `;
         this.el.appendChild(panel);
         this.panel = panel;
+        this.showLogo(panel.querySelector('.avatar') as HTMLDivElement, initials);
         this.log = panel.querySelector('.log') as HTMLDivElement;
         this.foot = panel.querySelector('.foot') as HTMLDivElement;
 
