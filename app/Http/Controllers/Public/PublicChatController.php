@@ -207,17 +207,31 @@ class PublicChatController extends Controller
 
         $since = (int) $request->query('since', '0');
 
+        // A reopened widget asks for the whole transcript, the visitor's own
+        // answers included. Live polling leaves them out: the widget already
+        // drew each one as it was sent (and older cached widgets would draw
+        // them a second time, as if the bot had said them).
+        $transcript = $since === 0 && $request->boolean('transcript');
+        $roles = $transcript ? ['visitor', 'agent', 'bot', 'system'] : ['agent', 'bot', 'system'];
+
         $messages = $conversation->messages()
-            ->whereIn('role', ['agent', 'bot', 'system'])
+            ->whereIn('role', $roles)
             ->when($since > 0, fn ($q) => $q->where('id', '>', $since))
-            ->orderBy('id')
-            ->limit(50)
+            ->orderBy('id', $transcript ? 'desc' : 'asc')
+            ->limit($transcript ? 100 : 50)
             ->get(['id', 'role', 'body']);
+
+        if ($transcript) {
+            $messages = $messages->reverse()->values();
+        }
 
         return response()->json([
             'messages' => $messages->map(fn ($m) => ['id' => $m->id, 'role' => $m->role, 'body' => $m->body])->all(),
             'live' => (bool) $conversation->is_live,
             'closed' => in_array($conversation->status, ['closed', 'spam'], true),
+            // The question still waiting for an answer, so a widget reopened
+            // mid-chat can show its options again instead of a bare text box.
+            'node' => $this->engine->current($widget, $conversation),
         ]);
     }
 

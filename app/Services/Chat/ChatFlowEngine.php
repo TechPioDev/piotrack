@@ -148,17 +148,7 @@ class ChatFlowEngine
 
                 return [
                     'messages' => $this->drain(),
-                    'node' => [
-                        'id' => '_consent_gate',
-                        'type' => 'consent',
-                        'text' => $consent['message']
-                            ?? 'We use this chat to respond to your request and may retain the conversation.',
-                        'privacy_url' => $consent['privacy_url'] ?? null,
-                        'options' => [
-                            ['id' => 'accept', 'label' => 'Accept & continue'],
-                            ['id' => 'decline', 'label' => 'No thanks'],
-                        ],
-                    ],
+                    'node' => $this->consentNode($widget),
                     'done' => false,
                 ];
             }
@@ -244,19 +234,15 @@ class ChatFlowEngine
                     continue;
                 }
 
-                $text = (string) ($node['text'] ?? 'Pick a time that suits you:');
-                $this->say($conversation, $text, $nodeId);
+                $this->say($conversation, (string) ($node['text'] ?? 'Pick a time that suits you:'), $nodeId);
                 $answers[self::CURSOR] = $nodeId;
                 $conversation->answers = $answers;
                 $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
                 $conversation->save();
 
-                $options = array_map(fn (array $slot) => ['id' => $slot['id'], 'label' => $slot['label']], $free);
-                $options[] = ['id' => 'none', 'label' => 'None of these work'];
-
                 return [
                     'messages' => $this->drain(),
-                    'node' => ['id' => $nodeId, 'type' => 'choice', 'text' => $text, 'options' => $options],
+                    'node' => $this->bookingNode($nodeId, $node, $free),
                     'done' => false,
                 ];
             }
@@ -283,23 +269,9 @@ class ChatFlowEngine
             $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
             $conversation->save();
 
-            $public = $this->publicNode($nodeId, $node);
-            // Suggested questions (CHAT-045): shown as tappable chips so a
-            // visitor knows what the assistant can answer. Tenant-configured,
-            // and only on the ask step - never on data-collection inputs.
-            if ($node['type'] === 'ai') {
-                $suggestions = array_values(array_filter(array_map(
-                    fn ($q) => trim((string) $q),
-                    (array) (($widget->settings['suggested_questions'] ?? [])),
-                )));
-                if ($suggestions !== []) {
-                    $public['suggestions'] = array_slice($suggestions, 0, 4);
-                }
-            }
-
             return [
                 'messages' => $this->drain(),
-                'node' => $public,
+                'node' => $this->presentNode($widget, $nodeId, $node),
                 'done' => false,
             ];
         }
@@ -621,8 +593,8 @@ class ChatFlowEngine
         }
 
         // The widget predates these types, so each is presented as a shape it
-        // already renders: an ai node is a text box. (Booking builds its spec
-        // inline in advance(), because the options are live slots.)
+        // already renders: an ai node is a text box. (Booking has its own
+        // bookingNode(), because the options are live slots.)
         if ($node['type'] === 'ai') {
             $public['type'] = 'input';
             $public['input'] = 'text';
@@ -630,6 +602,111 @@ class ChatFlowEngine
         }
 
         return $public;
+    }
+
+    /**
+     * The question the visitor is sitting on, for a widget that was closed and
+     * reopened mid-chat. Read-only: nothing is said, saved or advanced - the
+     * transcript already holds the question, the widget only needs its buttons
+     * (or its text box) back. Null when a person has the chat or it is over.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function current(ChatWidget $widget, ChatConversation $conversation): ?array
+    {
+        if ($conversation->is_live || in_array($conversation->status, ['closed', 'spam'], true)) {
+            return null;
+        }
+
+        $nodeId = ($conversation->answers ?? [])[self::CURSOR] ?? null;
+        if (! is_string($nodeId)) {
+            return null;
+        }
+
+        if ($nodeId === '_consent_gate') {
+            return $this->consentNode($widget);
+        }
+
+        $node = $this->flowFor($widget)['nodes'][$nodeId] ?? null;
+        if ($node === null) {
+            return null;
+        }
+
+        if ($node['type'] === 'booking') {
+            // Slots are re-read, not remembered: some may have been taken while
+            // the chat was closed. "None of these work" is always offered.
+            $page = BookingPage::query()->where('is_active', true)->first();
+
+            return $this->bookingNode($nodeId, $node, $page !== null ? $this->slots->available($page) : []);
+        }
+
+        return in_array($node['type'], ['choice', 'input', 'ai'], true)
+            ? $this->presentNode($widget, $nodeId, $node)
+            : null;
+    }
+
+    /**
+     * An interactive node as the widget sees it, with the tenant's suggested
+     * questions (CHAT-045) on the AI step - tappable chips so a visitor knows
+     * what the assistant can answer. Never on data-collection inputs.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function presentNode(ChatWidget $widget, string $nodeId, array $node): array
+    {
+        $public = $this->publicNode($nodeId, $node);
+
+        if ($node['type'] === 'ai') {
+            $suggestions = array_values(array_filter(array_map(
+                fn ($q) => trim((string) $q),
+                (array) (($widget->settings['suggested_questions'] ?? [])),
+            )));
+            if ($suggestions !== []) {
+                $public['suggestions'] = array_slice($suggestions, 0, 4);
+            }
+        }
+
+        return $public;
+    }
+
+    /** @return array<string, mixed> */
+    private function consentNode(ChatWidget $widget): array
+    {
+        $consent = $widget->consent ?? [];
+
+        return [
+            'id' => '_consent_gate',
+            'type' => 'consent',
+            'text' => $consent['message']
+                ?? 'We use this chat to respond to your request and may retain the conversation.',
+            'privacy_url' => $consent['privacy_url'] ?? null,
+            'options' => [
+                ['id' => 'accept', 'label' => 'Accept & continue'],
+                ['id' => 'decline', 'label' => 'No thanks'],
+            ],
+        ];
+    }
+
+    /**
+     * A booking step as the widget sees it: an ordinary choice whose buttons
+     * are the free slots, plus a way out when none suit.
+     *
+     * @param  array<string, mixed>  $node
+     * @param  list<array<string, mixed>>  $free
+     * @return array<string, mixed>
+     */
+    private function bookingNode(string $nodeId, array $node, array $free): array
+    {
+        $options = array_map(fn (array $slot) => ['id' => $slot['id'], 'label' => $slot['label']], $free);
+        $options[] = ['id' => 'none', 'label' => 'None of these work'];
+
+        return [
+            'id' => $nodeId,
+            'type' => 'choice',
+            'text' => (string) ($node['text'] ?? 'Pick a time that suits you:'),
+            'options' => $options,
+        ];
     }
 
     /** @var list<array<string, mixed>> */

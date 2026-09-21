@@ -72,6 +72,15 @@ class ChatFlowController extends Controller
             ]);
         }
 
+        // A widget has one conversation, so once it is live a "draft" save is
+        // what visitors get on their next message. Hold it to the same bar as
+        // publishing - a question with no answers strands every visitor on it.
+        if (! $publishing && $widget->status === 'active' && ! $result['valid']) {
+            return back()->withErrors([
+                'flow' => 'Not saved - this chat is live on your website, so changes reach visitors straight away. Fix this first: '.$result['errors'][0]['message'],
+            ]);
+        }
+
         $widget->flow = $flow;
         if ($publishing) {
             $widget->status = 'active';

@@ -158,6 +158,35 @@ it('saves a draft but refuses to publish a broken conversation', function () {
     expect($this->widget->fresh()->status)->toBe('draft');
 });
 
+it('refuses to save a broken conversation over one that is live on a website', function () {
+    $this->actingAs($this->owner);
+
+    $live = [
+        'start' => 'q',
+        'nodes' => [
+            'q' => ['type' => 'choice', 'field' => 'topic', 'text' => 'What would you like to explore?', 'options' => [['id' => 'seo', 'label' => 'SEO', 'next' => 'done']]],
+            'done' => ['type' => 'end', 'outcome' => 'lead', 'text' => 'Thanks!'],
+        ],
+    ];
+    $this->put(route('chat.flow.update', $this->widget), ['flow' => $live, 'publish' => true])->assertSessionHasNoErrors();
+
+    // The widget has one conversation, so a "draft" of a live widget is what
+    // visitors get next. A question with every answer removed would strand them.
+    $noAnswers = $live;
+    $noAnswers['nodes']['q']['options'] = [];
+
+    $this->put(route('chat.flow.update', $this->widget), ['flow' => $noAnswers])
+        ->assertSessionHasErrors(['flow' => 'Not saved - this chat is live on your website, so changes reach visitors straight away. Fix this first: This question has no answers for the visitor to choose from.']);
+
+    expect($this->widget->fresh()->flow['nodes']['q']['options'])->toHaveCount(1);
+
+    // A valid change still saves without publishing again.
+    $renamed = $live;
+    $renamed['nodes']['q']['text'] = 'What can we help with?';
+    $this->put(route('chat.flow.update', $this->widget), ['flow' => $renamed])->assertSessionHasNoErrors();
+    expect($this->widget->fresh()->flow['nodes']['q']['text'])->toBe('What can we help with?');
+});
+
 it('publishes a valid conversation and takes the widget live', function () {
     $this->actingAs($this->owner);
 

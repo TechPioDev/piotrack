@@ -298,6 +298,8 @@ class ChatWidget {
     private busy = false;
     private live = false;
     private lastSeenId = 0;
+    // The question on screen, kept so a refused answer can put its controls back.
+    private lastNode: ChatNode | null = null;
     private pollTimer: number | null = null;
     private openTracked = false;
 
@@ -460,26 +462,34 @@ class ChatWidget {
         }
     }
 
-    /** Re-render the transcript of a conversation the visitor already started. */
+    /**
+     * Re-render a conversation the visitor already started: the whole
+     * transcript, then whatever the chat is waiting for - the current
+     * question's own options, or the live composer if a person has it.
+     */
     private async restore() {
         this.typing(true);
         try {
-            const data = await api<{ messages?: { id: number; role: string; body: string }[]; live?: boolean; closed?: boolean }>(
-                `conversations/${this.token}/poll?since=0`,
-            );
+            const data = await api<{
+                messages?: { id: number; role: string; body: string }[];
+                live?: boolean;
+                closed?: boolean;
+                node?: ChatNode | null;
+            }>(`conversations/${this.token}/poll?since=0&transcript=1`);
             this.typing(false);
             (data.messages ?? []).forEach((m) => {
                 this.lastSeenId = Math.max(this.lastSeenId, m.id);
-                this.bubble('bot', m.body);
+                this.bubble(m.role === 'visitor' ? 'visitor' : 'bot', m.body);
             });
+            this.foot.innerHTML = '';
             if (data.live && !data.closed) {
                 this.live = true;
                 this.startPolling();
                 this.renderLiveComposer();
-            } else if (data.closed) {
-                this.brand();
+            } else if (data.node && !data.closed) {
+                this.controls(data.node);
             } else {
-                this.renderLiveComposer();
+                this.brand();
             }
         } catch {
             this.fail();
@@ -552,6 +562,9 @@ class ChatWidget {
             this.typing(false);
             if (status === 422 && payloadErr?.errors) {
                 const message = Object.values(payloadErr.errors)[0]?.[0] ?? 'Please check that answer.';
+                // The answer was refused, so the question is still open: put its
+                // buttons (or its box, holding what was typed) back under the error.
+                if (this.lastNode) this.controls(this.lastNode, payload.value);
                 this.error(message);
             } else {
                 this.fail();
@@ -621,10 +634,22 @@ class ChatWidget {
 
         const node = reply.node;
         if (!node) {
+            this.lastNode = null;
             this.stopPolling();
             this.brand();
             return;
         }
+
+        this.controls(node);
+    }
+
+    /**
+     * The controls under the transcript for the question being asked: its
+     * option buttons, or a text box (optionally holding a refused answer so
+     * the visitor can correct it rather than retype it).
+     */
+    private controls(node: ChatNode, prefill = '') {
+        this.lastNode = node;
 
         if (node.type === 'choice' || node.type === 'consent') {
             if (node.type === 'consent') {
@@ -675,6 +700,7 @@ class ChatWidget {
             input.type = node.input === 'email' ? 'email' : node.input === 'phone' ? 'tel' : node.input === 'number' ? 'number' : 'text';
             input.setAttribute('aria-label', node.text);
             input.placeholder = 'Type your answer…';
+            input.value = prefill;
             const send = document.createElement('button');
             send.className = 'send';
             send.textContent = 'Send';
@@ -701,6 +727,9 @@ class ChatWidget {
         }
 
         this.brand();
+        // The controls just took height from the transcript; keep the question
+        // they answer in view rather than scrolled off above them.
+        this.log.scrollTop = this.log.scrollHeight;
     }
 
     private bubble(role: 'bot' | 'visitor', body: string) {

@@ -1,3 +1,4 @@
+import { FormErrors } from '@/components/form-errors';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -154,6 +155,7 @@ export default function FlowBuilder({
     const [validation, setValidation] = useState<Validation>(initialValidation);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [refused, setRefused] = useState<Record<string, string>>({});
 
     // Applying a template (or any server round-trip) sends a new flow down as a
     // prop. Local state is seeded from it once, so without this the editor would
@@ -246,11 +248,19 @@ export default function FlowBuilder({
             { flow, publish },
             {
                 preserveScroll: true,
-                onSuccess: () => setDirty(false),
+                onSuccess: () => {
+                    setDirty(false);
+                    setRefused({});
+                },
+                onError: (errors) => setRefused(errors),
                 onFinish: () => setSaving(false),
             },
         );
     };
+
+    // A widget has one conversation: once it is live there is no separate
+    // draft, so every save reaches visitors and the builder says so.
+    const live = widget.status === 'active';
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Website Chat', href: '/chat' },
@@ -286,20 +296,28 @@ export default function FlowBuilder({
             <div className="space-y-4 p-4">
                 <PageHeader
                     title="Conversation builder"
-                    description="Design what your widget asks visitors. Every change is saved as a draft until you publish."
+                    description={
+                        live
+                            ? 'Design what your widget asks visitors. This chat is live on your website, so published changes reach visitors straight away.'
+                            : 'Design what your widget asks visitors. Every change is saved as a draft until you publish.'
+                    }
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
                             <TemplateDialog templates={templates} widgetId={widget.id} />
                             <TestDialog widgetId={widget.id} flow={flow} />
-                            <Button variant="outline" onClick={() => save(false)} disabled={saving}>
-                                Save draft
-                            </Button>
+                            {!live && (
+                                <Button variant="outline" onClick={() => save(false)} disabled={saving}>
+                                    Save draft
+                                </Button>
+                            )}
                             <Button onClick={() => save(true)} disabled={saving || !validation.valid}>
-                                {widget.status === 'active' ? 'Publish changes' : 'Publish'}
+                                {live ? 'Publish changes' : 'Publish'}
                             </Button>
                         </div>
                     }
                 />
+
+                <FormErrors errors={refused} />
 
                 <ValidationBanner validation={validation} dirty={dirty} onSelect={setSelected} />
 
