@@ -259,6 +259,26 @@ button { font: inherit; cursor: pointer; }
 .msg.picture.waiting { padding: 12px 16px; line-height: 1.55; }
 .msg.picture.waiting img { display: none; }
 .msg.picture.waiting .picture-name { display: inline; }
+.msg.picture:not(.waiting) { cursor: zoom-in; }
+
+/* Picture viewer: full size over the website, the chat still open behind it */
+.viewer {
+    position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column;
+    background: rgba(15,23,42,.9); animation: fade .15s ease;
+}
+.viewer-bar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: #fff; }
+.viewer-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.viewer-action {
+    flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 14px;
+    border: 0; border-radius: 10px; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.viewer-action:hover { background: rgba(255,255,255,.24); }
+.viewer-action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.viewer-close { width: 40px; padding: 0; }
+.viewer-close svg { width: 20px; height: 20px; }
+.viewer-stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 16px 24px; cursor: zoom-out; }
+.viewer-stage img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); cursor: default; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .msg.picture:focus-visible, .msg.file-link:focus-visible { outline: 2px solid ${accent}; outline-offset: 2px; }
 .msg.file-link { text-decoration: none; }
 .msg.file-link[href] { text-decoration: underline; text-underline-offset: 2px; }
@@ -315,7 +335,7 @@ button { font: inherit; cursor: pointer; }
 .brand { text-align: center; font-size: 11px; color: #9aa3ad; }
 
 @media (prefers-reduced-motion: reduce) {
-    .panel, .teaser { animation: none; transition: none; }
+    .panel, .teaser, .viewer { animation: none; transition: none; }
     .launcher, .choice, .compose, .send { transition: none; }
     .typing i { animation: none; opacity: .6; }
 }
@@ -484,6 +504,7 @@ class ChatWidget {
     private close() {
         this.open = false;
         this.stopPolling();
+        this.el.querySelector('.viewer')?.remove();
         this.panel?.remove();
         this.panel = null;
         (this.el.querySelector('.launcher') as HTMLElement)?.focus();
@@ -687,18 +708,27 @@ class ChatWidget {
     }
 
     /**
-     * A picture in the conversation; opening it shows it full size in a new tab.
-     * Until the image has actually loaded the bubble shows its name, and it
-     * stays that way if the website's security policy will not show it -
-     * a link to the file, never a broken-image icon.
+     * A picture in the conversation. Opening it shows it full size over the
+     * page (the visitor never leaves the website, or the chat); a ctrl/cmd or
+     * middle click still opens it in a new tab, as for any link. Until the
+     * image has actually loaded the bubble shows its name, and it stays that
+     * way if the website's security policy will not show it - a link to the
+     * file, never a broken-image icon.
      */
     private picture(role: 'bot' | 'visitor', src: string, name: string, href?: string): HTMLAnchorElement {
         const link = document.createElement('a');
         link.className = `msg ${role} picture waiting`;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.setAttribute('aria-label', `Open ${name}`);
+        link.setAttribute('aria-label', `View ${name}`);
         if (href) link.href = href;
+        link.addEventListener('click', (e) => {
+            const shown = link.querySelector('img');
+            if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+            if (link.classList.contains('waiting') || !shown) return; // blocked here: let the link open it
+            e.preventDefault();
+            this.viewPicture(shown.currentSrc || shown.src, name, link.href || shown.src, link);
+        });
         const label = document.createElement('span');
         label.className = 'picture-name';
         label.textContent = `📎 ${name}`;
@@ -713,6 +743,68 @@ class ChatWidget {
         img.src = src;
         link.append(label, img);
         return this.place(link, role);
+    }
+
+    /**
+     * A picture full size over the website, like any messenger's viewer: the
+     * visitor stays on the page with the chat still open behind it. Closes on
+     * the button, Esc, or a click outside the picture, and hands focus back to
+     * the picture that opened it.
+     */
+    private viewPicture(src: string, name: string, href: string, opener: HTMLElement) {
+        this.el.querySelector('.viewer')?.remove();
+
+        const viewer = document.createElement('div');
+        viewer.className = 'viewer';
+        viewer.setAttribute('role', 'dialog');
+        viewer.setAttribute('aria-modal', 'true');
+        viewer.setAttribute('aria-label', name);
+
+        const bar = document.createElement('div');
+        bar.className = 'viewer-bar';
+        const title = document.createElement('span');
+        title.className = 'viewer-name';
+        title.textContent = name;
+        const newTab = document.createElement('a');
+        newTab.className = 'viewer-action';
+        newTab.href = href;
+        newTab.target = '_blank';
+        newTab.rel = 'noopener noreferrer';
+        newTab.textContent = 'Open in new tab';
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'viewer-action viewer-close';
+        close.setAttribute('aria-label', 'Close picture');
+        close.innerHTML = ICON_CLOSE;
+        bar.append(title, newTab, close);
+
+        const stage = document.createElement('div');
+        stage.className = 'viewer-stage';
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = name;
+        stage.appendChild(img);
+        viewer.append(bar, stage);
+
+        const shut = () => {
+            viewer.remove();
+            opener.focus({ preventScroll: true });
+        };
+        close.addEventListener('click', shut);
+        // A click on the dark area around the picture closes it; on the picture it does not.
+        stage.addEventListener('click', (e) => {
+            if (e.target === stage) shut();
+        });
+        viewer.addEventListener('keydown', (e) => {
+            if ((e as KeyboardEvent).key === 'Escape') {
+                // Close the picture only, not the chat behind it.
+                e.stopPropagation();
+                shut();
+            }
+        });
+
+        this.el.appendChild(viewer);
+        close.focus();
     }
 
     /** A file that is not a picture: its name, downloading it when opened. */
