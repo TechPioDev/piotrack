@@ -79,8 +79,14 @@ class UploadScanner
         // Script payloads hiding in files that should never contain script.
         // SVG is markup by nature but inline <script> in an uploaded SVG is
         // almost always hostile, so it gets the same treatment.
+        //
+        // The two-byte ASP/JSP opener "<%" is only looked for in text formats:
+        // compressed image, PDF and Office data is effectively random, and two
+        // given bytes turn up by chance about once per 64 KB - it refused one
+        // ordinary photo in four. The longer markers cannot match by accident.
         if (! in_array($extension, self::TEXTUAL, true)) {
-            foreach (['<?php', '<%', '<script'] as $needle) {
+            $needles = isset(self::MAGIC[$extension]) ? ['<?php', '<script'] : ['<?php', '<%', '<script'];
+            foreach ($needles as $needle) {
                 if (stripos($head, $needle) !== false) {
                     $this->refuse('The file contains embedded script content.');
                 }

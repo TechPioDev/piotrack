@@ -457,3 +457,23 @@ poll, switching it to live with the question's buttons cleared.
 **Still depends on the deployment:** replies are only emailed if the server's mail
 settings send real email (the install scripts default to `MAIL_MAILER=log`) and a queue
 worker is running (the scripts install one).
+
+## Follow-up (2026-09-22): pictures in the chat
+
+- **Defect fixed — ordinary photos refused.** The upload scanner looked for the two-byte
+  ASP opener `<%` in every non-text file. Compressed image, PDF and Office data is
+  effectively random, so those bytes appear by chance: 52 of 200 generated photos (26%)
+  were refused as "embedded script content", and larger photos more often. The same
+  scanner guards every upload in the product. `<%` is now only checked in text/markup
+  formats; `<?php` and `<script` are still checked everywhere
+  (`SecuritySocialCloseoutTest`, `ChatAttachmentTest`).
+- **Pictures shown inline** in the visitor's chat window and in the team's transcript.
+  Raster types only (PNG, JPEG, GIF, WebP), served with the type detected from the bytes,
+  `nosniff` and a sandboxing CSP; every other file still downloads.
+- **Compressed before upload** in the visitor's browser: longest side 1,600 px, WebP
+  (JPEG on white where WebP cannot be written), metadata such as GPS dropped. Measured in
+  the browser: a 25.2 MB 4032×3024 picture uploaded as a 135 KB 1600×1200 WebP.
+- **Found in the browser:** websites with a Content-Security-Policy refuse `blob:` images,
+  so the visitor's own local copy cannot be relied on for display. The bubble shows the
+  file name until the saved copy (served from the chat's own origin, like the logo) has
+  loaded, and stays a link rather than a broken image if a site blocks that too.

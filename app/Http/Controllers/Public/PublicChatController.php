@@ -10,6 +10,7 @@ use App\Models\ChatEvent;
 use App\Models\ChatMessage;
 use App\Models\ChatWidget;
 use App\Security\UploadScanner;
+use App\Services\Chat\ChatAttachments;
 use App\Services\Chat\ChatCaptureService;
 use App\Services\Chat\ChatFlowEngine;
 use App\Support\CurrentOrganization;
@@ -37,6 +38,7 @@ class PublicChatController extends Controller
         private readonly Entitlements $entitlements,
         private readonly ChatFlowEngine $engine,
         private readonly ChatCaptureService $capture,
+        private readonly ChatAttachments $attachments,
     ) {}
 
     /**
@@ -262,7 +264,55 @@ class PublicChatController extends Controller
         $conversation->forceFill(['last_message_at' => now()])->save();
         $conversation->markSeen();
 
-        return response()->json(['message' => ['id' => $message->id, 'role' => 'visitor', 'body' => $message->body]]);
+        return response()->json(['message' => [
+            'id' => $message->id,
+            'role' => 'visitor',
+            'body' => $message->body,
+            'attachment' => $this->publicAttachment($widget, $conversation, $message),
+        ]]);
+    }
+
+    /**
+     * A file from this conversation, for the visitor's own chat window: a
+     * picture is shown in the conversation, anything else downloads. Looser
+     * than resolve() for the same reason as the logo - an <img> request often
+     * carries no Origin - so the conversation's unguessable token is what
+     * guards it, on top of a live widget on a plan with chat.
+     */
+    public function file(string $publicKey, string $token, int $message): StreamedResponse
+    {
+        $widget = ChatWidget::withoutGlobalScope('tenant')
+            ->where('public_key', $publicKey)
+            ->where('status', 'active')
+            ->first();
+
+        $organization = $widget?->organization()->first();
+        abort_if($widget === null || $organization === null || ! $this->entitlements->feature($organization, 'chat'), 404);
+
+        $conversation = ChatConversation::withoutGlobalScope('tenant')
+            ->where('chat_widget_id', $widget->id)
+            ->where('token', $token)
+            ->first();
+        abort_if($conversation === null, 404);
+
+        $file = ChatMessage::withoutGlobalScope('tenant')
+            ->where('chat_conversation_id', $conversation->id)
+            ->find($message);
+        abort_if($file === null, 404);
+
+        return $this->attachments->respond($file, inline: true);
+    }
+
+    /** @return array{name: string, image: bool, url: string}|null */
+    private function publicAttachment(ChatWidget $widget, ChatConversation $conversation, ChatMessage $message): ?array
+    {
+        $attachment = $this->attachments->of($message);
+
+        return $attachment === null ? null : [
+            'name' => $attachment['name'],
+            'image' => $this->attachments->isImage($message),
+            'url' => route('public.chat.file', ['publicKey' => $widget->public_key, 'token' => $conversation->token, 'message' => $message->id]),
+        ];
     }
 
     /**
@@ -297,7 +347,7 @@ class PublicChatController extends Controller
             ->when($since > 0, fn ($q) => $q->where('id', '>', $since))
             ->orderBy('id', $transcript ? 'desc' : 'asc')
             ->limit($transcript ? 100 : 50)
-            ->get(['id', 'role', 'body']);
+            ->get(['id', 'role', 'body', 'meta']);
 
         if ($transcript) {
             $messages = $messages->reverse()->values();
@@ -307,7 +357,12 @@ class PublicChatController extends Controller
         $conversation->markSeen(max($since, (int) $messages->max('id')));
 
         return response()->json([
-            'messages' => $messages->map(fn ($m) => ['id' => $m->id, 'role' => $m->role, 'body' => $m->body])->all(),
+            'messages' => $messages->map(fn (ChatMessage $m) => array_filter([
+                'id' => $m->id,
+                'role' => $m->role,
+                'body' => $m->body,
+                'attachment' => $this->publicAttachment($widget, $conversation, $m),
+            ], fn ($value) => $value !== null))->all(),
             'live' => (bool) $conversation->is_live,
             'closed' => in_array($conversation->status, ['closed', 'spam'], true),
             // The question still waiting for an answer, so a widget reopened

@@ -41,6 +41,11 @@ Route::prefix('wc/{publicKey}')->name('public.chat.')->group(function () {
     // size-capped and scanned.
     Route::post('conversations/{token}/files', [PublicChatController::class, 'upload'])
         ->middleware('throttle:10,1,chat-files')->name('files');
+    // A file from the conversation, for the visitor's own chat window (a picture
+    // is drawn in the conversation, so reopening a chat loads each one again).
+    Route::get('conversations/{token}/files/{message}', [PublicChatController::class, 'file'])
+        ->whereNumber('message')
+        ->middleware('throttle:120,1,chat-file-view')->name('file');
 });
 
 /*

@@ -13,6 +13,7 @@
  * Install:  <script src=".../widget/piotrack-chat.js" data-widget="wc_xxx" async></script>
  */
 
+import { compressImage } from './images';
 import { fetchWithRetry } from './retry';
 import { pageMatches } from './targeting';
 
@@ -28,7 +29,8 @@ type ChatNode = {
     privacy_url?: string | null;
     suggestions?: string[];
 };
-type Message = { id?: number; role: string; body: string };
+type Attachment = { name: string; image: boolean; url: string };
+type Message = { id?: number; role: string; body: string; attachment?: Attachment | null };
 type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
 type Targeting = {
     include: string[];
@@ -251,6 +253,15 @@ button { font: inherit; cursor: pointer; }
 .msg.bot { background: #f2f3f5; color: #1f2a37; }
 .msg.visitor { align-self: flex-end; max-width: 80%; background: ${accent}; color: #fff; }
 .msg.visitor.sending { opacity: .6; }
+.msg.picture { display: block; padding: 4px; line-height: 0; }
+.msg.picture img { display: block; max-width: min(240px, 100%); max-height: 280px; border-radius: 10px; object-fit: cover; }
+.msg.picture .picture-name { display: none; }
+.msg.picture.waiting { padding: 12px 16px; line-height: 1.55; }
+.msg.picture.waiting img { display: none; }
+.msg.picture.waiting .picture-name { display: inline; }
+.msg.picture:focus-visible, .msg.file-link:focus-visible { outline: 2px solid ${accent}; outline-offset: 2px; }
+.msg.file-link { text-decoration: none; }
+.msg.file-link[href] { text-decoration: underline; text-underline-offset: 2px; }
 .typing { display: flex; gap: 4px; padding: 16px; background: #f2f3f5; border-radius: 14px; }
 .typing i { width: 7px; height: 7px; border-radius: 50%; background: #9aa3ad; animation: blink 1.2s infinite; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
@@ -328,6 +339,8 @@ const ICON_CLIP = svg(
 );
 /** What the file picker offers; the server holds the real list and checks every file. */
 const ATTACHMENT_TYPES = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx';
+/** Pictures drawn in the conversation; the server decides the same from the bytes. */
+const INLINE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 /** What the box is for once a person has the chat: plain messages, no script. */
 const LIVE_NODE: ChatNode = { id: '_live', type: 'input', text: 'Write a message', input: 'text', optional: false, live: true };
@@ -602,18 +615,23 @@ class ChatWidget {
     }
 
     /**
-     * Send a file the visitor picked. It joins the conversation for the team to
-     * open; it does not answer the question on screen, which stays as it was.
+     * Send a file the visitor picked. A picture is made smaller first and shows
+     * in the conversation straight away, from the visitor's own copy; other
+     * files show as their name. It does not answer the question on screen,
+     * which stays as it was.
      */
-    private async attach(file: File) {
+    private async attach(picked: File) {
         if (!this.token || this.input.disabled) return;
         this.clearError();
+
+        const file = await compressImage(picked);
         if (file.size > 5 * 1024 * 1024) {
             this.error('Files can be up to 5 MB.');
             return;
         }
 
-        const sending = this.bubble('visitor', `📎 ${file.name}`);
+        const local = INLINE_IMAGE_TYPES.includes(file.type) ? URL.createObjectURL(file) : null;
+        const sending = local ? this.picture('visitor', local, file.name) : this.fileLink('visitor', `📎 ${file.name}`);
         sending.classList.add('sending');
         const body = new FormData();
         body.append('file', file);
@@ -624,29 +642,87 @@ class ChatWidget {
                 headers: { Accept: 'application/json' },
                 body,
             });
-            const data = (await response.json().catch(() => ({}))) as { errors?: Record<string, string[]>; message?: { id?: number } };
+            const data = (await response.json().catch(() => ({}))) as {
+                errors?: Record<string, string[]>;
+                message?: { id?: number; attachment?: Attachment | null };
+            };
             if (!response.ok) {
                 sending.remove();
+                if (local) URL.revokeObjectURL(local);
                 const refused = response.status === 422 ? Object.values(data.errors ?? {})[0]?.[0] : undefined;
                 this.error(refused ?? 'That file could not be sent. Please try again.');
                 return;
             }
             sending.classList.remove('sending');
+            const saved = data.message?.attachment?.url;
+            if (saved) {
+                sending.href = saved;
+                // Show the saved copy from here on: many websites' security
+                // policies refuse the browser's own local copy (a blob: address),
+                // but allow images from where the chat itself is served.
+                const img = sending.querySelector('img');
+                if (img) img.src = saved;
+            }
+            if (local) URL.revokeObjectURL(local);
             if (typeof data.message?.id === 'number') this.shown.add(data.message.id);
         } catch {
             sending.remove();
+            if (local) URL.revokeObjectURL(local);
             this.error('That file could not be sent. Please try again.');
         }
     }
 
     /** A line from the conversation, drawn once even when both a reply and a poll carry it. */
-    private incoming(message: { id?: number; role?: string; body: string }) {
+    private incoming(message: Message) {
         if (typeof message.id === 'number') {
             if (this.shown.has(message.id)) return;
             this.shown.add(message.id);
             this.lastSeenId = Math.max(this.lastSeenId, message.id);
         }
-        this.bubble(message.role === 'visitor' ? 'visitor' : 'bot', message.body);
+        const role = message.role === 'visitor' ? 'visitor' : 'bot';
+        const file = message.attachment;
+        if (file?.image) this.picture(role, file.url, file.name, file.url);
+        else if (file) this.fileLink(role, message.body, file.url);
+        else this.bubble(role, message.body);
+    }
+
+    /**
+     * A picture in the conversation; opening it shows it full size in a new tab.
+     * Until the image has actually loaded the bubble shows its name, and it
+     * stays that way if the website's security policy will not show it -
+     * a link to the file, never a broken-image icon.
+     */
+    private picture(role: 'bot' | 'visitor', src: string, name: string, href?: string): HTMLAnchorElement {
+        const link = document.createElement('a');
+        link.className = `msg ${role} picture waiting`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.setAttribute('aria-label', `Open ${name}`);
+        if (href) link.href = href;
+        const label = document.createElement('span');
+        label.className = 'picture-name';
+        label.textContent = `📎 ${name}`;
+        const img = document.createElement('img');
+        img.alt = name;
+        img.addEventListener('load', () => {
+            link.classList.remove('waiting');
+            // Its height is only known now; keep the chat in view.
+            this.reveal();
+        });
+        img.addEventListener('error', () => link.classList.add('waiting'));
+        img.src = src;
+        link.append(label, img);
+        return this.place(link, role);
+    }
+
+    /** A file that is not a picture: its name, downloading it when opened. */
+    private fileLink(role: 'bot' | 'visitor', label: string, href?: string): HTMLAnchorElement {
+        const link = document.createElement('a');
+        link.className = `msg ${role} file-link`;
+        link.textContent = label;
+        link.rel = 'noopener noreferrer';
+        if (href) link.href = href;
+        return this.place(link, role);
     }
 
     /** Send what is in the box: an answer, a question for the assistant, or a message to the team. */
@@ -667,7 +743,7 @@ class ChatWidget {
         this.typing(true);
         try {
             const data = await api<{
-                messages?: { id: number; role: string; body: string }[];
+                messages?: Message[];
                 live?: boolean;
                 closed?: boolean;
                 node?: ChatNode | null;
@@ -767,7 +843,7 @@ class ChatWidget {
         // While an answer is on its way, the reply itself brings what comes next.
         if (!this.token || !this.open || this.busy) return;
         try {
-            const data = await api<{ messages?: { id: number; role: string; body: string }[]; live?: boolean; closed?: boolean }>(
+            const data = await api<{ messages?: Message[]; live?: boolean; closed?: boolean }>(
                 `conversations/${this.token}/poll?since=${this.lastSeenId}`,
             );
             (data.messages ?? []).forEach((m) => this.incoming(m));
@@ -931,10 +1007,15 @@ class ChatWidget {
         const div = document.createElement('div');
         div.className = `msg ${role}`;
         div.textContent = body;
-        if (role === 'bot') this.botStack().appendChild(div);
-        else this.log.appendChild(div);
+        return this.place(div, role);
+    }
+
+    /** Put a line in the conversation: the bot's beside its avatar, the visitor's on the right. */
+    private place<T extends HTMLElement>(element: T, role: 'bot' | 'visitor'): T {
+        if (role === 'bot') this.botStack().appendChild(element);
+        else this.log.appendChild(element);
         this.log.scrollTop = this.log.scrollHeight;
-        return div;
+        return element;
     }
 
     /**

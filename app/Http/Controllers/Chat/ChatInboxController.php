@@ -7,6 +7,7 @@ use App\Jobs\EmailChatReplies;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Notifications\ChatMentionNotification;
+use App\Services\Chat\ChatAttachments;
 use App\Services\Chat\ChatConversationSummarizer;
 use App\Services\Chat\ChatPresenceService;
 use App\Support\AuditLogger;
@@ -16,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,6 +32,7 @@ class ChatInboxController extends Controller
         private readonly AuditLogger $audit,
         private readonly CurrentOrganization $currentOrganization,
         private readonly ChatPresenceService $presence,
+        private readonly ChatAttachments $attachments,
     ) {}
 
     public function index(Request $request): Response
@@ -159,28 +160,20 @@ class ChatInboxController extends Controller
     }
 
     /**
-     * A file the visitor sent in the chat. Always downloaded, never rendered
-     * inline: it came from an anonymous website visitor.
+     * A file the visitor sent in the chat: a picture shown in the transcript
+     * (?inline=1), anything else downloaded - it came from an anonymous visitor.
      */
-    public function file(ChatConversation $conversation, ChatMessage $message): StreamedResponse
+    public function file(Request $request, ChatConversation $conversation, ChatMessage $message, ChatAttachments $attachments): StreamedResponse
     {
-        $attachment = $message->meta['attachment'] ?? null;
-        abort_unless(
-            $message->chat_conversation_id === $conversation->id
-                && is_array($attachment)
-                && Storage::disk('local')->exists((string) ($attachment['path'] ?? '')),
-            404,
-        );
+        abort_unless($message->chat_conversation_id === $conversation->id, 404);
 
-        return Storage::disk('local')->download((string) $attachment['path'], (string) ($attachment['name'] ?? 'attachment'), [
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
+        return $attachments->respond($message, $request->boolean('inline'));
     }
 
     /** @return array<string, mixed> */
     private function present(ChatConversation $conversation, ChatMessage $message): array
     {
-        $attachment = $message->meta['attachment'] ?? null;
+        $attachment = $this->attachments->of($message);
 
         return [
             'id' => $message->id,
@@ -188,10 +181,13 @@ class ChatInboxController extends Controller
             'body' => $message->body,
             'author' => $message->author?->name,
             'at' => $message->created_at?->toIso8601String(),
-            'attachment' => is_array($attachment) ? [
-                'name' => (string) ($attachment['name'] ?? 'attachment'),
-                'size' => (int) ($attachment['size'] ?? 0),
+            'attachment' => $attachment !== null ? [
+                'name' => $attachment['name'],
+                'size' => $attachment['size'],
                 'url' => route('chat.conversations.files.show', [$conversation, $message]),
+                'preview_url' => $this->attachments->isImage($message)
+                    ? route('chat.conversations.files.show', [$conversation, $message, 'inline' => 1])
+                    : null,
             ] : null,
             'emailed' => isset($message->meta['emailed_at']),
         ];

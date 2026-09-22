@@ -16,7 +16,7 @@ type Message = {
     body: string | null;
     author: string | null;
     at: string;
-    attachment: { name: string; size: number; url: string } | null;
+    attachment: { name: string; size: number; url: string; preview_url: string | null } | null;
     emailed: boolean;
 };
 type Conversation = {
@@ -204,8 +204,20 @@ export default function ChatConversationShow({
                                                     : 'bg-muted text-foreground rounded-bl-sm'
                                             }`}
                                         >
+                                            {m.attachment?.preview_url && (
+                                                // Pictures show in the transcript (raster only, served with
+                                                // the type detected at upload); opening one shows it full size.
+                                                <a href={m.attachment.preview_url} target="_blank" rel="noopener noreferrer" className="mb-1.5 block">
+                                                    <img
+                                                        src={m.attachment.preview_url}
+                                                        alt={m.attachment.name}
+                                                        loading="lazy"
+                                                        className="max-h-64 max-w-full rounded-lg object-contain"
+                                                    />
+                                                </a>
+                                            )}
                                             {m.attachment ? (
-                                                // A download, never an inline preview: it came from an anonymous visitor.
+                                                // Any other file is only ever downloaded: it came from an anonymous visitor.
                                                 <a
                                                     href={m.attachment.url}
                                                     className="flex items-center gap-1.5 font-medium underline underline-offset-2"

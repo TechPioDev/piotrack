@@ -71,6 +71,76 @@ it('lets the team download it from the conversation', function () {
         ->and($download->headers->get('X-Content-Type-Options'))->toBe('nosniff');
 });
 
+it('accepts an ordinary photo whose compressed bytes happen to contain "<%"', function () {
+    // One photo in four carries those two bytes by chance, and used to be
+    // refused as "embedded script content".
+    $photo = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00".random_bytes(3000).'<%'.random_bytes(3000);
+
+    sendFile($this, UploadedFile::fake()->createWithContent('holiday.jpg', $photo))->assertOk();
+});
+
+it('shows a picture in the team\'s transcript and serves it as a picture', function () {
+    sendFile($this, UploadedFile::fake()->image('screenshot.png', 320, 200))->assertOk();
+    $conversation = chatFor($this->token);
+    $message = $conversation->messages()->where('role', 'visitor')->sole();
+    $preview = route('chat.conversations.files.show', [$conversation, $message, 'inline' => 1]);
+
+    $this->actingAs($this->owner)->get(route('chat.conversations.show', $conversation))
+        ->assertInertia(fn ($page) => $page->where('messages', fn ($messages) => collect($messages)->firstWhere('id', $message->id)['attachment']['preview_url'] === $preview));
+
+    $shown = $this->actingAs($this->owner)->get($preview)->assertOk();
+    expect($shown->headers->get('Content-Type'))->toBe('image/png')
+        ->and($shown->headers->get('Content-Disposition'))->toStartWith('inline')
+        ->and($shown->headers->get('X-Content-Type-Options'))->toBe('nosniff')
+        ->and($shown->headers->get('Content-Security-Policy'))->toContain('sandbox');
+});
+
+it('never shows anything but a picture inline, even when asked to', function () {
+    sendFile($this, UploadedFile::fake()->createWithContent('notes.txt', 'plain text'))->assertOk();
+    $conversation = chatFor($this->token);
+    $message = $conversation->messages()->where('role', 'visitor')->sole();
+
+    $this->actingAs($this->owner)->get(route('chat.conversations.show', $conversation))
+        ->assertInertia(fn ($page) => $page->where('messages', fn ($messages) => collect($messages)->firstWhere('id', $message->id)['attachment']['preview_url'] === null));
+
+    $asked = $this->actingAs($this->owner)->get(route('chat.conversations.files.show', [$conversation, $message, 'inline' => 1]))->assertOk();
+    expect($asked->headers->get('Content-Disposition'))->toStartWith('attachment');
+
+    // The visitor's own link downloads it too, rather than rendering it.
+    $visitorCopy = $this->get(route('public.chat.file', ['publicKey' => $this->key, 'token' => $this->token, 'message' => $message->id]))->assertOk();
+    expect($visitorCopy->headers->get('Content-Disposition'))->toStartWith('attachment');
+});
+
+it('lets the visitor see their own picture in the chat, again after reopening it', function () {
+    $sent = sendFile($this, UploadedFile::fake()->image('error.png', 300, 180))->assertOk();
+    $url = $sent->json('message.attachment.url');
+    expect($sent->json('message.attachment'))->toMatchArray(['name' => 'error.png', 'image' => true]);
+
+    $picture = $this->get($url)->assertOk();
+    expect($picture->headers->get('Content-Type'))->toBe('image/png')
+        ->and($picture->headers->get('Content-Disposition'))->toStartWith('inline');
+
+    // Reopening the chat replays it as a picture, not as a file name.
+    $replayed = collect($this->getJson("/wc/{$this->key}/conversations/{$this->token}/poll?since=0&transcript=1")->json('messages'))
+        ->firstWhere('role', 'visitor');
+    expect($replayed['attachment'])->toBe(['name' => 'error.png', 'image' => true, 'url' => $url]);
+});
+
+it('keeps each visitor\'s files to their own conversation', function () {
+    $url = sendFile($this, UploadedFile::fake()->image('private.png', 100, 100))->json('message.attachment.url');
+    $message = chatFor($this->token)->messages()->where('role', 'visitor')->sole();
+
+    // Another conversation's token, or a made-up one, gets nothing.
+    $otherToken = $this->postJson("/wc/{$this->key}/conversations")->json('token');
+    $this->get(str_replace($this->token, $otherToken, $url))->assertNotFound();
+    $this->get(str_replace($this->token, 'cv_'.str_repeat('x', 32), $url))->assertNotFound();
+
+    // Nor once the widget is no longer live.
+    $this->widget->forceFill(['status' => 'paused'])->save();
+    $this->get($url)->assertNotFound();
+    expect($message->exists)->toBeTrue();
+});
+
 it('refuses files that are too big, of the wrong kind, or not what they claim to be', function () {
     sendFile($this, UploadedFile::fake()->create('huge.pdf', 6000, 'application/pdf'))
         ->assertStatus(422)->assertJsonPath('errors.file.0', 'Files can be up to 5 MB.');

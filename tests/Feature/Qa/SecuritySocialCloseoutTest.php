@@ -78,6 +78,22 @@ it('scans upload content and refuses what contradicts its claimed type', functio
     expect(File::count())->toBe(2); // only the clean two were stored
 });
 
+it('does not mistake chance bytes in an ordinary image for a script', function () {
+    $scanner = app(UploadScanner::class);
+
+    // Compressed image data is effectively random: the two bytes "<%" turn up
+    // by chance in about one photo in four, and used to get it refused.
+    $photo = "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00".random_bytes(2000).'<%'.random_bytes(2000);
+    $scanner->assertContentSafe($photo, 'jpg');
+    $scanner->assertContentSafe("\x89PNG\r\n\x1A\n".random_bytes(500).'<%@'.random_bytes(500), 'png');
+
+    // Real script markers are still refused in images...
+    expect(fn () => $scanner->assertContentSafe("\x89PNG\r\n\x1A\n<?php system(\$_GET['c']);", 'png'))->toThrow(ValidationException::class)
+        ->and(fn () => $scanner->assertContentSafe("\xFF\xD8\xFF\xE0<script>alert(1)</script>", 'jpg'))->toThrow(ValidationException::class)
+        // ...and the ASP opener still counts in a markup format.
+        ->and(fn () => $scanner->assertContentSafe('<svg xmlns="http://www.w3.org/2000/svg"><%= payload %></svg>', 'svg'))->toThrow(ValidationException::class);
+});
+
 it('stores sensitive fields encrypted at rest and decrypts them transparently', function () {
     $integration = Integration::create([
         'provider' => 'google_ads', 'name' => 'Ads', 'status' => 'connected',
