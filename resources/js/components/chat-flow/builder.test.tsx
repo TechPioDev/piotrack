@@ -30,6 +30,8 @@ beforeAll(() => {
 
 beforeEach(() => {
     put.mockReset();
+    window.localStorage.clear();
+    document.body.style.overflow = '';
     // The builder shows step settings beside the tree on a wide screen.
     window.matchMedia = (query: string) =>
         ({ matches: query.includes('1280'), media: query, addEventListener: () => {}, removeEventListener: () => {} }) as unknown as MediaQueryList;
@@ -85,6 +87,11 @@ function stepIds(): string[] {
 function dataTransfer() {
     const data: Record<string, string> = {};
     return { data, setData: (k: string, v: string) => (data[k] = v), getData: (k: string) => data[k], dropEffect: '', effectAllowed: '' };
+}
+
+/** A step's card on the canvas. */
+function card(id: string): HTMLElement {
+    return document.getElementById(`flow-step-${id}`) as HTMLElement;
 }
 
 function publishedFlow(): Flow {
@@ -231,5 +238,116 @@ describe('conversation builder', () => {
         await user.click(within(dialog).getByRole('button', { name: 'Delete 3 steps' }));
 
         expect(stepIds()).toEqual([]);
+    });
+
+    it('edits a step’s text right on its card; Esc puts it back', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(within(card('welcome')).getByRole('button', { name: /^Message text: Hi there!/ }));
+        await user.keyboard('{Escape}');
+        expect(within(card('welcome')).getByText('Hi there!')).toBeInTheDocument();
+
+        await user.click(within(card('welcome')).getByRole('button', { name: /^Message text/ }));
+        const box = within(card('welcome')).getByRole('textbox', { name: 'Message text' });
+        await user.clear(box);
+        await user.type(box, 'Hello and welcome!{Enter}');
+
+        expect(within(card('welcome')).getByText('Hello and welcome!')).toBeInTheDocument();
+        expect(publishedFlow().nodes.welcome.text).toBe('Hello and welcome!');
+    });
+
+    it('adds, names and removes replies right on a question’s card', async () => {
+        const user = userEvent.setup();
+        renderBuilder(store);
+
+        await user.click(within(card('q')).getByRole('button', { name: 'Add reply' }));
+        const box = within(card('q')).getByRole('textbox', { name: 'Reply “Option 3”' });
+        await user.clear(box);
+        await user.type(box, 'Returns{Enter}');
+        await user.click(within(card('q')).getByRole('button', { name: 'Remove the reply “A product question”' }));
+
+        const q = publishedFlow().nodes.q;
+        expect(q.options?.map((o) => o.label)).toEqual(['Where is my order?', 'Returns']);
+        // The new reply carries on where the paths met again.
+        expect(q.options?.[1].next).toBe('thanks');
+    });
+
+    it('places a picked step with a click, where it is allowed', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getByRole('button', { name: /^Email/ }));
+        expect(screen.getByText(/Click a highlighted place for/)).toHaveTextContent('Email');
+        const spots = screen.getAllByRole('button', { name: 'Place here' });
+        await user.click(spots[spots.length - 1]);
+
+        expect(stepIds()).toEqual(['welcome', 'ask_name', 'ask_email', 'done']);
+        expect(screen.queryByText(/Click a highlighted place/)).toBeNull();
+
+        // Esc puts a picked step down again.
+        await user.click(screen.getByRole('button', { name: /^Phone/ }));
+        await user.keyboard('{Escape}');
+        expect(screen.queryAllByRole('button', { name: 'Place here' })).toHaveLength(0);
+    });
+
+    it('duplicates a step from its menu, and Delete removes the selected step', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(within(card('welcome')).getByRole('button', { name: /actions$/ }));
+        await user.click(await screen.findByRole('menuitem', { name: /Duplicate/ }));
+
+        const copy = stepIds()[1];
+        expect(stepIds()).toEqual(['welcome', copy, 'ask_name', 'done']);
+        expect(publishedFlow().nodes[copy]).toMatchObject({ type: 'message', text: 'Hi there!', next: 'ask_name' });
+
+        // The copy is selected; Delete takes it out again.
+        await user.keyboard('{Delete}');
+        expect(stepIds()).toEqual(['welcome', 'ask_name', 'done']);
+    });
+
+    it('folds a question’s paths away and opens them again', async () => {
+        const user = userEvent.setup();
+        renderBuilder(store);
+
+        await user.click(within(card('q')).getByRole('button', { name: /actions$/ }));
+        await user.click(await screen.findByRole('menuitem', { name: /Fold its paths away/ }));
+
+        expect(card('order_email')).toBeNull();
+        expect(card('thanks')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /2 paths, 1 step folded away/ }));
+        expect(card('order_email')).toBeInTheDocument();
+    });
+
+    it('hides the side panels for room, keeps steps draggable in a strip, and remembers it', async () => {
+        const user = userEvent.setup();
+        const { unmount } = renderBuilder();
+
+        await user.click(screen.getAllByRole('button', { name: 'Hide steps panel' })[0]);
+        await user.click(screen.getAllByRole('button', { name: 'Hide settings panel' })[0]);
+
+        expect(screen.queryByRole('textbox', { name: 'Search steps' })).toBeNull();
+        expect(screen.queryByText('How to build')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Email' })).toHaveAttribute('draggable', 'true');
+
+        unmount();
+        renderBuilder();
+        expect(screen.queryByRole('textbox', { name: 'Search steps' })).toBeNull();
+        await user.click(screen.getAllByRole('button', { name: 'Show steps panel' })[0]);
+        expect(screen.getByRole('textbox', { name: 'Search steps' })).toBeInTheDocument();
+    });
+
+    it('focus mode covers the app around the builder, and Esc leaves it', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getByRole('button', { name: 'Focus mode' }));
+        expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true');
+        expect(document.body.style.overflow).toBe('hidden');
+
+        await user.keyboard('{Escape}');
+        expect(screen.getByRole('button', { name: 'Focus mode' })).toHaveAttribute('aria-pressed', 'false');
+        expect(document.body.style.overflow).toBe('');
     });
 });

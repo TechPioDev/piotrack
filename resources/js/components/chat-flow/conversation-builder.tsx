@@ -13,17 +13,21 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { blockByKey, CONTACT_FIELDS } from '@/lib/flow-blocks';
 import {
+    addOption,
     afterSlot,
     buildTree,
     canInsert,
+    duplicateStep,
     type Flow,
     type FlowNode,
     insertStep,
     isMovable,
     locate,
     moveStep,
+    removeOption,
     removeStep,
     type Slot,
+    withQuickReplies,
 } from '@/lib/flow-tree';
 import { router } from '@inertiajs/react';
 import {
@@ -31,8 +35,14 @@ import {
     CheckCircle2,
     ChevronDown,
     LayoutTemplate,
+    Maximize2,
     MessagesSquare,
+    Minimize2,
     MoreVertical,
+    PanelLeftClose,
+    PanelLeftOpen,
+    PanelRightClose,
+    PanelRightOpen,
     Play,
     PlayCircle,
     Redo2,
@@ -43,7 +53,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StepLibrary } from './block-library';
+import { StepLibrary, StepRail } from './block-library';
 import { type Dragging, FlowCanvas, FlowEditorContext, type Issue } from './flow-canvas';
 import { StepSettings } from './step-settings';
 import { type Template, TemplateGallery } from './template-gallery';
@@ -53,6 +63,33 @@ export type Validation = { valid: boolean; errors: { node: string | null; messag
 type Assignee = { id: number; name: string };
 type WidgetRef = { id: number; name: string; status: string };
 type History = { flow: Flow; past: Flow[]; future: Flow[] };
+
+type Panels = { steps: boolean; settings: boolean };
+const PANELS_KEY = 'piotrack.chat-builder.panels';
+
+/** Which side panels are showing, remembered in this browser (a convenience: it may be unavailable). */
+function usePanels(): [Panels, (change: Partial<Panels>) => void] {
+    const [panels, setPanels] = useState<Panels>(() => {
+        try {
+            const saved = JSON.parse(window.localStorage.getItem(PANELS_KEY) ?? 'null') as Partial<Panels> | null;
+            return { steps: saved?.steps !== false, settings: saved?.settings !== false };
+        } catch {
+            return { steps: true, settings: true };
+        }
+    });
+    const update = useCallback((change: Partial<Panels>) => {
+        setPanels((current) => {
+            const next = { ...current, ...change };
+            try {
+                window.localStorage.setItem(PANELS_KEY, JSON.stringify(next));
+            } catch {
+                // Not remembered; it still works for this visit.
+            }
+            return next;
+        });
+    }, []);
+    return [panels, update];
+}
 
 function useWide(): boolean {
     const query = '(min-width: 1280px)';
@@ -101,6 +138,10 @@ export function ConversationBuilder({
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [galleryKey, setGalleryKey] = useState<string | null>(null);
     const [testOpen, setTestOpen] = useState(false);
+    const [panels, setPanels] = usePanels();
+    const [focus, setFocus] = useState(false);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
     const lastMerge = useRef<{ key: string; at: number } | null>(null);
     const wide = useWide();
     const live = widget.status === 'active';
@@ -151,27 +192,29 @@ export function ConversationBuilder({
         setDirty(true);
     }, []);
 
+    // Keys: undo and redo; Esc puts down a picked step, then deselects, then
+    // leaves focus mode; Delete removes the selected step.
+    const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement | null;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-            if (!(e.ctrlKey || e.metaKey)) return;
-            if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                undo();
-            } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
-                e.preventDefault();
-                redo();
-            }
-        };
+        const onKey = (e: KeyboardEvent) => keys.current(e);
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [undo, redo]);
+    }, []);
 
     // A selected step that no longer exists (undone, deleted) is deselected.
     useEffect(() => {
         if (selected && !flow.nodes[selected]) setSelected(null);
     }, [flow, selected]);
+
+    // Focus mode covers the app's menu and header; the page behind stays still.
+    useEffect(() => {
+        if (!focus) return;
+        const before = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = before;
+        };
+    }, [focus]);
 
     const tree = useMemo(() => buildTree(flow), [flow]);
 
@@ -189,29 +232,27 @@ export function ConversationBuilder({
         setNotice(null);
     };
 
-    /** Click a step in the library: add it after the selected step, or at the end of the conversation. */
-    const quickAdd = (key: string) => {
-        const block = blockByKey(key);
-        if (!block) return;
-        let slot: Slot | null = selected ? afterSlot(tree.root, selected) : null;
-        if (!selected) {
-            const steps = tree.root.steps;
-            const last = steps[steps.length - 1];
-            slot = tree.root.end.kind === 'open' ? tree.root.endSlot : last?.node.type === 'end' ? last.via : null;
+    /** Pick a step in the library to place with a click - or put it down again. */
+    const pick = (key: string) => {
+        setNotice(null);
+        setDragging((current) => (current?.kind === 'block' && current.key === key && current.pick ? null : { kind: 'block', key, pick: true }));
+    };
+
+    const place = (slot: Slot) => {
+        if (!dragging) return;
+        if (dragging.kind === 'block') insertBlock(slot, dragging.key);
+        else {
+            apply(moveStep(flow, dragging.id, slot));
+            setSelected(dragging.id);
         }
-        if (!slot) {
-            setNotice(
-                selected
-                    ? 'Nothing can follow the selected step. Drag the step to the line where it belongs instead.'
-                    : 'Drag the step to the line where it belongs.',
-            );
-            return;
-        }
-        if (!canInsert(flow, slot, block.make().type)) {
-            setNotice('An End step goes where nothing follows. Drag it to the end of a path.');
-            return;
-        }
-        insertBlock(slot, key);
+        setDragging(null);
+    };
+
+    /** Select a step and bring its settings into view: the side panel, or a slide-over on a narrow screen. */
+    const openSettings = (id: string) => {
+        setSelected(id);
+        if (wide) setPanels({ settings: true });
+        else setSheetOpen(true);
     };
 
     const remove = (id: string) => {
@@ -275,21 +316,72 @@ export function ConversationBuilder({
         setGalleryOpen(true);
     };
 
+    keys.current = (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return;
+        // Menus and dialogs handle their own keys.
+        if (target?.closest('[role="menu"], [role="dialog"], [role="listbox"]')) return;
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                redo();
+            }
+            return;
+        }
+        if (e.key === 'Escape') {
+            if (dragging) setDragging(null);
+            else if (selected) setSelected(null);
+            else if (focus) setFocus(false);
+        } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+            e.preventDefault();
+            remove(selected);
+        }
+    };
+
     const editor = {
         flow,
         selected,
         select: setSelected,
+        openSettings,
         dragging,
         setDragging,
+        place,
         insertBlock,
-        moveTo: (id: string, slot: Slot) => {
-            apply(moveStep(flow, id, slot));
-            setSelected(id);
-        },
         move,
         canMove,
+        duplicate: (id: string) => {
+            const copy = duplicateStep(flow, tree.root, id);
+            if (!copy) return;
+            apply(copy.flow);
+            setSelected(copy.id);
+        },
         toggleRequired: (id: string) => patchNode(id, { optional: !flow.nodes[id]?.optional }),
+        setText: (id: string, text: string) => patchNode(id, { text }),
+        renameReply: (id: string, optionId: string, label: string) =>
+            patchNode(id, { options: (flow.nodes[id]?.options ?? []).map((o) => (o.id === optionId ? { ...o, label } : o)) }),
+        addReply: (id: string) => {
+            if (!flow.nodes[id]) return null;
+            const added = addOption(flow, tree.root, id);
+            apply(added.flow);
+            return added.optionId;
+        },
+        removeReply: (id: string, optionId: string) => apply(removeOption(flow, id, optionId)),
+        addQuickReplies: (id: string) => {
+            apply(withQuickReplies(flow, id));
+            setSelected(id);
+        },
         remove,
+        collapsed,
+        toggleCollapsed: (id: string) =>
+            setCollapsed((current) => {
+                const next = new Set(current);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+            }),
         issues,
     };
 
@@ -304,12 +396,63 @@ export function ConversationBuilder({
             onApply={apply}
             onDelete={() => remove(selected)}
             onMove={(direction) => move(selected, direction)}
-            onClose={() => setSelected(null)}
+            onClose={() => {
+                setSelected(null);
+                setSheetOpen(false);
+            }}
+            onHide={wide ? () => setPanels({ settings: false }) : undefined}
         />
     ) : null;
 
+    const pickedKey = dragging?.kind === 'block' && dragging.pick ? dragging.key : null;
+    const height = focus ? 'h-full min-h-0' : 'h-[calc(100vh-16rem)] min-h-[560px]';
+    const columns = `${panels.steps ? '240px' : '60px'} minmax(0,1fr)${panels.settings ? ' 320px' : ''}`;
+
+    const toolbar = (
+        <div className="bg-card/95 flex items-center gap-0.5 rounded-lg border p-1 shadow-sm">
+            <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2"
+                onClick={() => setPanels({ steps: !panels.steps })}
+                aria-label={panels.steps ? 'Hide steps panel' : 'Show steps panel'}
+                aria-pressed={panels.steps}
+                title={panels.steps ? 'Hide the steps panel' : 'Show the steps panel'}
+            >
+                {panels.steps ? <PanelLeftClose className="size-4" aria-hidden /> : <PanelLeftOpen className="size-4" aria-hidden />}
+                Steps
+            </Button>
+            {wide && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2"
+                    onClick={() => setPanels({ settings: !panels.settings })}
+                    aria-label={panels.settings ? 'Hide settings panel' : 'Show settings panel'}
+                    aria-pressed={panels.settings}
+                    title={panels.settings ? 'Hide the settings panel' : 'Show the settings panel'}
+                >
+                    {panels.settings ? <PanelRightClose className="size-4" aria-hidden /> : <PanelRightOpen className="size-4" aria-hidden />}
+                    Settings
+                </Button>
+            )}
+            <span className="bg-border mx-1 h-5 w-px" aria-hidden />
+            <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2"
+                onClick={() => setFocus((on) => !on)}
+                aria-pressed={focus}
+                title={focus ? 'Back to the page (Esc)' : 'Hide the app menu and use the whole window'}
+            >
+                {focus ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+                {focus ? 'Exit focus' : 'Focus mode'}
+            </Button>
+        </div>
+    );
+
     return (
-        <div className="space-y-4 p-4">
+        <div className={focus ? 'bg-background fixed inset-0 z-40 flex flex-col gap-3 p-3' : 'space-y-4 p-4'}>
             <PageHeader
                 title="Conversation Builder"
                 description="Create, test and publish your website chat conversation without code."
@@ -404,7 +547,7 @@ export function ConversationBuilder({
             />
 
             <FormErrors errors={refused} />
-            <StatusLine validation={validation} dirty={dirty} live={live} onSelect={setSelected} />
+            <StatusLine validation={validation} dirty={dirty} live={live} onSelect={openSettings} />
             {notice && (
                 <p role="status" className="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200">
                     {notice}
@@ -412,25 +555,40 @@ export function ConversationBuilder({
             )}
 
             <FlowEditorContext.Provider value={editor}>
-                <div className="grid items-start gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
-                    <aside className="bg-card order-last flex max-h-[420px] min-h-0 flex-col overflow-hidden rounded-xl border xl:order-none xl:h-[calc(100vh-16rem)] xl:max-h-none xl:min-h-[560px]">
-                        <StepLibrary
-                            onQuickAdd={quickAdd}
-                            setDragging={setDragging}
-                            templates={templates}
-                            onOpenTemplate={(key) => openTemplates(key)}
-                        />
-                    </aside>
+                <div className={`grid gap-4 ${focus ? 'min-h-0 flex-1' : 'items-start'}`} style={wide ? { gridTemplateColumns: columns } : undefined}>
+                    {(wide || panels.steps) && (
+                        <aside
+                            className={`bg-card order-last flex min-h-0 flex-col overflow-hidden rounded-xl border xl:order-none ${
+                                wide ? height : 'max-h-[420px]'
+                            }`}
+                        >
+                            {panels.steps ? (
+                                <StepLibrary
+                                    picking={pickedKey}
+                                    onPick={pick}
+                                    setDragging={setDragging}
+                                    templates={templates}
+                                    onOpenTemplate={(key) => openTemplates(key)}
+                                    onToggle={() => setPanels({ steps: false })}
+                                />
+                            ) : (
+                                <StepRail picking={pickedKey} onPick={pick} setDragging={setDragging} onToggle={() => setPanels({ steps: true })} />
+                            )}
+                        </aside>
+                    )}
 
-                    <FlowCanvas />
+                    <FlowCanvas className={height} toolbar={toolbar} />
 
                     {wide ? (
-                        <aside className="bg-card flex h-[calc(100vh-16rem)] min-h-[560px] flex-col overflow-hidden rounded-xl border">
-                            {settings ?? <GettingStarted flow={flow} />}
-                        </aside>
+                        panels.settings && (
+                            <aside className={`bg-card flex flex-col overflow-hidden rounded-xl border ${height}`}>
+                                {settings ?? <GettingStarted flow={flow} onHide={() => setPanels({ settings: false })} />}
+                            </aside>
+                        )
                     ) : (
-                        <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-                            <SheetContent className="w-full p-0 sm:max-w-md">
+                        <Sheet open={sheetOpen && selected !== null} onOpenChange={(open) => !open && setSheetOpen(false)}>
+                            {/* The settings carry their own close button; the slide-over's own would sit on top of it. */}
+                            <SheetContent className="w-full p-0 sm:max-w-md [&>button:last-child]:hidden">
                                 <SheetTitle className="sr-only">Step settings</SheetTitle>
                                 {settings}
                             </SheetContent>
@@ -439,7 +597,7 @@ export function ConversationBuilder({
                 </div>
             </FlowEditorContext.Provider>
 
-            <div className="bg-card grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2 xl:grid-cols-4">
+            <div className={`bg-card grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2 xl:grid-cols-4 ${focus ? 'hidden' : ''}`}>
                 <Feature
                     icon={<LayoutTemplate className="size-5 text-indigo-600" aria-hidden />}
                     title="Pre-built Templates"
@@ -618,7 +776,7 @@ function StatusLine({
 }
 
 /** The right-hand panel before a step is selected: how to build, and what the chat collects. */
-function GettingStarted({ flow }: { flow: Flow }) {
+function GettingStarted({ flow, onHide }: { flow: Flow; onHide: () => void }) {
     // Each detail once, in the order the fields are listed; required if any
     // path asks for it as required.
     const inputs = Object.values(flow.nodes).filter((n) => n.type === 'input' && n.field && CONTACT_FIELDS[n.field]);
@@ -628,20 +786,35 @@ function GettingStarted({ flow }: { flow: Flow }) {
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between border-b px-4 py-3">
                 <h2 className="text-foreground text-sm font-semibold">Step Settings</h2>
+                <Button size="icon" variant="ghost" className="size-7" onClick={onHide} aria-label="Hide settings panel" title="Hide this panel">
+                    <PanelRightClose className="size-4" aria-hidden />
+                </Button>
             </div>
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 text-sm">
-                <p className="text-muted-foreground">Click a step on the canvas to change it.</p>
+                <p className="text-muted-foreground">Click a step's name on the canvas to change its settings here.</p>
                 <div>
                     <h3 className="text-foreground font-semibold">How to build</h3>
                     <ol className="text-muted-foreground mt-2 list-decimal space-y-1.5 pl-4">
-                        <li>Drag a step from the left onto the line where it belongs.</li>
-                        <li>Or click the + on any line and pick a step.</li>
-                        <li>Turn on Quick Replies on a message to give visitors buttons; each reply can lead its own way.</li>
-                        <li>Mark contact details Required or Optional right on their cards.</li>
+                        <li>Drag a step from the left onto a line - or click it, then click the place it goes.</li>
+                        <li>Or point at a line and click its +.</li>
+                        <li>Click any text on a card to change it there. Add replies to a question right on its card.</li>
+                        <li>Mark contact details Required or Optional on their cards.</li>
+                        <li>Hide the side panels, or use Focus mode, for more room.</li>
                         <li>Test it, then publish.</li>
                     </ol>
+                </div>
+                <div>
+                    <h3 className="text-foreground font-semibold">Keys</h3>
+                    <dl className="text-muted-foreground mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                        <dt className="font-mono">Ctrl+Z</dt>
+                        <dd>Undo (Ctrl+Shift+Z redo)</dd>
+                        <dt className="font-mono">Delete</dt>
+                        <dd>Delete the selected step</dd>
+                        <dt className="font-mono">Esc</dt>
+                        <dd>Cancel placing, then deselect, then leave focus mode</dd>
+                    </dl>
                 </div>
                 <div>
                     <h3 className="text-foreground font-semibold">Details this chat collects</h3>

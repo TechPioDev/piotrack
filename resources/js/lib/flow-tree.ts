@@ -502,6 +502,76 @@ export function withoutStranded(before: Flow, after: Flow): Flow {
     return { ...after, nodes };
 }
 
+/** Where a step's answers carry on when they do not go a way of their own. */
+export function mainExit(root: TreeBranch, flow: Flow, id: string): string | null {
+    const node = flow.nodes[id];
+    if (!node) return null;
+    const place = locate(root, id);
+    const step = place ? place.branch.steps[place.index] : null;
+    if (step && step.branches.length > 0) return step.join;
+    return node.options?.[0]?.next ?? node.next ?? null;
+}
+
+/** A new reply on a question, carrying on the main way. */
+export function addOption(flow: Flow, root: TreeBranch, id: string): { flow: Flow; optionId: string } {
+    const node = flow.nodes[id];
+    const options = node.options ?? [];
+    const taken = new Set(options.map((o) => o.id));
+    let n = options.length + 1;
+    while (taken.has(`answer_${n}`)) n += 1;
+    const optionId = `answer_${n}`;
+    const option: FlowOption = { id: optionId, label: `Option ${n}`, score: 0, next: mainExit(root, flow, id) };
+    return { flow: { ...flow, nodes: { ...flow.nodes, [id]: { ...node, options: [...options, option] } } }, optionId };
+}
+
+/** Take a reply off a question, with the steps only it led to. A question keeps its last reply. */
+export function removeOption(flow: Flow, id: string, optionId: string): Flow {
+    const node = flow.nodes[id];
+    const options = node?.options ?? [];
+    if (options.length <= 1 || !options.some((o) => o.id === optionId)) return flow;
+    return withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { ...node, options: options.filter((o) => o.id !== optionId) } } });
+}
+
+/** Quick replies on a message: it becomes a question whose replies all carry on where it went. */
+export function withQuickReplies(flow: Flow, id: string): Flow {
+    const node = flow.nodes[id];
+    if (node?.type !== 'message') return flow;
+    const next = node.next ?? null;
+    return {
+        ...flow,
+        nodes: {
+            ...flow.nodes,
+            [id]: {
+                type: 'choice',
+                text: node.text,
+                field: node.field || id,
+                options: [
+                    { id: 'answer_1', label: 'Option 1', score: 0, next },
+                    { id: 'answer_2', label: 'Option 2', score: 0, next },
+                ],
+            },
+        },
+    };
+}
+
+/** A copy of a step, just after it. Only steps that simply lead on can be copied. */
+export function duplicateStep(flow: Flow, root: TreeBranch, id: string): { flow: Flow; id: string } | null {
+    const node = flow.nodes[id];
+    if (!isMovable(node)) return null;
+    const slot = afterSlot(root, id);
+    if (!slot) return null;
+    const copy: FlowNode = { ...node };
+    delete copy.next;
+    // An answer saved under the step's own name gets the copy's name instead.
+    if (copy.field === id) delete copy.field;
+    return insertStep(flow, slot, copy);
+}
+
+/** How many steps sit inside a step's paths, however deep. */
+export function stepsInside(step: TreeStep): number {
+    return step.branches.reduce((sum, branch) => sum + branch.steps.reduce((n, inner) => n + 1 + stepsInside(inner), 0), 0);
+}
+
 /** Two places are the same place. Used to tell which gap a dragged step came from. */
 export function sameSlot(a: Slot, b: Slot): boolean {
     return JSON.stringify(a) === JSON.stringify(b);

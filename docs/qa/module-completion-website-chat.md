@@ -543,3 +543,34 @@ Pest 1,165, Vitest 143.
 **Not built from the reference** (the engine has no such step yet): image/media and
 carousel messages, variables and delays, API requests, knowledge base, sending email, AI
 generator, version history, text formatting toolbar.
+
+## Follow-up (2026-09-22): usability pass (CHAT-060..063)
+
+The owner found the builder messy, hard to edit and hard to manage, wanted a way to hide
+the sidebar, and a better drop area. Changes:
+
+- **Room:** the Steps panel folds to a strip of step icons that can still be dragged or
+  picked, and the Settings panel hides; both from their own headers or the Steps /
+  Settings buttons on the canvas, remembered in the browser. Focus mode covers the app's
+  menu and header so the builder has the whole window (Esc leaves it).
+- **Editing on the card:** click any text on a card to change it there; add, rename and
+  remove a question's replies on the card; "Add quick replies" on a message card. The
+  card body is plain (only the header is tinted) so text reads and edits cleanly, and the
+  header opens the full settings.
+- **Placing steps:** click a step, then click a highlighted place (banner, Esc to cancel);
+  while dragging, each allowed place opens into a wide target that shows the step as it
+  would land, and the canvas scrolls near its edges. The "+" on each line appears on hover.
+- **Managing:** card menu with Move to…, Duplicate, and Fold its paths away (one line
+  says how many steps are folded); Delete removes the selected step; the mini map shows
+  only when the conversation outgrows the view, and can be hidden.
+
+**Visual pass:** sample data through a local-only route (removed before commit), with a
+stand-in for the app menu at its real width, in headless Chrome at 1536 × 900 and
+390 × 844, light and dark, in 14 states. Found and fixed: the placing banner sat on the
+Start card (more room above it); the panel toggles were icons only (now labelled Steps and
+Settings); on a phone the settings slide-over showed two overlapping close buttons.
+
+**Automated testing:** model tests 21 → 28 (main way on, add/remove reply, quick replies,
+duplicate, steps inside a fold); interface tests 11 → 18 (edit text and Esc, replies on the
+card, pick and place, duplicate and Delete, fold and show, hide panels and remember, focus
+mode). Vitest 157.

@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTree, canInsert, type Flow, type FlowNode, insertStep, moveStep, reachable, removeStep, targetOf, type TreeBranch } from './flow-tree';
+import {
+    addOption,
+    buildTree,
+    canInsert,
+    duplicateStep,
+    type Flow,
+    type FlowNode,
+    insertStep,
+    locate,
+    mainExit,
+    moveStep,
+    reachable,
+    removeOption,
+    removeStep,
+    stepsInside,
+    targetOf,
+    type TreeBranch,
+    withQuickReplies,
+} from './flow-tree';
 
 /**
  * The builder draws the saved conversation as a tree and edits it by dropping
@@ -265,5 +283,66 @@ describe('moveStep', () => {
         expect(targetOf(flow, { kind: 'exit', from: 'welcome', exit: 'next' })).toBe('ask_name');
         expect(flow.nodes.ask_name.next).toBe('q_service');
         expect(reachable(flow).size).toBe(Object.keys(flow.nodes).length);
+    });
+});
+
+describe('editing on the card', () => {
+    const root = buildTree(msp).root;
+
+    it('knows the main way a question carries on: where its paths meet again', () => {
+        expect(mainExit(root, msp, 'q_service')).toBe('q_size');
+        expect(mainExit(root, msp, 'welcome')).toBe('q_service');
+    });
+
+    it('adds a reply that carries on the main way, with a name of its own', () => {
+        const { flow, optionId } = addOption(msp, root, 'q_service');
+
+        expect(optionId).toBe('answer_5');
+        expect(flow.nodes.q_service.options?.at(-1)).toEqual({ id: 'answer_5', label: 'Option 5', score: 0, next: 'q_size' });
+        expect(msp.nodes.q_service.options).toHaveLength(4);
+    });
+
+    it('removes a reply with the steps only it led to, and keeps a question’s last reply', () => {
+        const flow = removeOption(msp, 'q_service', 'support');
+
+        expect(flow.nodes.q_service.options?.map((o) => o.id)).toEqual(['managed', 'cloud', 'security']);
+        expect(flow.nodes.support_email).toBeUndefined();
+        expect(flow.nodes.end_support).toBeUndefined();
+
+        const single: Flow = { start: 'q', nodes: { q: question('Sure?', [['yes', 'done']]), done: finish() } };
+        expect(removeOption(single, 'q', 'yes')).toBe(single);
+    });
+
+    it('turns a message into a question whose two replies carry on where it went', () => {
+        const flow = withQuickReplies(msp, 'welcome');
+
+        expect(flow.nodes.welcome).toMatchObject({ type: 'choice', text: 'Hi!', field: 'welcome' });
+        expect(flow.nodes.welcome.options?.map((o) => o.next)).toEqual(['q_service', 'q_service']);
+        expect(withQuickReplies(msp, 'q_service')).toBe(msp);
+    });
+
+    it('duplicates a step just after itself', () => {
+        const result = duplicateStep(msp, root, 'ask_name');
+        if (!result) throw new Error('not duplicated');
+
+        expect(result.flow.nodes.ask_name.next).toBe(result.id);
+        expect(result.flow.nodes[result.id]).toMatchObject({ type: 'input', field: 'first_name', next: 'ask_email' });
+        expect(reachable(result.flow).has(result.id)).toBe(true);
+    });
+
+    it('gives a copied question its own answer name, and does not copy steps that split', () => {
+        const flow: Flow = { start: 'a', nodes: { a: { type: 'input', input: 'text', text: 'Why?', field: 'a', next: 'b' }, b: finish() } };
+        const result = duplicateStep(flow, buildTree(flow).root, 'a');
+
+        expect(result?.flow.nodes[result.id].field).toBe(result?.id);
+        expect(duplicateStep(msp, root, 'q_service')).toBeNull();
+        expect(duplicateStep(msp, root, 'done')).toBeNull();
+    });
+
+    it('counts the steps inside a question’s paths, however deep', () => {
+        const place = locate(root, 'q_service');
+        if (!place) throw new Error('not drawn');
+
+        expect(stepsInside(place.branch.steps[place.index])).toBe(3);
     });
 });

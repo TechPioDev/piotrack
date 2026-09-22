@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CONTACT_FIELDS, stepKind } from '@/lib/flow-blocks';
 import {
+    addOption,
     describe,
     type Flow,
     type FlowNode,
@@ -11,13 +12,16 @@ import {
     insertStep,
     isMovable,
     locate,
+    mainExit,
     reachable,
+    removeOption,
     type Slot,
     type TreeBranch,
     withoutStranded,
+    withQuickReplies,
     withTarget,
 } from '@/lib/flow-tree';
-import { ArrowDown, ArrowUp, Flame, GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Flame, GripVertical, PanelRightClose, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { StepIcon, stepVisual } from './step-visuals';
 
@@ -150,6 +154,7 @@ export function StepSettings({
     onDelete,
     onMove,
     onClose,
+    onHide,
 }: {
     flow: Flow;
     id: string;
@@ -160,6 +165,8 @@ export function StepSettings({
     onDelete: () => void;
     onMove: (direction: 'up' | 'down') => void;
     onClose: () => void;
+    /** Hide the whole panel, where it sits beside the canvas. */
+    onHide?: () => void;
 }) {
     const [tab, setTab] = useState<Tab>('content');
     const [confirmPlain, setConfirmPlain] = useState(false);
@@ -168,13 +175,12 @@ export function StepSettings({
     if (!node) return null;
 
     const place = locate(root, id);
-    const step = place ? place.branch.steps[place.index] : null;
     const canMoveUp = isMovable(node) && place !== null && place.index > 0 && isMovable(place.branch.steps[place.index - 1].node);
     const canMoveDown =
         isMovable(node) && place !== null && place.index < place.branch.steps.length - 1 && isMovable(place.branch.steps[place.index + 1].node);
 
     // Where this step's answers carry on when they do not go their own way.
-    const main = step?.branches.length ? step.join : (node.options?.[0]?.next ?? node.next ?? null);
+    const main = mainExit(root, flow, id);
     const mainLabel = main ? `Carry on: ${describe(flow.nodes[main] ?? { type: 'message' }).slice(0, 30)}` : 'Carry on (nothing follows yet)';
     const options = node.options ?? [];
     const answerPaths = new Set(options.map((o) => o.next ?? null));
@@ -182,22 +188,7 @@ export function StepSettings({
     const hasText = ['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type);
 
     /** Quick replies on: the message becomes a question, and every reply carries on where it went. */
-    const quickRepliesOn = () =>
-        onApply({
-            ...flow,
-            nodes: {
-                ...flow.nodes,
-                [id]: {
-                    type: 'choice',
-                    text: node.text,
-                    field: node.field || id,
-                    options: [
-                        { id: 'answer_1', label: 'Option 1', score: 0, next: node.next ?? null },
-                        { id: 'answer_2', label: 'Option 2', score: 0, next: node.next ?? null },
-                    ],
-                },
-            },
-        });
+    const quickRepliesOn = () => onApply(withQuickReplies(flow, id));
 
     /** Quick replies off: back to a plain message, carrying on where the replies met. */
     const quickRepliesOff = () => {
@@ -217,9 +208,23 @@ export function StepSettings({
         <div className="flex h-full min-h-0 flex-col">
             <div className="flex items-center justify-between border-b px-4 py-3">
                 <h2 className="text-foreground text-sm font-semibold">Step Settings</h2>
-                <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label="Close step settings">
-                    <X className="size-4" aria-hidden />
-                </Button>
+                <div className="flex items-center gap-0.5">
+                    {onHide && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            onClick={onHide}
+                            aria-label="Hide settings panel"
+                            title="Hide this panel"
+                        >
+                            <PanelRightClose className="size-4" aria-hidden />
+                        </Button>
+                    )}
+                    <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label="Close step settings">
+                        <X className="size-4" aria-hidden />
+                    </Button>
+                </div>
             </div>
 
             <div className="flex items-start gap-3 px-4 pt-4">
@@ -346,32 +351,13 @@ export function StepSettings({
                                                     className="size-8 shrink-0"
                                                     disabled={options.length <= 1}
                                                     aria-label={`Remove reply ${option.label}`}
-                                                    onClick={() =>
-                                                        onApply(
-                                                            withoutStranded(flow, {
-                                                                ...flow,
-                                                                nodes: {
-                                                                    ...flow.nodes,
-                                                                    [id]: { ...node, options: options.filter((o) => o.id !== option.id) },
-                                                                },
-                                                            }),
-                                                        )
-                                                    }
+                                                    onClick={() => onApply(removeOption(flow, id, option.id))}
                                                 >
                                                     <X className="size-4" aria-hidden />
                                                 </Button>
                                             </div>
                                         ))}
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                const taken = new Set(options.map((o) => o.id));
-                                                let n = options.length + 1;
-                                                while (taken.has(`answer_${n}`)) n += 1;
-                                                onPatch({ options: [...options, { id: `answer_${n}`, label: `Option ${n}`, score: 0, next: main }] });
-                                            }}
-                                        >
+                                        <Button size="sm" variant="outline" onClick={() => onApply(addOption(flow, root, id).flow)}>
                                             <Plus className="size-3.5" aria-hidden /> Add Option
                                         </Button>
                                     </div>

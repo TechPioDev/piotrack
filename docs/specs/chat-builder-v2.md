@@ -42,7 +42,8 @@ CHAT-052 Tree conversation builder · CHAT-053 Drag-and-drop block library ·
 CHAT-054 Contact blocks with required/optional · CHAT-055 Business template gallery ·
 CHAT-056 Builder undo/redo · CHAT-057 Start a new widget from a template ·
 CHAT-058 Canvas builder layout (the owner's reference design) · CHAT-059 Step settings
-with Quick Replies.
+with Quick Replies · CHAT-060 Hideable panels and focus mode · CHAT-061 Edit steps on the
+canvas · CHAT-062 Pick-and-place and wide drop areas · CHAT-063 Managing steps on the canvas.
 
 ## User stories
 
@@ -78,6 +79,12 @@ fit, full screen and a mini map; Step Settings (right) with Content / Advanced /
 tabs and a Quick Replies switch. Header: widget switcher, undo/redo, Save, Test, Publish,
 menu. A shortcut strip below. Template gallery dialog with categories, preview and
 confirmation. Widgets page: "Start from" choice when creating a widget.
+
+Usability pass: the Steps panel folds to an icon strip and the Settings panel hides
+(remembered per browser); Focus mode gives the builder the whole window. Text and replies
+are edited on the cards. A step is placed by dragging it or by clicking it and then a
+highlighted place; allowed places open into wide targets with a preview. Card menu: Move
+to…, Duplicate, Fold its paths away. Keys: Ctrl+Z / Ctrl+Shift+Z, Delete, Esc.
 
 ## Business rules & validation
 

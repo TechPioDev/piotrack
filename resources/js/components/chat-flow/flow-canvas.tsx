@@ -9,28 +9,49 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { BLOCK_GROUPS, blockByKey, BLOCKS, outcomeLabel, stepKind } from '@/lib/flow-blocks';
-import { buildTree, canInsert, describe, type Flow, isMovable, moveStep, type Slot, type TreeBranch, type TreeStep } from '@/lib/flow-tree';
+import {
+    buildTree,
+    canInsert,
+    describe,
+    type Flow,
+    isMovable,
+    moveStep,
+    type Slot,
+    stepsInside,
+    type TreeBranch,
+    type TreeStep,
+} from '@/lib/flow-tree';
 import {
     AlertCircle,
     AlertTriangle,
     ArrowDown,
     ArrowUp,
+    ChevronsDownUp,
+    ChevronsUpDown,
     Circle,
+    Copy,
     CornerDownRight,
-    Expand,
+    Map as MapIcon,
+    MessageSquarePlus,
     MoreHorizontal,
+    Move,
     Pencil,
     Plus,
     ScanLine,
     Trash2,
+    X,
     ZoomIn,
     ZoomOut,
 } from 'lucide-react';
 import { createContext, Fragment, type ReactNode, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { blockVisual, NEUTRAL_TONE, StepIcon, stepVisual } from './step-visuals';
+import { blockVisual, NEUTRAL_TONE, StepIcon, stepVisual, type Visual } from './step-visuals';
 
-/** What is being dragged: a new step from the library, or a step already on the canvas. */
-export type Dragging = { kind: 'block'; key: string } | { kind: 'step'; id: string } | null;
+/**
+ * What is being placed: a new step from the library, or a step already on the
+ * canvas. `pick` is the click route - pick a step, then click where it goes -
+ * as against a drag.
+ */
+export type Dragging = { kind: 'block'; key: string; pick?: boolean } | { kind: 'step'; id: string; pick?: boolean } | null;
 
 export type Issue = { level: 'error' | 'warning'; message: string };
 
@@ -38,14 +59,26 @@ type Editor = {
     flow: Flow;
     selected: string | null;
     select: (id: string | null) => void;
+    /** Select a step and bring its settings into view. */
+    openSettings: (id: string) => void;
     dragging: Dragging;
     setDragging: (dragging: Dragging) => void;
+    /** Put what is being placed into a place. */
+    place: (slot: Slot) => void;
     insertBlock: (slot: Slot, key: string) => void;
-    moveTo: (id: string, slot: Slot) => void;
     move: (id: string, direction: 'up' | 'down') => void;
     canMove: (id: string) => { up: boolean; down: boolean };
+    duplicate: (id: string) => void;
     toggleRequired: (id: string) => void;
+    setText: (id: string, text: string) => void;
+    renameReply: (id: string, optionId: string, label: string) => void;
+    /** Add a reply to a question; returns the new reply's id. */
+    addReply: (id: string) => string | null;
+    removeReply: (id: string, optionId: string) => void;
+    addQuickReplies: (id: string) => void;
     remove: (id: string) => void;
+    collapsed: Set<string>;
+    toggleCollapsed: (id: string) => void;
     issues: Record<string, Issue[]>;
 };
 
@@ -57,7 +90,10 @@ function useEditor(): Editor {
     return editor;
 }
 
-const LINE = 'bg-indigo-400 dark:bg-indigo-400/70';
+/** Steps whose card carries text the visitor sees, edited right on the card. */
+const TEXT_TYPES = ['message', 'choice', 'input', 'booking', 'ai', 'end'];
+
+const LINE = 'bg-indigo-300 dark:bg-indigo-400/60';
 
 function VLine({ className = 'h-5' }: { className?: string }) {
     return <span className={`block w-[1.5px] shrink-0 ${LINE} ${className}`} aria-hidden />;
@@ -65,10 +101,21 @@ function VLine({ className = 'h-5' }: { className?: string }) {
 
 function ArrowHead() {
     return (
-        <svg width="10" height="7" viewBox="0 0 10 7" className="-mt-px block shrink-0 text-indigo-400 dark:text-indigo-400/70" aria-hidden>
+        <svg width="10" height="7" viewBox="0 0 10 7" className="-mt-px block shrink-0 text-indigo-300 dark:text-indigo-400/60" aria-hidden>
             <path d="M0 0L5 7L10 0Z" fill="currentColor" />
         </svg>
     );
+}
+
+/** What is being placed, as a name and an icon: shown in the place it would land. */
+function placing(flow: Flow, dragging: Dragging): { label: string; visual: Visual } | null {
+    if (!dragging) return null;
+    if (dragging.kind === 'block') {
+        const block = blockByKey(dragging.key);
+        return block ? { label: block.label, visual: blockVisual(block.key) } : null;
+    }
+    const node = flow.nodes[dragging.id];
+    return node ? { label: stepKind(node), visual: stepVisual(node) } : null;
 }
 
 /** Every step, grouped, as a menu: the click-and-keyboard way to add a step. */
@@ -115,9 +162,9 @@ function AddMenu({ slot, trigger }: { slot: Slot; trigger: ReactNode }) {
     );
 }
 
-/** Whether what is being dragged may go into a place, and the handlers that take the drop. */
+/** Whether what is being placed may go into a place, and the handlers that take it. */
 function useDropTarget(slot: Slot) {
-    const { flow, dragging, setDragging, insertBlock, moveTo } = useEditor();
+    const { flow, dragging, place } = useEditor();
     const [over, setOver] = useState(false);
 
     const accepts = useMemo(() => {
@@ -129,6 +176,11 @@ function useDropTarget(slot: Slot) {
         return moveStep(flow, dragging.id, slot) !== flow;
     }, [dragging, flow, slot]);
 
+    // Nothing is highlighted once the placing is over.
+    useEffect(() => {
+        if (!dragging) setOver(false);
+    }, [dragging]);
+
     const handlers = {
         onDragOver: (e: React.DragEvent) => {
             if (!accepts) return;
@@ -136,42 +188,85 @@ function useDropTarget(slot: Slot) {
             e.dataTransfer.dropEffect = dragging?.kind === 'step' ? 'move' : 'copy';
             if (!over) setOver(true);
         },
-        onDragLeave: () => setOver(false),
+        onDragLeave: (e: React.DragEvent) => {
+            // Moving between the parts of one place is not leaving it.
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
+        },
         onDrop: (e: React.DragEvent) => {
             e.preventDefault();
             setOver(false);
-            if (!accepts || !dragging) return;
-            if (dragging.kind === 'block') insertBlock(slot, dragging.key);
-            else moveTo(dragging.id, slot);
-            setDragging(null);
+            if (accepts) place(slot);
         },
     };
 
-    return { accepts, over, handlers, dragging };
+    return { accepts, over, setOver, handlers, dragging, place: () => place(slot), preview: placing(flow, dragging) };
 }
 
 /**
- * The line between two steps. It carries a small "+" for adding a step there,
- * and while something is dragged it becomes a drop target - only where that
- * step may go.
+ * A place something being placed can go: a wide target that says so, and
+ * shows what would land there when the pointer is over it. It is a button,
+ * so the pick-then-click route and the keyboard use the same place.
+ */
+function DropZone({
+    over,
+    pick,
+    preview,
+    onPlace,
+    onHover,
+    wide = false,
+}: {
+    over: boolean;
+    pick: boolean;
+    preview: { label: string; visual: Visual } | null;
+    onPlace: () => void;
+    onHover: (over: boolean) => void;
+    wide?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onPlace}
+            onMouseEnter={() => pick && onHover(true)}
+            onMouseLeave={() => pick && onHover(false)}
+            onFocus={() => onHover(true)}
+            onBlur={() => onHover(false)}
+            className={`my-1 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 text-xs font-medium transition-all motion-reduce:transition-none ${
+                wide ? 'h-16 w-60' : 'h-12 w-56'
+            } ${
+                over
+                    ? 'scale-[1.03] border-indigo-500 bg-indigo-50 text-indigo-800 shadow-md dark:bg-indigo-500/20 dark:text-indigo-200'
+                    : 'border-indigo-300 bg-indigo-50/60 text-indigo-600 hover:border-indigo-400 dark:border-indigo-500/50 dark:bg-indigo-500/10 dark:text-indigo-300'
+            }`}
+        >
+            {over && preview ? (
+                <>
+                    <StepIcon visual={preview.visual} className="size-6" />
+                    <span className="truncate">{preview.label}</span>
+                </>
+            ) : (
+                <>
+                    <Plus className="size-3.5 shrink-0" aria-hidden />
+                    {pick ? 'Place here' : 'Drop here'}
+                </>
+            )}
+        </button>
+    );
+}
+
+/**
+ * The line between two steps. On hover it shows a "+" for adding a step
+ * there; while a step is being placed it opens into a wide target - only
+ * where that step may go.
  */
 function Gap({ slot, arrow = true }: { slot: Slot; arrow?: boolean }) {
-    const { accepts, over, handlers, dragging } = useDropTarget(slot);
+    const { accepts, over, setOver, handlers, dragging, place, preview } = useDropTarget(slot);
 
     return (
-        <div {...handlers} className="group/gap flex w-48 flex-col items-center">
+        <div {...handlers} className="group/gap flex w-56 flex-col items-center">
             <VLine className="h-2.5" />
             {dragging ? (
                 accepts ? (
-                    <span
-                        className={`rounded-md border-2 border-dashed px-3 py-0.5 text-xs font-medium transition-colors ${
-                            over
-                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
-                                : 'bg-card text-muted-foreground border-indigo-300'
-                        }`}
-                    >
-                        Drop here
-                    </span>
+                    <DropZone over={over} pick={Boolean(dragging.pick)} preview={preview} onPlace={place} onHover={setOver} />
                 ) : (
                     <VLine className="h-5" />
                 )
@@ -182,7 +277,8 @@ function Gap({ slot, arrow = true }: { slot: Slot; arrow?: boolean }) {
                         <button
                             type="button"
                             aria-label="Add a step here"
-                            className="bg-card text-muted-foreground flex size-5 items-center justify-center rounded-full border border-indigo-200 opacity-50 shadow-xs transition group-hover/gap:opacity-100 hover:border-indigo-500 hover:text-indigo-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none dark:border-indigo-500/40"
+                            title="Add a step here"
+                            className="bg-card text-muted-foreground pointer-fine:opacity-0 pointer-fine:group-hover/gap:opacity-100 pointer-fine:focus-visible:opacity-100 flex size-5 items-center justify-center rounded-full border border-indigo-200 shadow-xs transition hover:scale-110 hover:border-indigo-500 hover:text-indigo-600 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none data-[state=open]:opacity-100 dark:border-indigo-500/40"
                         >
                             <Plus className="size-3" aria-hidden />
                         </button>
@@ -195,35 +291,123 @@ function Gap({ slot, arrow = true }: { slot: Slot; arrow?: boolean }) {
     );
 }
 
-/** Where a path has nothing after it yet: add the next step, or drop one here. */
+/** Where a path has nothing after it yet: add the next step, or place one here. */
 function OpenEnd({ slot }: { slot: Slot }) {
-    const { accepts, over, handlers } = useDropTarget(slot);
+    const { accepts, over, setOver, handlers, dragging, place, preview } = useDropTarget(slot);
 
     return (
-        <div className="flex flex-col items-center">
+        <div {...handlers} className="flex flex-col items-center">
             <VLine className="h-4" />
             <ArrowHead />
-            <div
-                {...handlers}
-                className={`w-48 rounded-xl border-2 border-dashed p-3 text-center transition-colors ${
-                    over
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/15'
-                        : accepts
-                          ? 'border-indigo-300 bg-indigo-50/50'
-                          : 'border-border bg-card/60'
-                }`}
-            >
-                <AddMenu
-                    slot={slot}
-                    trigger={
-                        <Button size="sm" variant="outline" className="h-7">
-                            <Plus className="size-3.5" aria-hidden /> Add a step
-                        </Button>
-                    }
-                />
-                <p className="text-muted-foreground mt-1.5 text-[11px]">{over ? 'Drop to add it here' : 'or drag a step here'}</p>
-            </div>
+            {dragging && accepts ? (
+                <DropZone over={over} pick={Boolean(dragging.pick)} preview={preview} onPlace={place} onHover={setOver} wide />
+            ) : (
+                <div className="border-border bg-card/60 mt-1 w-56 rounded-xl border-2 border-dashed p-3 text-center">
+                    <AddMenu
+                        slot={slot}
+                        trigger={
+                            <Button size="sm" variant="outline" className="h-7">
+                                <Plus className="size-3.5" aria-hidden /> Add a step
+                            </Button>
+                        }
+                    />
+                    <p className="text-muted-foreground mt-1.5 text-[11px]">or drag a step here</p>
+                </div>
+            )}
         </div>
+    );
+}
+
+/**
+ * Text edited where it is shown: click it, type, and Enter or a click away
+ * keeps it (Shift+Enter starts a new line; Esc puts it back). One edit is one
+ * change to undo, however much was typed.
+ */
+function InlineText({
+    value,
+    label,
+    placeholder,
+    onCommit,
+    onStart,
+    onEditing,
+    autoEdit = false,
+    multiline = true,
+    className = '',
+}: {
+    value: string;
+    label: string;
+    placeholder: string;
+    onCommit: (text: string) => void;
+    onStart?: () => void;
+    onEditing?: (editing: boolean) => void;
+    autoEdit?: boolean;
+    multiline?: boolean;
+    className?: string;
+}) {
+    const [editing, setEditing] = useState(autoEdit);
+    const [draft, setDraft] = useState(value);
+    const field = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        onEditing?.(editing);
+        // Only a change of state is news to the card.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editing]);
+
+    useLayoutEffect(() => {
+        if (!editing) return;
+        field.current?.focus();
+        field.current?.select();
+    }, [editing]);
+
+    const commit = () => {
+        setEditing(false);
+        const text = draft.trim();
+        if (text && text !== value) onCommit(text);
+    };
+
+    if (editing) {
+        return (
+            <textarea
+                ref={field}
+                value={draft}
+                aria-label={label}
+                maxLength={500}
+                rows={multiline ? 2 : 1}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !(multiline && e.shiftKey)) {
+                        e.preventDefault();
+                        commit();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDraft(value);
+                        setEditing(false);
+                    }
+                }}
+                className={`bg-background text-foreground block [field-sizing:content] w-full resize-none rounded-md border border-indigo-400 px-1.5 py-1 leading-snug outline-none focus:ring-2 focus:ring-indigo-500/30 ${className}`}
+            />
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                onStart?.();
+                setDraft(value);
+                setEditing(true);
+            }}
+            aria-label={`${label}: ${value || 'empty'}. Click to edit.`}
+            title="Click to edit"
+            className={`hover:bg-muted/70 focus-visible:ring-ring block w-full cursor-text rounded-md px-1.5 py-1 text-left leading-snug break-words focus-visible:ring-2 focus-visible:outline-none ${
+                value ? 'text-foreground' : 'text-muted-foreground italic'
+            } ${className}`}
+        >
+            {value || placeholder}
+        </button>
     );
 }
 
@@ -249,8 +433,9 @@ function RequiredToggle({ id, optional }: { id: string; optional: boolean }) {
     );
 }
 
-function NodeMenu({ id }: { id: string }) {
-    const { flow, select, move, canMove, remove } = useEditor();
+function NodeMenu({ step }: { step: TreeStep }) {
+    const { flow, openSettings, setDragging, move, canMove, duplicate, remove, collapsed, toggleCollapsed } = useEditor();
+    const id = step.id;
     const movable = isMovable(flow.nodes[id]);
     const can = movable ? canMove(id) : { up: false, down: false };
 
@@ -260,24 +445,43 @@ function NodeMenu({ id }: { id: string }) {
                 <button
                     type="button"
                     aria-label={`${stepKind(flow.nodes[id])} actions`}
-                    className="text-muted-foreground hover:text-foreground -mt-0.5 -mr-1 rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                    className="text-muted-foreground hover:text-foreground rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10"
                 >
                     <MoreHorizontal className="size-4" aria-hidden />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onSelect={() => select(id)}>
-                    <Pencil className="size-3.5" aria-hidden /> Edit step
+            <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => openSettings(id)}>
+                    <Pencil className="size-3.5" aria-hidden /> Edit settings
                 </DropdownMenuItem>
                 {movable && (
                     <>
+                        <DropdownMenuItem onSelect={() => setDragging({ kind: 'step', id, pick: true })}>
+                            <Move className="size-3.5" aria-hidden /> Move to…
+                        </DropdownMenuItem>
                         <DropdownMenuItem disabled={!can.up} onSelect={() => move(id, 'up')}>
                             <ArrowUp className="size-3.5" aria-hidden /> Move up
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled={!can.down} onSelect={() => move(id, 'down')}>
                             <ArrowDown className="size-3.5" aria-hidden /> Move down
                         </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => duplicate(id)}>
+                            <Copy className="size-3.5" aria-hidden /> Duplicate
+                        </DropdownMenuItem>
                     </>
+                )}
+                {step.branches.length > 0 && (
+                    <DropdownMenuItem onSelect={() => toggleCollapsed(id)}>
+                        {collapsed.has(id) ? (
+                            <>
+                                <ChevronsUpDown className="size-3.5" aria-hidden /> Show its paths
+                            </>
+                        ) : (
+                            <>
+                                <ChevronsDownUp className="size-3.5" aria-hidden /> Fold its paths away
+                            </>
+                        )}
+                    </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => remove(id)} className="text-red-600 focus:text-red-600 dark:text-red-400">
@@ -288,67 +492,153 @@ function NodeMenu({ id }: { id: string }) {
     );
 }
 
-/** One step on the canvas, as a card tinted by what it does. */
+function textLabel(type: string): { label: string; placeholder: string } {
+    switch (type) {
+        case 'message':
+            return { label: 'Message text', placeholder: 'Write the message…' };
+        case 'end':
+            return { label: 'Closing message', placeholder: 'Write the closing message…' };
+        default:
+            return { label: 'Question text', placeholder: 'Write the question…' };
+    }
+}
+
+/**
+ * One step on the canvas. Its header opens the settings; the text and the
+ * replies are edited right on the card; replies are added and removed here
+ * too. Steps that simply lead on can be dragged by the card.
+ */
 function NodeCard({ step }: { step: TreeStep }) {
-    const { selected, select, setDragging, issues } = useEditor();
+    const { selected, select, openSettings, setDragging, issues, setText, renameReply, addReply, removeReply, addQuickReplies } = useEditor();
     const node = step.node;
     const visual = stepVisual(node);
     const movable = isMovable(node);
     const problems = issues[step.id] ?? [];
     const errors = problems.filter((p) => p.level === 'error');
     const isSelected = selected === step.id;
+    const [editing, setEditing] = useState(false);
+    const [newReply, setNewReply] = useState<string | null>(null);
+    const text = textLabel(node.type);
+    const options = node.options ?? [];
 
     return (
         <div
             id={`flow-step-${step.id}`}
             data-flow-node={visual.tone.dot}
-            draggable={movable}
+            // Not while typing: a drag would steal the text selection.
+            draggable={movable && !editing}
             onDragStart={(e) => {
                 e.dataTransfer.setData('text/plain', step.id);
                 e.dataTransfer.effectAllowed = 'move';
                 setDragging({ kind: 'step', id: step.id });
             }}
             onDragEnd={() => setDragging(null)}
-            className={`w-52 rounded-xl border shadow-sm transition-shadow hover:shadow-md ${visual.tone.card} ${
+            className={`group/card bg-card w-60 rounded-xl border shadow-sm transition-shadow hover:shadow-md ${visual.tone.edge} ${
                 isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-transparent' : errors.length > 0 ? 'ring-2 ring-red-400/70' : ''
-            } ${movable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            }`}
         >
-            <div className="flex items-start gap-2.5 p-3">
+            <div
+                className={`flex items-center gap-2 rounded-t-xl px-3 py-2 ${visual.tone.head} ${movable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            >
                 <button
                     type="button"
-                    onClick={() => select(step.id)}
+                    onClick={() => openSettings(step.id)}
                     aria-pressed={isSelected}
-                    className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
+                    title="Open this step's settings"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                 >
-                    <StepIcon visual={visual} />
+                    <StepIcon visual={visual} className="size-8" />
                     <span className="min-w-0 flex-1">
-                        <span className="text-foreground block text-[13px] leading-tight font-semibold">{stepKind(node)}</span>
-                        <span className="text-muted-foreground mt-0.5 line-clamp-3 block text-xs leading-snug">{describe(node)}</span>
-                        {node.type === 'end' && (
-                            <span className="text-muted-foreground/80 mt-0.5 block text-[11px]">{outcomeLabel(node.outcome)}</span>
+                        <span className="text-foreground block truncate text-[13px] leading-tight font-semibold">{stepKind(node)}</span>
+                        {node.type === 'end' ? (
+                            <span className="text-muted-foreground block truncate text-[11px]">{outcomeLabel(node.outcome)}</span>
+                        ) : (
+                            !TEXT_TYPES.includes(node.type) && <span className="text-muted-foreground block truncate text-xs">{describe(node)}</span>
                         )}
                     </span>
                 </button>
-                <NodeMenu id={step.id} />
+                <NodeMenu step={step} />
             </div>
 
-            {node.type === 'choice' && (node.options ?? []).length > 0 && (
-                <ul className="space-y-1 px-3 pb-3">
-                    {(node.options ?? []).map((o) => (
-                        <li
-                            key={o.id}
-                            className="bg-card/90 text-foreground flex items-center gap-2 rounded-md border border-blue-100 px-2 py-1 text-xs dark:border-blue-500/20"
-                        >
-                            <Circle className="size-3 shrink-0 text-blue-400" aria-hidden />
-                            <span className="min-w-0 flex-1 truncate">{o.label || 'Untitled answer'}</span>
-                            {o.score ? <span className="font-semibold text-blue-700 tabular-nums dark:text-blue-300">+{o.score}</span> : null}
-                        </li>
-                    ))}
-                </ul>
+            {TEXT_TYPES.includes(node.type) && (
+                <div className="px-1.5 pt-1.5 pb-2">
+                    <InlineText
+                        value={node.text ?? ''}
+                        label={text.label}
+                        placeholder={text.placeholder}
+                        onCommit={(value) => setText(step.id, value)}
+                        onStart={() => select(step.id)}
+                        onEditing={setEditing}
+                        className="text-[13px]"
+                    />
+                </div>
+            )}
+
+            {node.type === 'choice' && (
+                <div className="space-y-1 px-3 pb-3">
+                    <ul className="space-y-1">
+                        {options.map((o) => (
+                            <li
+                                key={o.id}
+                                className="group/reply flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50/50 pl-1.5 dark:border-blue-500/20 dark:bg-blue-500/5"
+                            >
+                                <Circle className="size-3 shrink-0 text-blue-400" aria-hidden />
+                                <div className="min-w-0 flex-1">
+                                    <InlineText
+                                        value={o.label}
+                                        label={`Reply “${o.label}”`}
+                                        placeholder="Reply text"
+                                        onCommit={(value) => renameReply(step.id, o.id, value)}
+                                        onStart={() => select(step.id)}
+                                        onEditing={(on) => {
+                                            setEditing(on);
+                                            if (!on && newReply === o.id) setNewReply(null);
+                                        }}
+                                        autoEdit={newReply === o.id}
+                                        multiline={false}
+                                        className="text-xs"
+                                    />
+                                </div>
+                                {o.score ? (
+                                    <span className="text-[11px] font-semibold text-blue-700 tabular-nums dark:text-blue-300">+{o.score}</span>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => removeReply(step.id, o.id)}
+                                    disabled={options.length <= 1}
+                                    aria-label={`Remove the reply “${o.label}”`}
+                                    title="Remove this reply"
+                                    className="text-muted-foreground pointer-fine:opacity-0 pointer-fine:group-hover/reply:opacity-100 rounded p-1 hover:text-red-600 focus-visible:opacity-100 disabled:hidden"
+                                >
+                                    <X className="size-3" aria-hidden />
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    <button
+                        type="button"
+                        onClick={() => setNewReply(addReply(step.id))}
+                        className="flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                    >
+                        <Plus className="size-3" aria-hidden /> Add reply
+                    </button>
+                </div>
+            )}
+
+            {node.type === 'message' && (
+                <div className="px-3 pb-2">
+                    <button
+                        type="button"
+                        onClick={() => addQuickReplies(step.id)}
+                        className="text-muted-foreground pointer-fine:opacity-0 pointer-fine:group-hover/card:opacity-100 flex items-center gap-1 rounded-md px-1.5 py-1 text-xs hover:bg-violet-50 hover:text-violet-700 focus-visible:opacity-100 dark:hover:bg-violet-500/10 dark:hover:text-violet-300"
+                    >
+                        <MessageSquarePlus className="size-3.5" aria-hidden /> Add quick replies
+                    </button>
+                </div>
             )}
 
             {node.type === 'input' && (
-                <div className="flex items-center justify-between gap-2 px-3 pb-3">
+                <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
                     <span className="text-muted-foreground text-[11px]">{node.optional ? 'Visitors may skip' : 'Visitors must answer'}</span>
                     <RequiredToggle id={step.id} optional={Boolean(node.optional)} />
                 </div>
@@ -386,7 +676,7 @@ function BranchPill({ branch, parent }: { branch: TreeBranch; parent: TreeStep }
             : (branch.label ?? '');
 
     return (
-        <span className={`max-w-48 truncate rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${tone.pill}`} title={text}>
+        <span className={`max-w-52 truncate rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${tone.pill}`} title={text}>
             {text}
         </span>
     );
@@ -454,7 +744,7 @@ function FanOut({ step }: { step: TreeStep }) {
                         ref={(el) => {
                             columns.current[i] = el;
                         }}
-                        className="flex flex-col items-center px-2"
+                        className="flex flex-col items-center px-3"
                     >
                         <VLine className="h-4" />
                         <BranchPill branch={branch} parent={step} />
@@ -469,6 +759,46 @@ function FanOut({ step }: { step: TreeStep }) {
                     />
                 )}
             </div>
+        </>
+    );
+}
+
+/**
+ * A question whose paths are folded away: one line saying how much is
+ * hidden, which opens them again. Lines from inside the fold that meet a path
+ * further out still reach it.
+ */
+function FoldedPaths({ step }: { step: TreeStep }) {
+    const { toggleCollapsed } = useEditor();
+    const hidden = stepsInside(step);
+
+    const inside = new Set<string>();
+    const ends: string[] = [];
+    const walk = (s: TreeStep) =>
+        s.branches.forEach((b) => {
+            b.steps.forEach((inner) => {
+                inside.add(inner.id);
+                walk(inner);
+            });
+            if (b.end.kind === 'joins') ends.push(b.end.to);
+        });
+    walk(step);
+    const outer = [...new Set(ends)].filter((to) => to !== step.join && !inside.has(to));
+
+    return (
+        <>
+            <VLine className="h-4" />
+            <button
+                type="button"
+                onClick={() => toggleCollapsed(step.id)}
+                className="bg-card text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-full border border-dashed border-indigo-300 px-3 py-1 text-xs hover:border-indigo-500"
+            >
+                <ChevronsUpDown className="size-3.5" aria-hidden />
+                {step.branches.length} paths, {hidden} {hidden === 1 ? 'step' : 'steps'} folded away · Show
+            </button>
+            {outer.map((to) => (
+                <span key={to} data-join-tail={to} className={`block min-h-3 w-[1.5px] flex-1 ${LINE}`} aria-hidden />
+            ))}
         </>
     );
 }
@@ -501,7 +831,7 @@ function ColumnEnd({ branch }: { branch: TreeBranch }) {
                         select(end.to);
                         document.getElementById(`flow-step-${end.to}`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
                     }}
-                    className="bg-card text-muted-foreground hover:text-foreground flex max-w-48 items-center gap-1.5 rounded-full border border-dashed border-indigo-300 px-2.5 py-1 text-[11px]"
+                    className="bg-card text-muted-foreground hover:text-foreground flex max-w-52 items-center gap-1.5 rounded-full border border-dashed border-indigo-300 px-2.5 py-1 text-[11px]"
                 >
                     <CornerDownRight className="size-3 shrink-0" aria-hidden />
                     <span className="truncate">Continues at “{describe(flow.nodes[end.to])}”</span>
@@ -512,13 +842,14 @@ function ColumnEnd({ branch }: { branch: TreeBranch }) {
 }
 
 function BranchColumn({ branch }: { branch: TreeBranch }) {
+    const { collapsed } = useEditor();
     return (
         <div className="flex flex-1 flex-col items-center">
             {branch.steps.map((step) => (
                 <Fragment key={step.id}>
                     <Gap slot={step.via} />
                     <NodeCard step={step} />
-                    {step.branches.length > 0 && <FanOut step={step} />}
+                    {step.branches.length > 0 && (collapsed.has(step.id) ? <FoldedPaths step={step} /> : <FanOut step={step} />)}
                 </Fragment>
             ))}
             <ColumnEnd branch={branch} />
@@ -530,6 +861,8 @@ type MiniView = {
     boxes: { x: number; y: number; w: number; h: number; color: string }[];
     frame: { x: number; y: number; w: number; h: number };
     scale: number;
+    /** Whether the conversation is bigger than the view, so the map helps. */
+    overflows: boolean;
 };
 
 /** A small overview of the whole canvas; click to jump there. */
@@ -537,10 +870,12 @@ function MiniMap({
     scroller,
     content,
     tick,
+    onClose,
 }: {
     scroller: React.RefObject<HTMLDivElement | null>;
     content: React.RefObject<HTMLDivElement | null>;
     tick: number;
+    onClose: () => void;
 }) {
     const W = 148;
     const H = 84;
@@ -568,14 +903,25 @@ function MiniMap({
             boxes,
             scale,
             frame: { x: (port.left - area.left) * scale, y: (port.top - area.top) * scale, w: port.width * scale, h: port.height * scale },
+            overflows: s.scrollWidth > s.clientWidth + 4 || s.scrollHeight > s.clientHeight + 4,
         });
     }, [tick, scroller, content]);
 
-    if (!view) return null;
+    if (!view || !view.overflows) return null;
 
     return (
         <div className="bg-card/95 absolute right-3 bottom-3 hidden rounded-lg border p-2 shadow-sm sm:block">
-            <p className="text-muted-foreground mb-1 text-[11px] font-medium">Mini map</p>
+            <div className="mb-1 flex items-center justify-between">
+                <p className="text-muted-foreground text-[11px] font-medium">Mini map</p>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Hide the mini map"
+                    className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5"
+                >
+                    <X className="size-3" aria-hidden />
+                </button>
+            </div>
             <svg
                 width={W}
                 height={H}
@@ -617,9 +963,9 @@ function MiniMap({
     );
 }
 
-/** Steps nothing leads to: shown, so they can be dragged back in or removed. */
+/** Steps nothing leads to: shown, so they can be put back in or removed. */
 function Unreachable({ ids }: { ids: string[] }) {
-    const { flow, select, setDragging, remove } = useEditor();
+    const { flow, openSettings, setDragging, remove } = useEditor();
     if (ids.length === 0) return null;
 
     return (
@@ -642,7 +988,7 @@ function Unreachable({ ids }: { ids: string[] }) {
                             onDragEnd={() => setDragging(null)}
                             className={`flex items-center gap-2 rounded-lg border p-1.5 pr-1 ${stepVisual(node).tone.card}`}
                         >
-                            <button type="button" onClick={() => select(id)} className="flex max-w-64 min-w-0 items-center gap-2 text-left">
+                            <button type="button" onClick={() => openSettings(id)} className="flex max-w-64 min-w-0 items-center gap-2 text-left">
                                 <StepIcon visual={stepVisual(node)} className="size-6" />
                                 <span className="min-w-0 truncate text-xs">
                                     <span className="font-semibold">{stepKind(node)}:</span> {describe(node)}
@@ -661,25 +1007,26 @@ function Unreachable({ ids }: { ids: string[] }) {
 
 /**
  * The canvas: the conversation drawn as a tree from Start, on a dotted board
- * that scrolls, zooms and goes full screen, with a mini map for large ones.
+ * that scrolls and zooms, with a mini map when it outgrows the view. While a
+ * step is being placed, a banner says so and the board scrolls by itself
+ * near its edges.
  */
-export function FlowCanvas() {
-    const { flow } = useEditor();
+export function FlowCanvas({ className = 'h-[calc(100vh-16rem)] min-h-[560px]', toolbar }: { className?: string; toolbar?: ReactNode }) {
+    const { flow, dragging, setDragging } = useEditor();
     const { root, unreachable } = useMemo(() => buildTree(flow), [flow]);
-    const frame = useRef<HTMLDivElement>(null);
     const scroller = useRef<HTMLDivElement>(null);
     const content = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState(1);
     const [tick, setTick] = useState(0);
+    const [showMap, setShowMap] = useState(true);
     const bump = useCallback(() => requestAnimationFrame(() => setTick((t) => t + 1)), []);
 
     useEffect(() => {
         bump();
     }, [flow, zoom, bump]);
 
-    // Open with the whole conversation in view: shrink a wide tree to fit
-    // (never below 80%, where the text stops being comfortable to read;
-    // a wider tree scrolls sideways, centred on Start)...
+    // Open with the whole conversation in view where it fits at a readable
+    // size (never below 85%); a wider tree scrolls sideways, centred on Start...
     const fitted = useRef(false);
     useLayoutEffect(() => {
         if (fitted.current) return;
@@ -688,22 +1035,29 @@ export function FlowCanvas() {
         if (!s || !c) return;
         fitted.current = true;
         const natural = c.getBoundingClientRect().width;
-        if (natural > s.clientWidth && s.clientWidth > 0) setZoom(Math.max(0.8, Math.floor(((s.clientWidth - 32) / natural) * 20) / 20));
+        if (natural > s.clientWidth && s.clientWidth > 0) setZoom(Math.max(0.85, Math.floor(((s.clientWidth - 32) / natural) * 20) / 20));
     }, []);
 
-    // ...and keep it centred on Start whenever the zoom changes.
-    useEffect(() => {
+    // ...and keep it centred on Start whenever the zoom or the room changes.
+    const centre = useCallback(() => {
         const s = scroller.current;
         if (s) s.scrollLeft = (s.scrollWidth - s.clientWidth) / 2;
-    }, [zoom]);
+    }, []);
+    useEffect(centre, [zoom, centre]);
 
     useEffect(() => {
         const s = scroller.current;
         if (!s) return;
-        const observer = new ResizeObserver(bump);
+        let width = s.clientWidth;
+        const observer = new ResizeObserver(() => {
+            bump();
+            // A panel opened or closed: the view keeps Start in the middle.
+            if (Math.abs(s.clientWidth - width) > 40) centre();
+            width = s.clientWidth;
+        });
         observer.observe(s);
         return () => observer.disconnect();
-    }, [bump]);
+    }, [bump, centre]);
 
     const zoomBy = (delta: number) => setZoom((z) => Math.min(1.5, Math.max(0.4, Math.round((z + delta) * 10) / 10)));
     const fit = () => {
@@ -713,18 +1067,12 @@ export function FlowCanvas() {
         const natural = c.getBoundingClientRect().width / zoom;
         setZoom(Math.min(1, Math.max(0.4, Math.floor(((s.clientWidth - 32) / natural) * 20) / 20)));
     };
-    const fullscreen = () => {
-        if (document.fullscreenElement) void document.exitFullscreen();
-        else void frame.current?.requestFullscreen?.();
-    };
 
     const startVisual = blockVisual('start');
+    const picked = dragging?.pick ? placing(flow, dragging) : null;
 
     return (
-        <div
-            ref={frame}
-            className="bg-muted/30 relative h-[calc(100vh-16rem)] min-h-[560px] overflow-hidden rounded-xl border [&:fullscreen]:h-screen [&:fullscreen]:rounded-none"
-        >
+        <div className={`bg-muted/30 relative overflow-hidden rounded-xl border ${className}`}>
             <div
                 ref={scroller}
                 onScroll={bump}
@@ -733,18 +1081,30 @@ export function FlowCanvas() {
                     e.preventDefault();
                     zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
                 }}
-                className="h-full w-full overflow-auto"
+                onDragOver={(e) => {
+                    // Near an edge while dragging, the board scrolls to show more.
+                    const s = scroller.current;
+                    if (!s || !dragging) return;
+                    const r = s.getBoundingClientRect();
+                    const edge = 64;
+                    const step = 16;
+                    if (e.clientY < r.top + edge) s.scrollTop -= step;
+                    else if (e.clientY > r.bottom - edge) s.scrollTop += step;
+                    if (e.clientX < r.left + edge) s.scrollLeft -= step;
+                    else if (e.clientX > r.right - edge) s.scrollLeft += step;
+                }}
+                className="h-full w-full overflow-auto overscroll-contain"
                 style={{
-                    backgroundImage: 'radial-gradient(circle, color-mix(in oklab, var(--foreground) 16%, transparent) 1px, transparent 1.3px)',
-                    backgroundSize: '18px 18px',
+                    backgroundImage: 'radial-gradient(circle, color-mix(in oklab, var(--foreground) 14%, transparent) 1px, transparent 1.3px)',
+                    backgroundSize: '20px 20px',
                 }}
             >
-                <div ref={content} style={{ zoom }} className="mx-auto flex w-max flex-col items-center px-12 pt-8 pb-28">
+                <div ref={content} style={{ zoom }} className="mx-auto flex w-max flex-col items-center px-12 pt-20 pb-28">
                     <div
                         data-flow-node={startVisual.tone.dot}
-                        className={`flex w-52 items-center gap-2.5 rounded-xl border p-3 shadow-sm ${startVisual.tone.card}`}
+                        className={`bg-card flex w-60 items-center gap-2.5 rounded-xl border px-3 py-2.5 shadow-sm ${startVisual.tone.edge}`}
                     >
-                        <StepIcon visual={startVisual} />
+                        <StepIcon visual={startVisual} className="size-8" />
                         <span>
                             <span className="text-foreground block text-[13px] font-semibold">Start</span>
                             <span className="text-muted-foreground block text-xs">Conversation starts here</span>
@@ -754,6 +1114,27 @@ export function FlowCanvas() {
                     <Unreachable ids={unreachable} />
                 </div>
             </div>
+
+            {picked && (
+                <div
+                    role="status"
+                    className="absolute top-3 left-1/2 z-10 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-indigo-600 py-1 pr-1 pl-1.5 text-sm text-white shadow-lg"
+                >
+                    <StepIcon visual={picked.visual} className="size-6" />
+                    <span className="truncate">
+                        Click a highlighted place for <strong className="font-semibold">{picked.label}</strong>
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setDragging(null)}
+                        className="shrink-0 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium hover:bg-white/30"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            )}
+
+            {toolbar && !picked && <div className="absolute top-3 right-3 z-10">{toolbar}</div>}
 
             <div className="bg-card absolute bottom-3 left-3 flex items-center gap-0.5 rounded-lg border p-1 shadow-sm">
                 <Button
@@ -788,12 +1169,20 @@ export function FlowCanvas() {
                 <Button variant="ghost" size="icon" className="size-8" onClick={fit} aria-label="Fit to screen" title="Fit to screen">
                     <ScanLine className="size-4" aria-hidden />
                 </Button>
-                <Button variant="ghost" size="icon" className="size-8" onClick={fullscreen} aria-label="Full screen" title="Full screen">
-                    <Expand className="size-4" aria-hidden />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`size-8 ${showMap ? 'text-indigo-600 dark:text-indigo-300' : ''}`}
+                    onClick={() => setShowMap((on) => !on)}
+                    aria-label={showMap ? 'Hide the mini map' : 'Show the mini map'}
+                    aria-pressed={showMap}
+                    title="Mini map"
+                >
+                    <MapIcon className="size-4" aria-hidden />
                 </Button>
             </div>
 
-            <MiniMap scroller={scroller} content={content} tick={tick} />
+            {showMap && <MiniMap scroller={scroller} content={content} tick={tick} onClose={() => setShowMap(false)} />}
         </div>
     );
 }
