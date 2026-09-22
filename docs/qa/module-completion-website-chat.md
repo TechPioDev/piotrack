@@ -512,3 +512,34 @@ real engine, new widget from a template).
 **Not verified by hand in a browser:** the builder needs a signed-in session, and the
 assistant does not sign in with passwords. Layout at the three breakpoints (three columns
 from 1280 px, library collapsed and settings in a slide-over below) needs a visual pass.
+
+## Follow-up (2026-09-22): the owner's reference design (CHAT-058, CHAT-059)
+
+The owner sent a reference builder and asked for the same design, because it shows how the
+tree works. The builder now matches it: Start card; tinted cards with a ⋯ menu; each
+answer fans out sideways under its question with a labelled pill, and the lines converge
+where paths meet again; dotted canvas with zoom, fit, full screen and a mini map; Steps |
+Templates panel with search; Step Settings with Content / Advanced / Condition tabs and a
+Quick Replies switch that turns a message into a question; widget switcher, Save, Test,
+Publish and a menu in the header; a shortcut strip below.
+
+**Visual pass (this closes the gap noted above):** the page was rendered with sample data
+through a local-only route (removed before commit) in headless Chrome at 1536 × 1000 and
+390 × 844, in 11 states: overview, message and question settings, reply paths, required
+field, "+" menu, template gallery, dragging, dropped, phone. Found and fixed:
+
+- A path nested inside another path met the outer join line only by coincidence of widths;
+  each rejoining line is now marked and the join line is measured from them.
+- The first view zoomed out to 60 %, too small to read; it now fits no smaller than 80 %.
+- The "+" menu was taller than the space above or below a low "+", so its top went off
+  screen; it is now capped to the space available and scrolls.
+- On a phone the header buttons ran off the right edge (the shared page header could not
+  wrap its actions); they now wrap, and the canvas comes before the step library.
+
+**Automated testing:** interface tests 10 → 11 (Quick Replies on a message; the paths test
+now checks the pills and that both paths draw into the shared step). Full gate green:
+Pest 1,165, Vitest 143.
+
+**Not built from the reference** (the engine has no such step yet): image/media and
+carousel messages, variables and delays, API requests, knowledge base, sending email, AI
+generator, version history, text formatting toolbar.

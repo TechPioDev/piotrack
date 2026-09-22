@@ -40,7 +40,9 @@ Widget managers (`chat.widget.manage`) build and publish; others cannot open the
 
 CHAT-052 Tree conversation builder · CHAT-053 Drag-and-drop block library ·
 CHAT-054 Contact blocks with required/optional · CHAT-055 Business template gallery ·
-CHAT-056 Builder undo/redo · CHAT-057 Start a new widget from a template.
+CHAT-056 Builder undo/redo · CHAT-057 Start a new widget from a template ·
+CHAT-058 Canvas builder layout (the owner's reference design) · CHAT-059 Step settings
+with Quick Replies.
 
 ## User stories
 
@@ -69,9 +71,13 @@ drawing and editing it. Every existing conversation opens in the new builder unc
 
 ## UI pages & components
 
-Builder page: block library (left), tree (centre), step settings (right), toolbar with
-undo/redo, templates, test, save/publish. Template gallery dialog with categories,
-preview and confirmation. Widgets page: "Start from" choice when creating a widget.
+Builder page, laid out after the owner's reference: Steps | Templates panel with search
+(left); a dotted canvas (centre) with a Start card, tinted step cards with a ⋯ menu,
+answers fanning out sideways under labelled pills and converging where they meet, zoom,
+fit, full screen and a mini map; Step Settings (right) with Content / Advanced / Condition
+tabs and a Quick Replies switch. Header: widget switcher, undo/redo, Save, Test, Publish,
+menu. A shortcut strip below. Template gallery dialog with categories, preview and
+confirmation. Widgets page: "Start from" choice when creating a widget.
 
 ## Business rules & validation
 

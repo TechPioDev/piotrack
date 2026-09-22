@@ -17,10 +17,12 @@ import {
     withoutStranded,
     withTarget,
 } from '@/lib/flow-tree';
-import { ArrowDown, ArrowUp, Flame, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Flame, GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
 import { StepIcon, stepVisual } from './step-visuals';
 
 type Assignee = { id: number; name: string };
+type Tab = 'content' | 'advanced' | 'condition';
 
 const OPERATORS = [
     { id: 'equals', label: 'is' },
@@ -33,11 +35,44 @@ const OPERATORS = [
 
 const MAIN = '__main';
 const OWN = '__own';
+const MAX_TEXT = 500;
+
+/** One line under the step's name saying what it does. */
+function purpose(node: FlowNode): string {
+    switch (node.type) {
+        case 'message':
+            return 'Sends a text message to the visitor.';
+        case 'choice':
+            return 'Asks a question with replies to tap.';
+        case 'input':
+            if (node.field && CONTACT_FIELDS[node.field])
+                return `Asks for their ${CONTACT_FIELDS[node.field].toLowerCase()} and saves it to the lead.`;
+            return node.input === 'number' ? 'Asks for a number.' : 'Asks a question they answer in their own words.';
+        case 'booking':
+            return 'Offers free times from your booking page.';
+        case 'handoff':
+            return 'Connects the visitor to someone from your team.';
+        case 'ai':
+            return 'Lets AI answer typed questions about your business.';
+        case 'score':
+            return 'Raises the lead score of visitors who reach it.';
+        case 'tag':
+            return 'Labels the conversation.';
+        case 'assign':
+            return 'Chooses who follows up the lead.';
+        case 'condition':
+            return 'Sends visitors one way or another by an earlier answer.';
+        case 'end':
+            return 'Ends the conversation.';
+        default:
+            return '';
+    }
+}
 
 /**
  * Where one way out of a step leads: on with the rest of the conversation, a
- * path of its own (started with a message to edit, so each has a branch in
- * the tree), or straight to another step - the "go to" that loops or skips.
+ * path of its own (started with a message to edit, so it has a branch on the
+ * canvas), or straight to another step - the "go to" that loops or skips.
  */
 function PathSelect({
     flow,
@@ -61,7 +96,7 @@ function PathSelect({
 
     return (
         <Select value={current ?? MAIN} onValueChange={onChoose}>
-            <SelectTrigger aria-label={label} className="h-8 text-xs">
+            <SelectTrigger aria-label={label} className="h-9 text-xs">
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -72,7 +107,7 @@ function PathSelect({
                 <SelectItem value={OWN}>A new path of its own</SelectItem>
                 {others.map((id) => (
                     <SelectItem key={id} value={id}>
-                        Go to {stepKind(flow.nodes[id]).toLowerCase()}: {describe(flow.nodes[id]).slice(0, 36)}
+                        Go to {stepKind(flow.nodes[id])}: {describe(flow.nodes[id]).slice(0, 32)}
                     </SelectItem>
                 ))}
             </SelectContent>
@@ -84,6 +119,25 @@ function PathSelect({
 function choosePath(flow: Flow, slot: Slot, choice: string, main: string | null, placeholder: string): Flow {
     if (choice === OWN) return withoutStranded(flow, insertStep(withTarget(flow, slot, main), slot, { type: 'message', text: placeholder }).flow);
     return withoutStranded(flow, withTarget(flow, slot, choice === MAIN ? main : choice));
+}
+
+function Switch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            onClick={() => onChange(!checked)}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none ${
+                checked ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
+            }`}
+        >
+            <span
+                className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`}
+            />
+        </button>
+    );
 }
 
 export function StepSettings({
@@ -107,6 +161,9 @@ export function StepSettings({
     onMove: (direction: 'up' | 'down') => void;
     onClose: () => void;
 }) {
+    const [tab, setTab] = useState<Tab>('content');
+    const [confirmPlain, setConfirmPlain] = useState(false);
+    const [dragFrom, setDragFrom] = useState<number | null>(null);
     const node = flow.nodes[id];
     if (!node) return null;
 
@@ -119,66 +176,348 @@ export function StepSettings({
     // Where this step's answers carry on when they do not go their own way.
     const main = step?.branches.length ? step.join : (node.options?.[0]?.next ?? node.next ?? null);
     const mainLabel = main ? `Carry on: ${describe(flow.nodes[main] ?? { type: 'message' }).slice(0, 30)}` : 'Carry on (nothing follows yet)';
-
+    const options = node.options ?? [];
+    const answerPaths = new Set(options.map((o) => o.next ?? null));
     const fields = collectFields(flow, id);
+    const hasText = ['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type);
+
+    /** Quick replies on: the message becomes a question, and every reply carries on where it went. */
+    const quickRepliesOn = () =>
+        onApply({
+            ...flow,
+            nodes: {
+                ...flow.nodes,
+                [id]: {
+                    type: 'choice',
+                    text: node.text,
+                    field: node.field || id,
+                    options: [
+                        { id: 'answer_1', label: 'Option 1', score: 0, next: node.next ?? null },
+                        { id: 'answer_2', label: 'Option 2', score: 0, next: node.next ?? null },
+                    ],
+                },
+            },
+        });
+
+    /** Quick replies off: back to a plain message, carrying on where the replies met. */
+    const quickRepliesOff = () => {
+        setConfirmPlain(false);
+        onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { type: 'message', text: node.text, next: main } } }));
+    };
+
+    const reorder = (from: number, to: number) => {
+        if (from === to) return;
+        const next = [...options];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        onPatch({ options: next });
+    };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-start gap-3">
-                <StepIcon visual={stepVisual(node)} />
-                <div className="min-w-0 flex-1">
-                    <h2 className="text-foreground text-sm font-semibold">{stepKind(node)}</h2>
-                    <p className="text-muted-foreground text-xs">Changes show in the tree straight away.</p>
-                </div>
-                <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close step settings">
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+                <h2 className="text-foreground text-sm font-semibold">Step Settings</h2>
+                <Button size="icon" variant="ghost" className="size-7" onClick={onClose} aria-label="Close step settings">
                     <X className="size-4" aria-hidden />
                 </Button>
             </div>
 
-            {['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type) && (
-                <div className="grid gap-1">
-                    <Label htmlFor="step-text">
-                        {node.type === 'end' ? 'Closing message' : node.type === 'message' ? 'Message' : 'What the chat asks'}
-                    </Label>
-                    <textarea
-                        id="step-text"
-                        rows={node.type === 'message' ? 3 : 2}
-                        className="border-input bg-background focus-visible:ring-brand w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-                        value={node.text ?? ''}
-                        onChange={(e) => onPatch({ text: e.target.value }, `${id}:text`)}
-                    />
+            <div className="flex items-start gap-3 px-4 pt-4">
+                <StepIcon visual={stepVisual(node)} className="size-10" />
+                <div className="min-w-0">
+                    <p className="text-foreground text-sm font-semibold">{stepKind(node)}</p>
+                    <p className="text-muted-foreground text-xs">{purpose(node)}</p>
                 </div>
-            )}
+            </div>
 
-            {node.type === 'input' && (
-                <div className="space-y-3">
-                    <label className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                        <span>
-                            <span className="text-foreground block text-sm font-medium">Required</span>
-                            <span className="text-muted-foreground block text-xs">
-                                {node.optional ? 'Visitors see a “Skip this” button.' : 'Visitors must answer to carry on.'}
-                            </span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            role="switch"
-                            className="size-4 accent-[var(--brand)]"
-                            checked={!node.optional}
-                            onChange={(e) => onPatch({ optional: !e.target.checked })}
-                        />
-                    </label>
-                    {node.field && CONTACT_FIELDS[node.field] ? (
-                        <p className="text-muted-foreground text-xs">
-                            Saved to the lead as <span className="text-foreground font-medium">{CONTACT_FIELDS[node.field]}</span>
-                            {node.input === 'email'
-                                ? ', and checked as a real email address.'
-                                : node.input === 'phone'
-                                  ? ', and checked as a phone number.'
-                                  : '.'}
-                        </p>
-                    ) : (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="grid gap-1">
+            <div role="tablist" aria-label="Step settings" className="mt-4 grid grid-cols-3 border-b px-4">
+                {(['content', 'advanced', 'condition'] as const).map((t) => (
+                    <button
+                        key={t}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === t}
+                        onClick={() => setTab(t)}
+                        className={`-mb-px border-b-2 py-2 text-sm capitalize transition-colors ${
+                            tab === t
+                                ? 'border-indigo-500 font-medium text-indigo-700 dark:text-indigo-300'
+                                : 'text-muted-foreground hover:text-foreground border-transparent'
+                        }`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" role="tabpanel">
+                {tab === 'content' && (
+                    <>
+                        {hasText && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="step-text">
+                                    {node.type === 'end' ? 'Closing Message' : node.type === 'message' ? 'Message Text' : 'Question Text'}
+                                </Label>
+                                <textarea
+                                    id="step-text"
+                                    rows={4}
+                                    maxLength={MAX_TEXT}
+                                    className="border-input bg-background w-full resize-y rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                                    value={node.text ?? ''}
+                                    onChange={(e) => onPatch({ text: e.target.value }, `${id}:text`)}
+                                />
+                                <p className="text-muted-foreground text-right text-[11px] tabular-nums">
+                                    {(node.text ?? '').length}/{MAX_TEXT}
+                                </p>
+                            </div>
+                        )}
+
+                        {(node.type === 'message' || node.type === 'choice') && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label>Quick Replies</Label>
+                                    <Switch
+                                        label="Quick replies"
+                                        checked={node.type === 'choice'}
+                                        onChange={(on) => {
+                                            if (on) quickRepliesOn();
+                                            else if (answerPaths.size > 1) setConfirmPlain(true);
+                                            else quickRepliesOff();
+                                        }}
+                                    />
+                                </div>
+                                {confirmPlain && (
+                                    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs dark:border-amber-500/40 dark:bg-amber-500/10">
+                                        <p>
+                                            The replies lead different ways. Turning them off keeps only the path after the question and removes the
+                                            others.
+                                        </p>
+                                        <div className="mt-2 flex gap-2">
+                                            <Button size="sm" variant="destructive" className="h-7" onClick={quickRepliesOff}>
+                                                Remove their paths
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-7" onClick={() => setConfirmPlain(false)}>
+                                                Keep the replies
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                                {node.type === 'message' && (
+                                    <p className="text-muted-foreground text-xs">Add buttons the visitor can tap to reply.</p>
+                                )}
+                                {node.type === 'choice' && (
+                                    <div className="space-y-1.5">
+                                        {options.map((option, index) => (
+                                            <div
+                                                key={option.id}
+                                                onDragOver={(e) => dragFrom !== null && e.preventDefault()}
+                                                onDrop={() => {
+                                                    if (dragFrom !== null) reorder(dragFrom, index);
+                                                    setDragFrom(null);
+                                                }}
+                                                className={`flex items-center gap-1.5 ${dragFrom === index ? 'opacity-50' : ''}`}
+                                            >
+                                                <span
+                                                    draggable
+                                                    onDragStart={(e) => {
+                                                        e.dataTransfer.setData('text/plain', String(index));
+                                                        setDragFrom(index);
+                                                    }}
+                                                    onDragEnd={() => setDragFrom(null)}
+                                                    className="text-muted-foreground cursor-grab rounded p-1 hover:bg-black/5 active:cursor-grabbing dark:hover:bg-white/10"
+                                                    title="Drag to reorder"
+                                                    aria-hidden
+                                                >
+                                                    <GripVertical className="size-4" />
+                                                </span>
+                                                <Input
+                                                    value={option.label}
+                                                    onChange={(e) =>
+                                                        onPatch(
+                                                            { options: options.map((o, i) => (i === index ? { ...o, label: e.target.value } : o)) },
+                                                            `${id}:option:${option.id}:label`,
+                                                        )
+                                                    }
+                                                    aria-label={`Reply ${index + 1}`}
+                                                    className="h-9"
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="size-8 shrink-0"
+                                                    disabled={options.length <= 1}
+                                                    aria-label={`Remove reply ${option.label}`}
+                                                    onClick={() =>
+                                                        onApply(
+                                                            withoutStranded(flow, {
+                                                                ...flow,
+                                                                nodes: {
+                                                                    ...flow.nodes,
+                                                                    [id]: { ...node, options: options.filter((o) => o.id !== option.id) },
+                                                                },
+                                                            }),
+                                                        )
+                                                    }
+                                                >
+                                                    <X className="size-4" aria-hidden />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                const taken = new Set(options.map((o) => o.id));
+                                                let n = options.length + 1;
+                                                while (taken.has(`answer_${n}`)) n += 1;
+                                                onPatch({ options: [...options, { id: `answer_${n}`, label: `Option ${n}`, score: 0, next: main }] });
+                                            }}
+                                        >
+                                            <Plus className="size-3.5" aria-hidden /> Add Option
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {node.type === 'input' && (
+                            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                                <span>
+                                    <span className="text-foreground block text-sm font-medium">Required</span>
+                                    <span className="text-muted-foreground block text-xs">
+                                        {node.optional ? 'Visitors see a “Skip this” button.' : 'Visitors must answer to carry on.'}
+                                    </span>
+                                </span>
+                                <Switch label="Required" checked={!node.optional} onChange={(on) => onPatch({ optional: !on })} />
+                            </div>
+                        )}
+
+                        {node.type === 'input' && node.field && CONTACT_FIELDS[node.field] && (
+                            <p className="text-muted-foreground text-xs">
+                                Saved to the lead as <span className="text-foreground font-medium">{CONTACT_FIELDS[node.field]}</span>
+                                {node.input === 'email'
+                                    ? ', and checked as a real email address.'
+                                    : node.input === 'phone'
+                                      ? ', and checked as a phone number.'
+                                      : '.'}
+                            </p>
+                        )}
+
+                        {(node.type === 'booking' || node.type === 'ai' || node.type === 'handoff') && (
+                            <p className="text-muted-foreground text-sm">
+                                {node.type === 'booking'
+                                    ? 'Shows the next free times from your booking page as buttons and books the one they pick. Put it after the Email step, so the confirmation has somewhere to go.'
+                                    : node.type === 'ai'
+                                      ? 'Visitors type a question and the AI answers from your company details, never inventing prices or promises. Uses your plan’s AI credits.'
+                                      : 'If someone from your team is online and it is within business hours, the visitor is connected to them. Otherwise they are told when to expect a reply, and the next steps carry on collecting their details.'}
+                            </p>
+                        )}
+
+                        {node.type === 'score' && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="points">Points to add</Label>
+                                <Input
+                                    id="points"
+                                    type="number"
+                                    value={node.points ?? 0}
+                                    onChange={(e) => onPatch({ points: Number(e.target.value) }, `${id}:points`)}
+                                />
+                                <p className="text-muted-foreground text-xs">
+                                    Visitors who reach this step score higher, so hot leads rise to the top.
+                                </p>
+                            </div>
+                        )}
+
+                        {node.type === 'tag' && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="tag">Tag</Label>
+                                <Input
+                                    id="tag"
+                                    value={node.tag ?? ''}
+                                    onChange={(e) => onPatch({ tag: e.target.value }, `${id}:tag`)}
+                                    placeholder="interested"
+                                />
+                            </div>
+                        )}
+
+                        {node.type === 'assign' && (
+                            <div className="grid gap-1.5">
+                                <Label>Send the lead to</Label>
+                                <Select
+                                    value={node.assignee_id ? String(node.assignee_id) : '__none'}
+                                    onValueChange={(v) => onPatch({ assignee_id: v === '__none' ? null : Number(v) })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none">Whoever your routing rules pick</SelectItem>
+                                        {assignees.map((a) => (
+                                            <SelectItem key={a.id} value={String(a.id)}>
+                                                {a.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {node.type === 'condition' && <ConditionFields node={node} id={id} fields={fields} onPatch={onPatch} />}
+
+                        {node.type === 'end' && (
+                            <div className="grid gap-1.5">
+                                <Label>What happens at the end</Label>
+                                <Select value={node.outcome ?? 'lead'} onValueChange={(v) => onPatch({ outcome: v })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="lead">Save them as a new lead</SelectItem>
+                                        <SelectItem value="meeting">Save the lead and offer a meeting</SelectItem>
+                                        <SelectItem value="support">Open a support ticket (existing customer)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {node.type !== 'end' && (
+                            <div className="grid gap-1.5">
+                                <Label>Next Step</Label>
+                                <div className="bg-muted/40 text-muted-foreground rounded-lg border px-3 py-2 text-xs">
+                                    {node.type === 'choice'
+                                        ? 'Follows the visitor’s reply. Choose where each reply leads under Condition.'
+                                        : node.type === 'condition'
+                                          ? 'Follows the check. Choose where each outcome leads under Condition.'
+                                          : node.next && flow.nodes[node.next]
+                                            ? `Continues to “${describe(flow.nodes[node.next]).slice(0, 48)}”.`
+                                            : 'Nothing follows yet: add a step below it on the canvas.'}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {tab === 'advanced' && (
+                    <>
+                        {node.type === 'choice' && (
+                            <div className="space-y-2">
+                                <Label>Lead score and urgency per reply</Label>
+                                {options.map((option, index) => (
+                                    <ScoreRow
+                                        key={option.id}
+                                        option={option}
+                                        onChange={(patch) =>
+                                            onPatch(
+                                                { options: options.map((o, i) => (i === index ? { ...o, ...patch } : o)) },
+                                                `${id}:option:${option.id}:${Object.keys(patch).join(',')}`,
+                                            )
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {node.type === 'input' && !(node.field && CONTACT_FIELDS[node.field]) && (
+                            <div className="grid gap-1.5">
                                 <Label>Answer type</Label>
                                 <Select value={node.input ?? 'text'} onValueChange={(v) => onPatch({ input: v })}>
                                     <SelectTrigger>
@@ -192,270 +531,143 @@ export function StepSettings({
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <SavedAs id={id} node={node} onPatch={onPatch} />
-                        </div>
-                    )}
-                </div>
-            )}
+                        )}
 
-            {node.type === 'choice' && (
-                <div className="space-y-2">
-                    <Label>Answers</Label>
-                    {(node.options ?? []).map((option, index) => (
-                        <AnswerRow
-                            key={option.id}
-                            flow={flow}
-                            stepId={id}
-                            option={option}
-                            main={main}
-                            mainLabel={mainLabel}
-                            removable={(node.options ?? []).length > 1}
-                            onChange={(patch) =>
-                                onPatch(
-                                    { options: (node.options ?? []).map((o, i) => (i === index ? { ...o, ...patch } : o)) },
-                                    `${id}:option:${option.id}:${Object.keys(patch).join(',')}`,
-                                )
-                            }
-                            onPath={(choice) =>
-                                onApply(
-                                    choosePath(
-                                        flow,
-                                        { kind: 'answers', from: id, answers: [option.id] },
-                                        choice,
-                                        main,
-                                        `Say something to people who choose “${option.label}”.`,
-                                    ),
-                                )
-                            }
-                            onRemove={() =>
-                                onApply(
-                                    withoutStranded(flow, {
-                                        ...flow,
-                                        nodes: { ...flow.nodes, [id]: { ...node, options: (node.options ?? []).filter((o) => o.id !== option.id) } },
-                                    }),
-                                )
-                            }
-                        />
-                    ))}
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                            const taken = new Set((node.options ?? []).map((o) => o.id));
-                            let n = (node.options ?? []).length + 1;
-                            while (taken.has(`answer_${n}`)) n += 1;
-                            onPatch({ options: [...(node.options ?? []), { id: `answer_${n}`, label: `Answer ${n}`, score: 0, next: main }] });
-                        }}
-                    >
-                        <Plus className="size-3.5" aria-hidden /> Add answer
-                    </Button>
-                    <SavedAs id={id} node={node} onPatch={onPatch} />
-                </div>
-            )}
-
-            {node.type === 'condition' && (
-                <div className="space-y-3">
-                    <div className="grid gap-1">
-                        <Label>Check the answer to</Label>
-                        <Select value={node.field || '__none'} onValueChange={(v) => onPatch({ field: v === '__none' ? '' : v, value: '' })}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Choose a question" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__none">Choose a question…</SelectItem>
-                                {fields.map((f) => (
-                                    <SelectItem key={f.field} value={f.field}>
-                                        {f.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="grid gap-1">
-                            <Label>Test</Label>
-                            <Select value={node.operator ?? 'equals'} onValueChange={(v) => onPatch({ operator: v })}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {OPERATORS.map((o) => (
-                                        <SelectItem key={o.id} value={o.id}>
-                                            {o.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {node.operator !== 'is_set' && (
-                            <div className="grid gap-1">
-                                <Label htmlFor="cond-value">Value</Label>
-                                {fields.find((f) => f.field === node.field)?.answers ? (
-                                    <Select value={node.value || '__none'} onValueChange={(v) => onPatch({ value: v === '__none' ? '' : v })}>
-                                        <SelectTrigger id="cond-value">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="__none">Choose an answer…</SelectItem>
-                                            {fields
-                                                .find((f) => f.field === node.field)
-                                                ?.answers?.map((a) => (
-                                                    <SelectItem key={a.id} value={a.id}>
-                                                        {a.label}
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                ) : (
-                                    <Input
-                                        id="cond-value"
-                                        value={node.value ?? ''}
-                                        onChange={(e) => onPatch({ value: e.target.value }, `${id}:value`)}
-                                    />
-                                )}
+                        {(node.type === 'choice' || node.type === 'input') && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="saved-as">Save the answer as</Label>
+                                <Input
+                                    id="saved-as"
+                                    value={node.field ?? ''}
+                                    onChange={(e) => onPatch({ field: e.target.value.replace(/[^a-z0-9_]+/gi, '_').toLowerCase() }, `${id}:field`)}
+                                    className="font-mono text-xs"
+                                />
+                                <p className="text-muted-foreground text-xs">Shown with the lead in the inbox, and usable in a Condition step.</p>
                             </div>
                         )}
-                    </div>
-                    <div className="grid gap-1">
-                        <Label>When it does not match</Label>
-                        <PathSelect
-                            flow={flow}
-                            self={id}
-                            value={node.otherwise ?? null}
-                            main={node.next ?? null}
-                            mainLabel="Carry on the same way"
-                            label="When it does not match"
-                            onChoose={(choice) =>
-                                onApply(
-                                    choosePath(
-                                        flow,
-                                        { kind: 'exit', from: id, exit: 'otherwise' },
-                                        choice,
-                                        node.next ?? null,
-                                        'Say something for this case.',
-                                    ),
-                                )
-                            }
-                        />
-                    </div>
-                </div>
-            )}
 
-            {(node.type === 'booking' || node.type === 'ai') && (
-                <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">
-                        {node.type === 'booking'
-                            ? 'Shows the next free times from your booking page as buttons and books the one they pick. Put it after the Email step, so the confirmation has somewhere to go.'
-                            : 'Visitors type a question and the AI answers from your company details, never inventing prices or promises. Uses your plan’s AI credits.'}
-                    </p>
-                    <div className="grid gap-1">
-                        <Label>{node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}</Label>
-                        <PathSelect
-                            flow={flow}
-                            self={id}
-                            value={node.fallback ?? node.next ?? null}
-                            main={node.next ?? null}
-                            mainLabel="Carry on as normal"
-                            label={node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}
-                            onChoose={(choice) => {
-                                if (choice === MAIN) {
-                                    onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { ...node, fallback: null } } }));
-                                    return;
-                                }
-                                onApply(
-                                    choosePath(
-                                        flow,
-                                        { kind: 'exit', from: id, exit: 'fallback' },
-                                        choice,
-                                        node.next ?? null,
-                                        node.type === 'booking'
-                                            ? 'No problem, you can also book on our website.'
-                                            : 'Let me take your details and a person will reply.',
-                                    ),
-                                );
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
+                        <div className="grid gap-1.5">
+                            <Label>Step ID</Label>
+                            <p className="bg-muted/40 rounded-lg border px-3 py-2 font-mono text-xs">{id}</p>
+                        </div>
 
-            {node.type === 'handoff' && (
-                <p className="text-muted-foreground text-sm">
-                    If someone from your team is online and it is within business hours, the visitor is connected to them. Otherwise they are told
-                    when to expect a reply, and the steps below carry on collecting their details.
-                </p>
-            )}
-
-            {node.type === 'score' && (
-                <div className="grid gap-1 sm:max-w-xs">
-                    <Label htmlFor="points">Points to add</Label>
-                    <Input
-                        id="points"
-                        type="number"
-                        value={node.points ?? 0}
-                        onChange={(e) => onPatch({ points: Number(e.target.value) }, `${id}:points`)}
-                    />
-                    <p className="text-muted-foreground text-xs">Visitors who reach this step score higher, so hot leads rise to the top.</p>
-                </div>
-            )}
-
-            {node.type === 'tag' && (
-                <div className="grid gap-1 sm:max-w-sm">
-                    <Label htmlFor="tag">Tag</Label>
-                    <Input id="tag" value={node.tag ?? ''} onChange={(e) => onPatch({ tag: e.target.value }, `${id}:tag`)} placeholder="interested" />
-                </div>
-            )}
-
-            {node.type === 'assign' && (
-                <div className="grid gap-1 sm:max-w-sm">
-                    <Label>Send the lead to</Label>
-                    <Select
-                        value={node.assignee_id ? String(node.assignee_id) : '__none'}
-                        onValueChange={(v) => onPatch({ assignee_id: v === '__none' ? null : Number(v) })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__none">Whoever your routing rules pick</SelectItem>
-                            {assignees.map((a) => (
-                                <SelectItem key={a.id} value={String(a.id)}>
-                                    {a.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
-
-            {node.type === 'end' && (
-                <div className="grid gap-1 sm:max-w-sm">
-                    <Label>What happens at the end</Label>
-                    <Select value={node.outcome ?? 'lead'} onValueChange={(v) => onPatch({ outcome: v })}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="lead">Save them as a new lead</SelectItem>
-                            <SelectItem value="meeting">Save the lead and offer a meeting</SelectItem>
-                            <SelectItem value="support">Open a support ticket (existing customer, no lead)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
-
-            <div className="border-border flex flex-wrap items-center gap-2 border-t pt-3">
-                {isMovable(node) && (
-                    <>
-                        <Button size="sm" variant="outline" onClick={() => onMove('up')} disabled={!canMoveUp}>
-                            <ArrowUp className="size-3.5" aria-hidden /> Move up
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => onMove('down')} disabled={!canMoveDown}>
-                            <ArrowDown className="size-3.5" aria-hidden /> Move down
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                            {isMovable(node) && (
+                                <>
+                                    <Button size="sm" variant="outline" onClick={() => onMove('up')} disabled={!canMoveUp}>
+                                        <ArrowUp className="size-3.5" aria-hidden /> Move up
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => onMove('down')} disabled={!canMoveDown}>
+                                        <ArrowDown className="size-3.5" aria-hidden /> Move down
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     </>
                 )}
-                <Button size="sm" variant="outline" className="ml-auto text-red-600 dark:text-red-400" onClick={onDelete}>
+
+                {tab === 'condition' && (
+                    <>
+                        {node.type === 'choice' && (
+                            <div className="space-y-3">
+                                <p className="text-muted-foreground text-xs">
+                                    Where each reply leads. On the canvas, replies that lead different ways fan out as branches.
+                                </p>
+                                {options.map((option) => (
+                                    <div key={option.id} className="grid gap-1.5">
+                                        <Label className="text-xs">When they choose “{option.label || 'Untitled answer'}”</Label>
+                                        <PathSelect
+                                            flow={flow}
+                                            self={id}
+                                            value={option.next ?? null}
+                                            main={main}
+                                            mainLabel={mainLabel}
+                                            label={`When they choose ${option.label}`}
+                                            onChoose={(choice) =>
+                                                onApply(
+                                                    choosePath(
+                                                        flow,
+                                                        { kind: 'answers', from: id, answers: [option.id] },
+                                                        choice,
+                                                        main,
+                                                        `Say something to people who choose “${option.label}”.`,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {node.type === 'condition' && (
+                            <div className="grid gap-1.5">
+                                <Label>When it does not match</Label>
+                                <PathSelect
+                                    flow={flow}
+                                    self={id}
+                                    value={node.otherwise ?? null}
+                                    main={node.next ?? null}
+                                    mainLabel="Carry on the same way"
+                                    label="When it does not match"
+                                    onChoose={(choice) =>
+                                        onApply(
+                                            choosePath(
+                                                flow,
+                                                { kind: 'exit', from: id, exit: 'otherwise' },
+                                                choice,
+                                                node.next ?? null,
+                                                'Say something for this case.',
+                                            ),
+                                        )
+                                    }
+                                />
+                            </div>
+                        )}
+
+                        {(node.type === 'booking' || node.type === 'ai') && (
+                            <div className="grid gap-1.5">
+                                <Label>{node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}</Label>
+                                <PathSelect
+                                    flow={flow}
+                                    self={id}
+                                    value={node.fallback ?? node.next ?? null}
+                                    main={node.next ?? null}
+                                    mainLabel="Carry on as normal"
+                                    label={node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}
+                                    onChoose={(choice) => {
+                                        if (choice === MAIN) {
+                                            onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { ...node, fallback: null } } }));
+                                            return;
+                                        }
+                                        onApply(
+                                            choosePath(
+                                                flow,
+                                                { kind: 'exit', from: id, exit: 'fallback' },
+                                                choice,
+                                                node.next ?? null,
+                                                node.type === 'booking'
+                                                    ? 'No problem, you can also book on our website.'
+                                                    : 'Let me take your details and a person will reply.',
+                                            ),
+                                        );
+                                    }}
+                                />
+                            </div>
+                        )}
+
+                        {!['choice', 'condition', 'booking', 'ai'].includes(node.type) && (
+                            <p className="text-muted-foreground text-sm">
+                                This step always continues to the next one. To send visitors different ways, turn on Quick Replies on a message, or
+                                add a Condition step.
+                            </p>
+                        )}
+                    </>
+                )}
+            </div>
+
+            <div className="border-t p-3">
+                <Button size="sm" variant="outline" className="w-full text-red-600 dark:text-red-400" onClick={onDelete}>
                     <Trash2 className="size-3.5" aria-hidden /> Delete step
                 </Button>
             </div>
@@ -463,104 +675,108 @@ export function StepSettings({
     );
 }
 
-function AnswerRow({
-    flow,
-    stepId,
-    option,
-    main,
-    mainLabel,
-    removable,
-    onChange,
-    onPath,
-    onRemove,
-}: {
-    flow: Flow;
-    stepId: string;
-    option: FlowOption;
-    main: string | null;
-    mainLabel: string;
-    removable: boolean;
-    onChange: (patch: Partial<FlowOption>) => void;
-    onPath: (choice: string) => void;
-    onRemove: () => void;
-}) {
+function ScoreRow({ option, onChange }: { option: FlowOption; onChange: (patch: Partial<FlowOption>) => void }) {
     const urgent = option.priority === 'high';
-
     return (
-        <div className="border-border space-y-2 rounded-lg border p-2.5">
-            <div className="flex items-center gap-1.5">
-                <Input
-                    value={option.label}
-                    onChange={(e) => onChange({ label: e.target.value })}
-                    placeholder="Answer text"
-                    aria-label="Answer text"
-                    className="h-8"
-                />
-                <Input
-                    type="number"
-                    value={option.score ?? 0}
-                    onChange={(e) => onChange({ score: Number(e.target.value) })}
-                    aria-label="Lead score points for this answer"
-                    title="Lead score points for this answer"
-                    className="h-8 w-16 tabular-nums"
-                />
-                <Button
-                    size="sm"
-                    variant={urgent ? 'default' : 'outline'}
-                    className="h-8 px-2"
-                    aria-pressed={urgent}
-                    aria-label="Urgent: flag the conversation as a priority"
-                    title="Urgent: flag the conversation as a priority"
-                    onClick={() => onChange({ priority: urgent ? undefined : 'high' })}
-                >
-                    <Flame className="size-3.5" aria-hidden />
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2"
-                    onClick={onRemove}
-                    disabled={!removable}
-                    aria-label={`Remove answer ${option.label}`}
-                >
-                    <Trash2 className="size-3.5" aria-hidden />
-                </Button>
-            </div>
-            <PathSelect
-                flow={flow}
-                self={stepId}
-                value={option.next ?? null}
-                main={main}
-                mainLabel={mainLabel}
-                label={`Then, for “${option.label}”`}
-                onChoose={onPath}
+        <div className="flex items-center gap-1.5 rounded-lg border p-2">
+            <span className="min-w-0 flex-1 truncate text-sm">{option.label || 'Untitled answer'}</span>
+            <Input
+                type="number"
+                value={option.score ?? 0}
+                onChange={(e) => onChange({ score: Number(e.target.value) })}
+                aria-label={`Lead score points for ${option.label}`}
+                title="Lead score points"
+                className="h-8 w-16 tabular-nums"
             />
+            <Button
+                size="sm"
+                variant={urgent ? 'default' : 'outline'}
+                className="h-8 px-2"
+                aria-pressed={urgent}
+                aria-label={`Urgent: flag ${option.label} conversations as a priority`}
+                title="Urgent: flag the conversation as a priority"
+                onClick={() => onChange({ priority: urgent ? undefined : 'high' })}
+            >
+                <Flame className="size-3.5" aria-hidden />
+            </Button>
         </div>
     );
 }
 
-/** The name an answer is saved under - tucked away, since the builder picks one itself. */
-function SavedAs({ id, node, onPatch }: { id: string; node: FlowNode; onPatch: (patch: Partial<FlowNode>, mergeKey?: string) => void }) {
+type FieldChoice = { field: string; label: string; answers?: { id: string; label: string }[] };
+
+function ConditionFields({
+    node,
+    id,
+    fields,
+    onPatch,
+}: {
+    node: FlowNode;
+    id: string;
+    fields: FieldChoice[];
+    onPatch: (patch: Partial<FlowNode>, mergeKey?: string) => void;
+}) {
+    const chosen = fields.find((f) => f.field === node.field);
     return (
-        <details className="text-xs">
-            <summary className="text-muted-foreground cursor-pointer select-none">Advanced: where the answer is saved</summary>
-            <div className="mt-2 grid gap-1">
-                <Label htmlFor="saved-as" className="text-xs">
-                    Saved on the conversation as
-                </Label>
-                <Input
-                    id="saved-as"
-                    value={node.field ?? ''}
-                    onChange={(e) => onPatch({ field: e.target.value.replace(/[^a-z0-9_]+/gi, '_').toLowerCase() }, `${id}:field`)}
-                    className="h-8 font-mono text-xs"
-                />
-                <p className="text-muted-foreground">Shown with the lead in the inbox, and usable in an “If an earlier answer…” step.</p>
+        <div className="space-y-3">
+            <div className="grid gap-1.5">
+                <Label>Check the answer to</Label>
+                <Select value={node.field || '__none'} onValueChange={(v) => onPatch({ field: v === '__none' ? '' : v, value: '' })}>
+                    <SelectTrigger>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__none">Choose a question…</SelectItem>
+                        {fields.map((f) => (
+                            <SelectItem key={f.field} value={f.field}>
+                                {f.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
-        </details>
+            <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                    <Label>Test</Label>
+                    <Select value={node.operator ?? 'equals'} onValueChange={(v) => onPatch({ operator: v })}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {OPERATORS.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                    {o.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                {node.operator !== 'is_set' && (
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="cond-value">Value</Label>
+                        {chosen?.answers ? (
+                            <Select value={node.value || '__none'} onValueChange={(v) => onPatch({ value: v === '__none' ? '' : v })}>
+                                <SelectTrigger id="cond-value">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__none">Choose an answer…</SelectItem>
+                                    {chosen.answers.map((a) => (
+                                        <SelectItem key={a.id} value={a.id}>
+                                            {a.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input id="cond-value" value={node.value ?? ''} onChange={(e) => onPatch({ value: e.target.value }, `${id}:value`)} />
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
-
-type FieldChoice = { field: string; label: string; answers?: { id: string; label: string }[] };
 
 /** Answers a condition can check: every question asked in the conversation, by what it asks. */
 function collectFields(flow: Flow, self: string): FieldChoice[] {

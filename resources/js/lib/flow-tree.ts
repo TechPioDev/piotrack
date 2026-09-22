@@ -48,7 +48,13 @@ export type Slot =
     | { kind: 'answers'; from: string; answers: string[] }
     | { kind: 'join'; region: string[]; target: string | null };
 
-export type TreeEnd = { kind: 'open' } | { kind: 'finished' } | { kind: 'joins' } | { kind: 'branched' } | { kind: 'jump'; to: string };
+export type TreeEnd =
+    | { kind: 'open' }
+    | { kind: 'finished' }
+    /** Meets the other paths again at `to`, drawn below the split. */
+    | { kind: 'joins'; to: string }
+    | { kind: 'branched' }
+    | { kind: 'jump'; to: string };
 
 export type TreeStep = {
     id: string;
@@ -275,7 +281,7 @@ export function buildTree(flow: Flow): { root: TreeBranch; unreachable: string[]
                 break;
             }
             if (stops.has(target)) {
-                end = { kind: 'joins' };
+                end = { kind: 'joins', to: target };
                 break;
             }
             if (placed.has(target)) {
@@ -515,7 +521,7 @@ export function describe(node: FlowNode): string {
                 ? `If “${node.field}” ${node.operator === 'is_set' ? 'is answered' : `${node.operator ?? 'is'} ${node.value ?? ''}`.trim()}`
                 : 'If … (not set)';
         case 'handoff':
-            return 'Offer a person from your team';
+            return 'Connects the visitor to your team';
         default:
             return node.text?.trim() || 'No text yet';
     }

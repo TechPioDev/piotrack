@@ -105,11 +105,11 @@ describe('conversation builder', () => {
         const transfer = dataTransfer();
 
         fireEvent.dragStart(screen.getByRole('button', { name: /^Email/ }), { dataTransfer: transfer });
-        // Every gap now offers itself; drop into the one before "Finish".
+        // Every gap now offers itself; drop into the one before the End.
         const gaps = screen.getAllByText('Drop here');
-        const beforeFinish = gaps[gaps.length - 1].parentElement as HTMLElement;
-        fireEvent.dragOver(beforeFinish, { dataTransfer: transfer });
-        fireEvent.drop(beforeFinish, { dataTransfer: transfer });
+        const beforeEnd = gaps[gaps.length - 1].parentElement as HTMLElement;
+        fireEvent.dragOver(beforeEnd, { dataTransfer: transfer });
+        fireEvent.drop(beforeEnd, { dataTransfer: transfer });
 
         expect(stepIds()).toEqual(['welcome', 'ask_name', 'ask_email', 'done']);
         const flow = publishedFlow();
@@ -117,10 +117,10 @@ describe('conversation builder', () => {
         expect(flow.nodes.ask_email).toMatchObject({ type: 'input', input: 'email', field: 'email', optional: false, next: 'done' });
     });
 
-    it('refuses to drop a Finish where the conversation carries on', () => {
+    it('refuses to drop an End where the conversation carries on', () => {
         renderBuilder();
 
-        fireEvent.dragStart(screen.getByRole('button', { name: /^Finish: new lead/ }), { dataTransfer: dataTransfer() });
+        fireEvent.dragStart(screen.getByRole('button', { name: /^End: New Lead/ }), { dataTransfer: dataTransfer() });
 
         // Every gap here leads on to another step, so none accepts it.
         expect(screen.queryAllByText('Drop here')).toHaveLength(0);
@@ -166,13 +166,32 @@ describe('conversation builder', () => {
         expect(publishedFlow().nodes.ask_name.optional).toBe(true);
     });
 
-    it('shows each answer’s path under the question', () => {
+    it('fans each answer out into its own labelled path, and the paths meet again at the shared step', () => {
         renderBuilder(store);
 
-        expect(screen.getAllByText('If they choose')).toHaveLength(2);
-        const orderCard = document.getElementById('flow-step-order_email') as HTMLElement;
-        expect(orderCard).toBeInTheDocument();
-        expect(screen.getByText('Paths meet again here')).toBeInTheDocument();
+        // Each answer shows once on the question card and once as its path's label.
+        expect(screen.getAllByText('Where is my order?')).toHaveLength(2);
+        expect(screen.getAllByText('A product question')).toHaveLength(2);
+        expect(document.getElementById('flow-step-order_email')).toBeInTheDocument();
+        // Both paths draw a line down into "thanks", which sits once below them.
+        expect(document.querySelectorAll('[data-join-tail="thanks"]')).toHaveLength(2);
+        expect(stepIds()).toEqual(['q', 'order_email', 'thanks']);
+    });
+
+    it('turns a message into a question with Quick Replies, each reply its own path', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(within(document.getElementById('flow-step-welcome') as HTMLElement).getAllByRole('button')[0]);
+        await user.click(screen.getByRole('switch', { name: 'Quick replies' }));
+        await user.clear(screen.getByRole('textbox', { name: 'Reply 1' }));
+        await user.type(screen.getByRole('textbox', { name: 'Reply 1' }), 'Book a demo');
+
+        const welcome = publishedFlow().nodes.welcome;
+        expect(welcome.type).toBe('choice');
+        expect(welcome.options?.map((o) => o.label)).toEqual(['Book a demo', 'Option 2']);
+        // Both replies carry on to the step the message led to.
+        expect(welcome.options?.every((o) => (o.next ?? welcome.next) === 'ask_name')).toBe(true);
     });
 
     it('undoes and redoes a change', () => {

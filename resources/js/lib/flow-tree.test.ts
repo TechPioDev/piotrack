@@ -78,10 +78,10 @@ describe('buildTree', () => {
         const [straight, security, support] = service.branches;
         // Answers that go straight to the re-join point have nothing of their own.
         expect(ids(straight)).toEqual([]);
-        expect(straight.end).toEqual({ kind: 'joins' });
+        expect(straight.end).toEqual({ kind: 'joins', to: 'q_size' });
         // A path with its own questions shows them, then re-joins.
         expect(ids(security)).toEqual(['q_security']);
-        expect(security.end).toEqual({ kind: 'joins' });
+        expect(security.end).toEqual({ kind: 'joins', to: 'q_size' });
         // A path that never meets the others finishes inside the split.
         expect(ids(support)).toEqual(['support_email', 'end_support']);
         expect(support.end).toEqual({ kind: 'finished' });

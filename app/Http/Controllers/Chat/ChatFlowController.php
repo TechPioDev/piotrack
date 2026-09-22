@@ -40,6 +40,10 @@ class ChatFlowController extends Controller
                 'name' => $widget->name,
                 'status' => $widget->status,
             ],
+            // The builder's widget switcher.
+            'widgets' => ChatWidget::query()->orderBy('name')->get(['id', 'name', 'status'])
+                ->map(fn (ChatWidget $w) => ['id' => $w->id, 'name' => $w->name, 'status' => $w->status])
+                ->all(),
             'flow' => $flow,
             'validation' => $this->validator->validate($flow),
             'templates' => $this->templates->catalog(),

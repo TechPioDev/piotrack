@@ -1,9 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { stepKind } from '@/lib/flow-blocks';
 import { buildTree, describe, type Flow, type TreeBranch } from '@/lib/flow-tree';
-import { LayoutTemplate } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StepIcon, stepVisual } from './step-visuals';
 
 export type Template = { key: string; name: string; description: string; category: string; steps: number; flow: Flow };
@@ -35,22 +34,38 @@ function outline(branch: TreeBranch, flow: Flow, depth = 0): Line[] {
  * editor - nothing reaches the website until it is published, and Undo brings
  * back what was there.
  */
-export function TemplateGallery({ templates, onUse, hasSteps }: { templates: Template[]; onUse: (template: Template) => void; hasSteps: boolean }) {
-    const [open, setOpen] = useState(false);
+export function TemplateGallery({
+    templates,
+    onUse,
+    hasSteps,
+    open,
+    onOpenChange,
+    initialKey,
+}: {
+    templates: Template[];
+    onUse: (template: Template) => void;
+    hasSteps: boolean;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    initialKey?: string | null;
+}) {
     const categories = useMemo(() => [...new Set(templates.map((t) => t.category))], [templates]);
     const [category, setCategory] = useState<string>('All');
     const shown = category === 'All' ? templates : templates.filter((t) => t.category === category);
     const [chosen, setChosen] = useState<string>(templates[0]?.key ?? '');
     const template = templates.find((t) => t.key === chosen) ?? shown[0];
+
+    // Opened from a template in the side panel: show that one.
+    useEffect(() => {
+        if (open && initialKey) {
+            setChosen(initialKey);
+            setCategory('All');
+        }
+    }, [open, initialKey]);
     const lines = useMemo(() => (template ? outline(buildTree(template.flow).root, template.flow) : []), [template]);
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline">
-                    <LayoutTemplate className="size-3.5" aria-hidden /> Templates
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-5xl">
                 <DialogTitle>Start from a template</DialogTitle>
                 <DialogDescription>
@@ -130,7 +145,7 @@ export function TemplateGallery({ templates, onUse, hasSteps }: { templates: Tem
                                 <Button
                                     onClick={() => {
                                         onUse(template);
-                                        setOpen(false);
+                                        onOpenChange(false);
                                     }}
                                 >
                                     Use this template

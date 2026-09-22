@@ -1,9 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { Flow } from '@/lib/flow-tree';
-import { Play } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type TestNode = { id: string; type: string; text: string; options?: { id: string; label: string }[]; input?: string; optional?: boolean };
 type TestMessage = { role: string; body: string };
@@ -38,8 +37,17 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 /** Runs the draft through the real engine so the tenant tests what visitors get. */
-export function TestDialog({ widgetId, flow }: { widgetId: number; flow: Flow }) {
-    const [open, setOpen] = useState(false);
+export function TestDialog({
+    widgetId,
+    flow,
+    open,
+    onOpenChange,
+}: {
+    widgetId: number;
+    flow: Flow;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
     const [token, setToken] = useState<string | null>(null);
     const [messages, setMessages] = useState<TestMessage[]>([]);
     const [node, setNode] = useState<TestNode | null>(null);
@@ -77,19 +85,14 @@ export function TestDialog({ widgetId, flow }: { widgetId: number; flow: Flow })
         void send({});
     };
 
+    // Every time it opens, the test starts again from the top of the current draft.
+    useEffect(() => {
+        if (open) restart();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
     return (
-        <Dialog
-            open={open}
-            onOpenChange={(o) => {
-                setOpen(o);
-                if (o) restart();
-            }}
-        >
-            <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Play className="size-3.5" aria-hidden /> Test
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogTitle>Test conversation</DialogTitle>
                 <p className="text-muted-foreground -mt-2 text-xs">
