@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
@@ -36,12 +37,15 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
     paused: 'outline',
 };
 
-export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
+type TemplateChoice = { key: string; name: string; category: string };
+
+export default function ChatWidgets({ widgets, templates = [] }: { widgets: Widget[]; templates?: TemplateChoice[] }) {
     const { can } = usePermissions();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState<number | null>(null);
     const [copyFailed, setCopyFailed] = useState<number | null>(null);
-    const form = useForm({ name: '', description: '' });
+    const form = useForm({ name: '', description: '', template: 'msp_qualification' });
+    const categories = [...new Set(templates.map((t) => t.category))];
 
     const create: FormEventHandler = (e) => {
         e.preventDefault();
@@ -106,8 +110,33 @@ export default function ChatWidgets({ widgets }: { widgets: Widget[] }) {
                                                 placeholder="Where this widget runs and who it is for"
                                             />
                                         </div>
+                                        {templates.length > 0 && (
+                                            <div className="grid gap-1">
+                                                <Label>Start with the conversation for</Label>
+                                                <Select value={form.data.template} onValueChange={(v) => form.setData('template', v)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {categories.map((category) => (
+                                                            <SelectGroup key={category}>
+                                                                <SelectLabel>{category}</SelectLabel>
+                                                                {templates
+                                                                    .filter((t) => t.category === category)
+                                                                    .map((t) => (
+                                                                        <SelectItem key={t.key} value={t.key}>
+                                                                            {t.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                            </SelectGroup>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <InputError message={form.errors.template} />
+                                            </div>
+                                        )}
                                         <p className="text-muted-foreground text-sm">
-                                            It starts as a draft with the MSP qualification conversation, so you can review it before it goes live.
+                                            It starts as a draft, so you can change the conversation and try it before it goes live.
                                         </p>
                                         <DialogFooter>
                                             <Button type="submit" disabled={form.processing}>

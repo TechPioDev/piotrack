@@ -482,3 +482,33 @@ worker is running (the scripts install one).
   widget refuses anything else before uploading, and the server checks both the type read
   from the file's bytes and its name (a real PDF renamed to `.png` is refused). Files sent
   before the change remain download-only for the team.
+
+---
+
+# Appendix — Conversation builder v2 (2026-09-22)
+
+Spec: `docs/specs/chat-builder-v2.md` (includes the comparison with HubSpot, Intercom,
+Drift, Tidio, Landbot and Typebot). Register: CHAT-052..057.
+
+**What changed for the owner:** the flat step list wired with "Then go to" dropdowns is
+replaced by a tree that reads top to bottom, built by dragging blocks from a library into
+the gap where they belong (or the "+" in any gap). Contact details are ready-made blocks
+with a Required/Optional switch on the card. Branches appear under the question that
+creates them and re-join below. Templates are organised by business type with a preview,
+and loading one no longer replaces a live conversation on the spot: it goes into the
+editor, undoably, and reaches visitors only on Publish.
+
+**Defect in v1 fixed on the way:** choosing a template in the old builder posted straight
+to the server and overwrote the widget's saved conversation immediately - on a live widget,
+what visitors saw changed with one click and no confirmation.
+
+**Automated testing:** 21 model tests (drawing, joins, jumps, insert/move/delete keeping the
+graph connected), 10 interface tests on the real page (drag from the library into a gap,
+Finish refused mid-path, drag to move, "+" menu, required switch, branches, undo/redo,
+template load without publishing, confirmed delete), 7 gallery tests (16 templates valid
+with no warnings, each asks for a required email, each runs start to finish through the
+real engine, new widget from a template).
+
+**Not verified by hand in a browser:** the builder needs a signed-in session, and the
+assistant does not sign in with passwords. Layout at the three breakpoints (three columns
+from 1280 px, library collapsed and settings in a slide-over below) needs a visual pass.

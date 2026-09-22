@@ -1,142 +1,43 @@
+import { BlockLibrary } from '@/components/chat-flow/block-library';
+import { type Dragging, FlowCanvas, FlowEditorContext, type Issue } from '@/components/chat-flow/flow-canvas';
+import { StepSettings } from '@/components/chat-flow/step-settings';
+import { type Template, TemplateGallery } from '@/components/chat-flow/template-gallery';
+import { postJson, TestDialog } from '@/components/chat-flow/test-dialog';
 import { FormErrors } from '@/components/form-errors';
 import { PageHeader } from '@/components/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import AppLayout from '@/layouts/app-layout';
+import { blockByKey, CONTACT_FIELDS } from '@/lib/flow-blocks';
+import { afterSlot, buildTree, canInsert, type Flow, type FlowNode, insertStep, locate, moveStep, removeStep, type Slot } from '@/lib/flow-tree';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CalendarClock,
-    CheckCircle2,
-    CircleDot,
-    Copy,
-    Flag,
-    GitBranch,
-    Headphones,
-    MessageSquare,
-    Play,
-    Plus,
-    Send,
-    Sparkles,
-    Tag,
-    Target,
-    Trash2,
-    UserCheck,
-    XCircle,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Redo2, Undo2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-/** One step in the conversation. Shape mirrors the server-side flow graph. */
-type Option = { id: string; label: string; score?: number; next?: string | null; priority?: string };
-type Node = {
-    type: string;
-    text?: string;
-    next?: string | null;
-    otherwise?: string | null;
-    field?: string;
-    input?: string;
-    optional?: boolean;
-    options?: Option[];
-    points?: number;
-    tag?: string;
-    assignee_id?: number | null;
-    outcome?: string;
-    operator?: string;
-    value?: string;
-    /** booking/ai steps: where to go when the step cannot run. */
-    fallback?: string | null;
-};
-type Flow = { start: string | null; nodes: Record<string, Node> };
-type Issue = { node: string | null; message: string };
-type Validation = { valid: boolean; errors: Issue[]; warnings: Issue[] };
-type Template = { key: string; name: string; description: string; steps: number };
+type Validation = { valid: boolean; errors: { node: string | null; message: string }[]; warnings: { node: string | null; message: string }[] };
 type Assignee = { id: number; name: string };
+type History = { flow: Flow; past: Flow[]; future: Flow[] };
 
-type TestNode = { id: string; type: string; text: string; options?: { id: string; label: string }[]; input?: string; optional?: boolean };
-type TestMessage = { role: string; body: string };
-
-/** The palette of steps a tenant can add, in the order they usually reach for them. */
-const STEP_TYPES: { type: string; label: string; hint: string; icon: typeof MessageSquare; color: string }[] = [
-    { type: 'message', label: 'Message', hint: 'Say something, then continue', icon: MessageSquare, color: 'text-sky-600' },
-    { type: 'choice', label: 'Question', hint: 'Ask with buttons to choose from', icon: CircleDot, color: 'text-brand-strong' },
-    { type: 'input', label: 'Collect answer', hint: 'Ask them to type something', icon: Send, color: 'text-violet-600' },
-    { type: 'condition', label: 'Condition', hint: 'Branch on an earlier answer', icon: GitBranch, color: 'text-amber-600' },
-    { type: 'score', label: 'Add score', hint: 'Adjust the lead score', icon: Target, color: 'text-emerald-600' },
-    { type: 'tag', label: 'Tag', hint: 'Label the conversation', icon: Tag, color: 'text-pink-600' },
-    { type: 'assign', label: 'Assign', hint: 'Route to a salesperson', icon: UserCheck, color: 'text-indigo-600' },
-    { type: 'handoff', label: 'Talk to a human', hint: 'Connect to an available agent', icon: Headphones, color: 'text-rose-600' },
-    { type: 'booking', label: 'Book a meeting', hint: 'Offer real time slots in the chat', icon: CalendarClock, color: 'text-teal-600' },
-    { type: 'ai', label: 'AI answers', hint: 'Let AI answer typed questions', icon: Sparkles, color: 'text-fuchsia-600' },
-    { type: 'end', label: 'End', hint: 'Finish the conversation', icon: Flag, color: 'text-slate-600' },
-];
-
-const INPUT_KINDS = ['text', 'email', 'phone', 'number', 'company'];
-const OPERATORS = [
-    { id: 'equals', label: 'is' },
-    { id: 'not_equals', label: 'is not' },
-    { id: 'contains', label: 'contains' },
-    { id: 'is_set', label: 'has any value' },
-    { id: 'gte', label: 'is at least' },
-    { id: 'lte', label: 'is at most' },
-];
-
-function meta(type: string) {
-    return STEP_TYPES.find((s) => s.type === type) ?? STEP_TYPES[0];
+function useWide(): boolean {
+    const query = '(min-width: 1280px)';
+    const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+    useEffect(() => {
+        const media = window.matchMedia(query);
+        const update = () => setWide(media.matches);
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+    return wide;
 }
 
 /**
- * POST JSON to the app. The project has no axios; Laravel accepts the
- * XSRF-TOKEN cookie Inertia already maintains as an X-XSRF-TOKEN header.
+ * The conversation builder: blocks on the left, the conversation as a tree in
+ * the middle, the selected step's settings on the right. Blocks are dragged
+ * into the gap where they belong - or added with the "+" in any gap - and the
+ * builder does the wiring. Every change can be undone.
  */
-async function postJson<T>(url: string, body: unknown): Promise<T> {
-    const xsrf = document.cookie
-        .split('; ')
-        .find((c) => c.startsWith('XSRF-TOKEN='))
-        ?.split('=')[1];
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) } : {}),
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(body),
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw Object.assign(new Error('request failed'), { status: response.status, data });
-    }
-    return data as T;
-}
-
-/** A readable one-liner for a step in the list. */
-function summarise(node: Node): string {
-    if (node.type === 'score') return `${(node.points ?? 0) >= 0 ? '+' : ''}${node.points ?? 0} points`;
-    if (node.type === 'tag') return node.tag ? `Tag "${node.tag}"` : 'No tag set';
-    if (node.type === 'assign') return node.assignee_id ? 'Route to a salesperson' : 'No one selected';
-    if (node.type === 'condition') return node.field ? `If ${node.field} …` : 'No answer chosen';
-    if (node.type === 'handoff') return 'Offer a live agent, then continue';
-    if (node.type === 'booking') return 'Offer free time slots, then continue';
-    return node.text?.trim() || 'No text yet';
-}
-
-/** Unique, readable ids so the saved graph stays legible. */
-function newId(type: string, nodes: Record<string, Node>): string {
-    const base = type === 'choice' ? 'question' : type === 'input' ? 'collect' : type;
-    let n = 1;
-    while (nodes[`${base}_${n}`]) n += 1;
-    return `${base}_${n}`;
-}
-
 export default function FlowBuilder({
     widget,
     flow: initialFlow,
@@ -150,96 +51,159 @@ export default function FlowBuilder({
     templates: Template[];
     assignees: Assignee[];
 }) {
-    const [flow, setFlow] = useState<Flow>(() => ({ start: initialFlow.start ?? null, nodes: initialFlow.nodes ?? {} }));
-    const [selected, setSelected] = useState<string | null>(initialFlow.start ?? Object.keys(initialFlow.nodes ?? {})[0] ?? null);
+    const seed = (f: Flow): Flow => ({ start: f.start ?? null, nodes: f.nodes ?? {} });
+    const [history, setHistory] = useState<History>(() => ({ flow: seed(initialFlow), past: [], future: [] }));
+    const flow = history.flow;
+    const [selected, setSelected] = useState<string | null>(null);
+    const [dragging, setDragging] = useState<Dragging>(null);
     const [validation, setValidation] = useState<Validation>(initialValidation);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [refused, setRefused] = useState<Record<string, string>>({});
+    const [notice, setNotice] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{ id: string; next: Flow; count: number } | null>(null);
+    const lastMerge = useRef<{ key: string; at: number } | null>(null);
+    const wide = useWide();
+    const live = widget.status === 'active';
 
-    // Applying a template (or any server round-trip) sends a new flow down as a
-    // prop. Local state is seeded from it once, so without this the editor would
-    // keep showing the previous conversation and the next save would overwrite
-    // the template the tenant just chose.
+    // A save sends the flow back down as a prop; take it as the new baseline.
     const serverFlow = useRef(JSON.stringify(initialFlow));
     useEffect(() => {
         const incoming = JSON.stringify(initialFlow);
         if (incoming === serverFlow.current) return;
         serverFlow.current = incoming;
-        setFlow({ start: initialFlow.start ?? null, nodes: initialFlow.nodes ?? {} });
+        setHistory({ flow: seed(initialFlow), past: [], future: [] });
         setValidation(initialValidation);
-        setSelected(initialFlow.start ?? Object.keys(initialFlow.nodes ?? {})[0] ?? null);
         setDirty(false);
     }, [initialFlow, initialValidation]);
 
-    const ids = useMemo(() => Object.keys(flow.nodes), [flow.nodes]);
-    const node = selected ? flow.nodes[selected] : null;
-
-    /** Every mutation goes through here so validation and dirty state stay honest. */
-    const apply = useCallback(
-        (next: Flow) => {
-            setFlow(next);
-            setDirty(true);
-            postJson<Validation>(route('chat.flow.validate', widget.id), { flow: next })
+    // Check the draft as it changes, once typing pauses.
+    useEffect(() => {
+        if (!dirty) return;
+        const timer = window.setTimeout(() => {
+            postJson<Validation>(route('chat.flow.validate', widget.id), { flow })
                 .then(setValidation)
                 .catch(() => undefined);
-        },
-        [widget.id],
-    );
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [flow, dirty, widget.id]);
 
-    const patchNode = (id: string, patch: Partial<Node>) => apply({ ...flow, nodes: { ...flow.nodes, [id]: { ...flow.nodes[id], ...patch } } });
+    /**
+     * Every change goes through here, so it can be undone. Typing in one field
+     * is one change, not one per keystroke: edits with the same key within a
+     * moment of each other are merged.
+     */
+    const apply = useCallback((next: Flow, mergeKey?: string) => {
+        const now = Date.now();
+        const merge = mergeKey !== undefined && lastMerge.current?.key === mergeKey && now - lastMerge.current.at < 1200;
+        lastMerge.current = mergeKey ? { key: mergeKey, at: now } : null;
+        setHistory((h) => (next === h.flow ? h : { flow: next, past: merge ? h.past : [...h.past.slice(-49), h.flow], future: [] }));
+        setDirty(true);
+    }, []);
 
-    const addNode = (type: string) => {
-        const id = newId(type, flow.nodes);
-        const created: Node =
-            type === 'choice'
-                ? { type, text: 'What can we help you with?', options: [{ id: 'option_1', label: 'First answer', score: 0, next: null }] }
-                : type === 'input'
-                  ? { type, text: 'What is your email?', input: 'email', field: 'email', next: null }
-                  : type === 'condition'
-                    ? { type, field: '', operator: 'equals', value: '', next: null, otherwise: null }
-                    : type === 'score'
-                      ? { type, points: 10, next: null }
-                      : type === 'tag'
-                        ? { type, tag: '', next: null }
-                        : type === 'assign'
-                          ? { type, assignee_id: null, next: null }
-                          : type === 'handoff'
-                            ? { type, next: null }
-                            : type === 'booking'
-                              ? { type, text: 'Pick a time that suits you:', next: null, fallback: null }
-                              : type === 'ai'
-                                ? { type, text: 'What would you like to know?', next: null, fallback: null }
-                                : type === 'end'
-                                  ? { type, outcome: 'lead', text: 'Thanks — we will be in touch shortly.' }
-                                  : { type: 'message', text: 'Hello!', next: null };
+    const undo = useCallback(() => {
+        lastMerge.current = null;
+        setHistory((h) => (h.past.length === 0 ? h : { flow: h.past[h.past.length - 1], past: h.past.slice(0, -1), future: [h.flow, ...h.future] }));
+        setDirty(true);
+    }, []);
+    const redo = useCallback(() => {
+        lastMerge.current = null;
+        setHistory((h) => (h.future.length === 0 ? h : { flow: h.future[0], past: [...h.past, h.flow], future: h.future.slice(1) }));
+        setDirty(true);
+    }, []);
 
-        const nodes = { ...flow.nodes, [id]: created };
-        apply({ start: flow.start ?? id, nodes });
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            if (!(e.ctrlKey || e.metaKey)) return;
+            if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                redo();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [undo, redo]);
+
+    // A selected step that no longer exists (undone, deleted) is deselected.
+    useEffect(() => {
+        if (selected && !flow.nodes[selected]) setSelected(null);
+    }, [flow, selected]);
+
+    const tree = useMemo(() => buildTree(flow), [flow]);
+
+    const patchNode = (id: string, patch: Partial<FlowNode>, mergeKey?: string) =>
+        apply({ ...flow, nodes: { ...flow.nodes, [id]: { ...flow.nodes[id], ...patch } } }, mergeKey);
+
+    const insertBlock = (slot: Slot, key: string) => {
+        const block = blockByKey(key);
+        if (!block) return;
+        const made = block.make();
+        if (!canInsert(flow, slot, made.type)) return;
+        const { flow: next, id } = insertStep(flow, slot, made);
+        apply(next);
         setSelected(id);
+        setNotice(null);
     };
 
-    const duplicateNode = (id: string) => {
-        const copy = newId(flow.nodes[id].type, flow.nodes);
-        apply({ ...flow, nodes: { ...flow.nodes, [copy]: JSON.parse(JSON.stringify(flow.nodes[id])) } });
-        setSelected(copy);
-    };
-
-    const deleteNode = (id: string) => {
-        const nodes = { ...flow.nodes };
-        delete nodes[id];
-        // Clear anything that pointed at it, so the graph never keeps a dead link.
-        for (const [key, n] of Object.entries(nodes)) {
-            const cleaned: Node = { ...n };
-            if (cleaned.next === id) cleaned.next = null;
-            if (cleaned.otherwise === id) cleaned.otherwise = null;
-            if (cleaned.options) cleaned.options = cleaned.options.map((o) => (o.next === id ? { ...o, next: null } : o));
-            nodes[key] = cleaned;
+    /** Click a block: add it after the selected step, or at the end of the conversation. */
+    const quickAdd = (key: string) => {
+        const block = blockByKey(key);
+        if (!block) return;
+        let slot: Slot | null = selected ? afterSlot(tree.root, selected) : null;
+        if (!selected) {
+            const steps = tree.root.steps;
+            const last = steps[steps.length - 1];
+            slot = tree.root.end.kind === 'open' ? tree.root.endSlot : last?.node.type === 'end' ? last.via : null;
         }
-        const remaining = Object.keys(nodes);
-        apply({ start: flow.start === id ? (remaining[0] ?? null) : flow.start, nodes });
-        setSelected(remaining[0] ?? null);
+        if (!slot) {
+            setNotice(
+                selected
+                    ? 'Nothing can follow the selected step. Drag the block to where it belongs instead.'
+                    : 'Drag the block to where it belongs in the conversation.',
+            );
+            return;
+        }
+        if (!canInsert(flow, slot, block.make().type)) {
+            setNotice('A Finish step goes where nothing follows. Drag it to the end of a path.');
+            return;
+        }
+        insertBlock(slot, key);
     };
+
+    const remove = (id: string) => {
+        const { flow: next, removed } = removeStep(flow, id);
+        if (removed.length > 1) {
+            setPendingDelete({ id, next, count: removed.length - 1 });
+            return;
+        }
+        apply(next);
+        setSelected(null);
+    };
+
+    const move = (direction: 'up' | 'down') => {
+        if (!selected) return;
+        const place = locate(tree.root, selected);
+        if (!place) return;
+        const { branch, index } = place;
+        if (direction === 'up' && index > 0) {
+            apply(moveStep(flow, selected, branch.steps[index - 1].via));
+        } else if (direction === 'down' && index < branch.steps.length - 1) {
+            const slot = afterSlot(tree.root, branch.steps[index + 1].id);
+            if (slot) apply(moveStep(flow, selected, slot));
+        }
+    };
+
+    const issues = useMemo(() => {
+        const map: Record<string, Issue[]> = {};
+        for (const e of validation.errors) if (e.node) (map[e.node] ??= []).push({ level: 'error', message: e.message });
+        for (const w of validation.warnings) if (w.node) (map[w.node] ??= []).push({ level: 'warning', message: w.message });
+        return map;
+    }, [validation]);
 
     const save = (publish: boolean) => {
         setSaving(true);
@@ -258,9 +222,35 @@ export default function FlowBuilder({
         );
     };
 
-    // A widget has one conversation: once it is live there is no separate
-    // draft, so every save reaches visitors and the builder says so.
-    const live = widget.status === 'active';
+    const editor = {
+        flow,
+        selected,
+        select: setSelected,
+        dragging,
+        setDragging,
+        insertBlock,
+        moveTo: (id: string, slot: Slot) => {
+            apply(moveStep(flow, id, slot));
+            setSelected(id);
+        },
+        toggleRequired: (id: string) => patchNode(id, { optional: !flow.nodes[id]?.optional }),
+        remove,
+        issues,
+    };
+
+    const settings = selected ? (
+        <StepSettings
+            flow={flow}
+            id={selected}
+            root={tree.root}
+            assignees={assignees}
+            onPatch={(patch, mergeKey) => patchNode(selected, patch, mergeKey)}
+            onApply={apply}
+            onDelete={() => remove(selected)}
+            onMove={move}
+            onClose={() => setSelected(null)}
+        />
+    ) : null;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Website Chat', href: '/chat' },
@@ -268,27 +258,7 @@ export default function FlowBuilder({
         { title: widget.name, href: `/chat/widgets/${widget.id}/flow` },
     ];
 
-    /** Dropdown of steps a connection can point at. */
-    const StepPicker = ({ value, onChange, label }: { value: string | null | undefined; onChange: (v: string | null) => void; label: string }) => (
-        <div className="grid gap-1">
-            <Label>{label}</Label>
-            <Select value={value ?? '__none'} onValueChange={(v) => onChange(v === '__none' ? null : v)}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Not connected" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="__none">Not connected</SelectItem>
-                    {ids
-                        .filter((id) => id !== selected)
-                        .map((id) => (
-                            <SelectItem key={id} value={id}>
-                                {meta(flow.nodes[id].type).label}: {summarise(flow.nodes[id]).slice(0, 40)}
-                            </SelectItem>
-                        ))}
-                </SelectContent>
-            </Select>
-        </div>
-    );
+    const stepCount = Object.keys(flow.nodes).length;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -298,12 +268,44 @@ export default function FlowBuilder({
                     title="Conversation builder"
                     description={
                         live
-                            ? 'Design what your widget asks visitors. This chat is live on your website, so published changes reach visitors straight away.'
-                            : 'Design what your widget asks visitors. Every change is saved as a draft until you publish.'
+                            ? 'Drag blocks into the conversation, or use + between steps. This chat is live, so published changes reach visitors straight away.'
+                            : 'Drag blocks into the conversation, or use + between steps. Nothing reaches your website until you publish.'
                     }
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
-                            <TemplateDialog templates={templates} widgetId={widget.id} />
+                            <div className="flex">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={undo}
+                                    disabled={history.past.length === 0}
+                                    aria-label="Undo"
+                                    title="Undo (Ctrl+Z)"
+                                    className="rounded-r-none"
+                                >
+                                    <Undo2 className="size-4" aria-hidden />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={redo}
+                                    disabled={history.future.length === 0}
+                                    aria-label="Redo"
+                                    title="Redo (Ctrl+Shift+Z)"
+                                    className="-ml-px rounded-l-none"
+                                >
+                                    <Redo2 className="size-4" aria-hidden />
+                                </Button>
+                            </div>
+                            <TemplateGallery
+                                templates={templates}
+                                hasSteps={stepCount > 0}
+                                onUse={(t) => {
+                                    apply(JSON.parse(JSON.stringify(t.flow)) as Flow);
+                                    setSelected(null);
+                                    setNotice(`Loaded “${t.name}”. Change anything you like, then publish.`);
+                                }}
+                            />
                             <TestDialog widgetId={widget.id} flow={flow} />
                             {!live && (
                                 <Button variant="outline" onClick={() => save(false)} disabled={saving}>
@@ -318,638 +320,182 @@ export default function FlowBuilder({
                 />
 
                 <FormErrors errors={refused} />
+                <StatusLine validation={validation} dirty={dirty} onSelect={setSelected} />
+                {notice && (
+                    <p role="status" className="bg-brand-soft text-brand-strong rounded-lg px-3 py-2 text-sm">
+                        {notice}
+                    </p>
+                )}
 
-                <ValidationBanner validation={validation} dirty={dirty} onSelect={setSelected} />
+                <FlowEditorContext.Provider value={editor}>
+                    <div className="grid items-start gap-4 xl:grid-cols-[250px_minmax(0,1fr)_360px]">
+                        <aside className="bg-card border-border rounded-xl border p-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+                            <details open={wide} className="group">
+                                <summary className="text-foreground cursor-pointer text-sm font-semibold xl:pointer-events-none xl:list-none">
+                                    Blocks
+                                </summary>
+                                <div className="mt-3">
+                                    <BlockLibrary
+                                        onQuickAdd={quickAdd}
+                                        setDragging={setDragging}
+                                        quickAddHint={
+                                            selected
+                                                ? 'Drag a block into the conversation, or click it to add it after the selected step.'
+                                                : 'Drag a block into the conversation, or click it to add it at the end.'
+                                        }
+                                    />
+                                </div>
+                            </details>
+                        </aside>
 
-                <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-                    {/* Steps */}
-                    <div className="border-border bg-card h-fit rounded-lg border">
-                        <div className="border-border flex items-center justify-between border-b px-3 py-2.5">
-                            <h2 className="text-foreground text-sm font-semibold">Steps</h2>
-                            <AddStepMenu onAdd={addNode} />
-                        </div>
-                        {ids.length === 0 ? (
-                            <p className="text-muted-foreground px-3 py-6 text-center text-sm">No steps yet. Add one, or start from a template.</p>
+                        <main className="bg-muted/20 border-border min-h-[60vh] rounded-xl border p-4 sm:p-6">
+                            <FlowCanvas />
+                        </main>
+
+                        {wide ? (
+                            <aside className="bg-card border-border sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border p-4">
+                                {settings ?? <GettingStarted flow={flow} />}
+                            </aside>
                         ) : (
-                            <ul className="divide-border divide-y">
-                                {ids.map((id) => {
-                                    const m = meta(flow.nodes[id].type);
-                                    const Icon = m.icon;
-                                    const hasError = validation.errors.some((e) => e.node === id);
-                                    const hasWarning = !hasError && validation.warnings.some((w) => w.node === id);
-                                    return (
-                                        <li key={id}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelected(id)}
-                                                className={`hover:bg-muted/50 flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
-                                                    selected === id ? 'bg-brand-soft/60' : ''
-                                                }`}
-                                            >
-                                                <Icon className={`mt-0.5 size-4 shrink-0 ${m.color}`} aria-hidden />
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="flex items-center gap-1.5">
-                                                        <span className="text-foreground truncate text-sm font-medium">{m.label}</span>
-                                                        {flow.start === id && (
-                                                            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                                                                Start
-                                                            </Badge>
-                                                        )}
-                                                        {hasError && (
-                                                            <AlertTriangle className="size-3.5 shrink-0 text-red-500" aria-label="Has a problem" />
-                                                        )}
-                                                        {hasWarning && (
-                                                            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" aria-label="Worth a look" />
-                                                        )}
-                                                    </span>
-                                                    <span className="text-muted-foreground line-clamp-2 text-xs">{summarise(flow.nodes[id])}</span>
-                                                </span>
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                            <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
+                                <SheetContent className="w-full overflow-y-auto p-4 sm:max-w-md">
+                                    <SheetTitle className="sr-only">Step settings</SheetTitle>
+                                    {settings}
+                                </SheetContent>
+                            </Sheet>
                         )}
                     </div>
-
-                    {/* Inspector */}
-                    <div className="border-border bg-card rounded-lg border">
-                        {!node || !selected ? (
-                            <p className="text-muted-foreground p-8 text-center text-sm">Select a step on the left to edit it.</p>
-                        ) : (
-                            <>
-                                <div className="border-border flex flex-wrap items-center gap-2 border-b px-4 py-3">
-                                    <h2 className="text-foreground mr-auto text-sm font-semibold">{meta(node.type).label} step</h2>
-                                    {flow.start !== selected && (
-                                        <Button size="sm" variant="outline" onClick={() => apply({ ...flow, start: selected })}>
-                                            Make this the start
-                                        </Button>
-                                    )}
-                                    <Button size="sm" variant="outline" onClick={() => duplicateNode(selected)}>
-                                        <Copy className="size-3.5" aria-hidden /> Duplicate
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="text-red-600" onClick={() => deleteNode(selected)}>
-                                        <Trash2 className="size-3.5" aria-hidden /> Delete
-                                    </Button>
-                                </div>
-
-                                <div className="space-y-4 p-4">
-                                    {['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type) && (
-                                        <div className="grid gap-1">
-                                            <Label htmlFor="text">{node.type === 'end' ? 'Closing message' : 'What the widget says'}</Label>
-                                            <Input
-                                                id="text"
-                                                value={node.text ?? ''}
-                                                onChange={(e) => patchNode(selected, { text: e.target.value })}
-                                            />
-                                        </div>
-                                    )}
-
-                                    {node.type === 'input' && (
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            <div className="grid gap-1">
-                                                <Label>Answer type</Label>
-                                                <Select value={node.input ?? 'text'} onValueChange={(v) => patchNode(selected, { input: v })}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {INPUT_KINDS.map((k) => (
-                                                            <SelectItem key={k} value={k} className="capitalize">
-                                                                {k}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="grid gap-1">
-                                                <Label htmlFor="field">Save the answer as</Label>
-                                                <Input
-                                                    id="field"
-                                                    value={node.field ?? ''}
-                                                    onChange={(e) => patchNode(selected, { field: e.target.value })}
-                                                    placeholder="email"
-                                                />
-                                            </div>
-                                            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={Boolean(node.optional)}
-                                                    onChange={(e) => patchNode(selected, { optional: e.target.checked })}
-                                                />
-                                                Visitors may skip this
-                                            </label>
-                                        </div>
-                                    )}
-
-                                    {node.type === 'choice' && (
-                                        <OptionsEditor
-                                            node={node}
-                                            ids={ids}
-                                            selected={selected}
-                                            nodes={flow.nodes}
-                                            onChange={(options) => patchNode(selected, { options })}
-                                            onFieldChange={(field) => patchNode(selected, { field })}
-                                        />
-                                    )}
-
-                                    {node.type === 'condition' && (
-                                        <div className="space-y-3">
-                                            <div className="grid gap-3 sm:grid-cols-3">
-                                                <div className="grid gap-1">
-                                                    <Label htmlFor="cond-field">Answer to check</Label>
-                                                    <Input
-                                                        id="cond-field"
-                                                        value={node.field ?? ''}
-                                                        onChange={(e) => patchNode(selected, { field: e.target.value })}
-                                                        placeholder="company_size"
-                                                    />
-                                                </div>
-                                                <div className="grid gap-1">
-                                                    <Label>Test</Label>
-                                                    <Select
-                                                        value={node.operator ?? 'equals'}
-                                                        onValueChange={(v) => patchNode(selected, { operator: v })}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {OPERATORS.map((o) => (
-                                                                <SelectItem key={o.id} value={o.id}>
-                                                                    {o.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="grid gap-1">
-                                                    <Label htmlFor="cond-value">Value</Label>
-                                                    <Input
-                                                        id="cond-value"
-                                                        value={node.value ?? ''}
-                                                        onChange={(e) => patchNode(selected, { value: e.target.value })}
-                                                        disabled={node.operator === 'is_set'}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                <StepPicker
-                                                    label="If true, go to"
-                                                    value={node.next}
-                                                    onChange={(v) => patchNode(selected, { next: v })}
-                                                />
-                                                <StepPicker
-                                                    label="Otherwise, go to"
-                                                    value={node.otherwise}
-                                                    onChange={(v) => patchNode(selected, { otherwise: v })}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {node.type === 'score' && (
-                                        <div className="grid gap-1 sm:max-w-xs">
-                                            <Label htmlFor="points">Points to add</Label>
-                                            <Input
-                                                id="points"
-                                                type="number"
-                                                value={node.points ?? 0}
-                                                onChange={(e) => patchNode(selected, { points: Number(e.target.value) })}
-                                            />
-                                        </div>
-                                    )}
-
-                                    {node.type === 'tag' && (
-                                        <div className="grid gap-1 sm:max-w-sm">
-                                            <Label htmlFor="tag">Tag</Label>
-                                            <Input
-                                                id="tag"
-                                                value={node.tag ?? ''}
-                                                onChange={(e) => patchNode(selected, { tag: e.target.value })}
-                                                placeholder="high-intent"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {node.type === 'assign' && (
-                                        <div className="grid gap-1 sm:max-w-sm">
-                                            <Label>Route to</Label>
-                                            <Select
-                                                value={node.assignee_id ? String(node.assignee_id) : '__none'}
-                                                onValueChange={(v) => patchNode(selected, { assignee_id: v === '__none' ? null : Number(v) })}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Choose a salesperson" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="__none">Use automatic routing</SelectItem>
-                                                    {assignees.map((a) => (
-                                                        <SelectItem key={a.id} value={String(a.id)}>
-                                                            {a.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-
-                                    {node.type === 'end' && (
-                                        <div className="grid gap-1 sm:max-w-sm">
-                                            <Label>What this outcome counts as</Label>
-                                            <Select value={node.outcome ?? 'lead'} onValueChange={(v) => patchNode(selected, { outcome: v })}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="lead">A new lead</SelectItem>
-                                                    <SelectItem value="meeting">A lead, and offer a meeting</SelectItem>
-                                                    <SelectItem value="support">An existing customer (no lead)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-
-                                    {node.type === 'booking' && (
-                                        <>
-                                            <p className="text-muted-foreground text-sm">
-                                                Shows the next free times from your active booking page as buttons, and books the one the visitor
-                                                picks. Place it after the email step, so the confirmation has somewhere to go. When nothing is free
-                                                (or they pick none), the conversation follows the fallback below instead.
-                                            </p>
-                                            <div className="sm:max-w-sm">
-                                                <StepPicker
-                                                    label="If no time works"
-                                                    value={node.fallback}
-                                                    onChange={(v) => patchNode(selected, { fallback: v })}
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {node.type === 'ai' && (
-                                        <>
-                                            <p className="text-muted-foreground text-sm">
-                                                The visitor types a question and the AI answers it from your company details — services offered, never
-                                                invented pricing or commitments. Uses your plan&apos;s AI credits. If the AI cannot answer, the
-                                                conversation follows the fallback below so a person picks it up.
-                                            </p>
-                                            <div className="sm:max-w-sm">
-                                                <StepPicker
-                                                    label="If AI is unavailable"
-                                                    value={node.fallback}
-                                                    onChange={(v) => patchNode(selected, { fallback: v })}
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {node.type === 'handoff' && (
-                                        <p className="text-muted-foreground text-sm">
-                                            If an agent is online and you are inside business hours, the visitor is connected to them and the
-                                            conversation goes live. Otherwise they are told when to expect a reply and the steps below carry on
-                                            collecting their details.
-                                        </p>
-                                    )}
-
-                                    {['message', 'input', 'score', 'tag', 'assign', 'handoff', 'booking', 'ai'].includes(node.type) && (
-                                        <div className="sm:max-w-sm">
-                                            <StepPicker label="Then go to" value={node.next} onChange={(v) => patchNode(selected, { next: v })} />
-                                        </div>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
+                </FlowEditorContext.Provider>
             </div>
+
+            <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+                <DialogContent>
+                    <DialogTitle>Delete this question and its paths?</DialogTitle>
+                    <DialogDescription>
+                        Its answers lead to {pendingDelete?.count} {pendingDelete?.count === 1 ? 'step' : 'steps'} that nothing else leads to, so{' '}
+                        {pendingDelete?.count === 1 ? 'it goes' : 'they go'} too. You can undo this.
+                    </DialogDescription>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPendingDelete(null)}>
+                            Keep it
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (pendingDelete) apply(pendingDelete.next);
+                                setPendingDelete(null);
+                                setSelected(null);
+                            }}
+                        >
+                            Delete {1 + (pendingDelete?.count ?? 0)} steps
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
 
-function AddStepMenu({ onAdd }: { onAdd: (type: string) => void }) {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                    <Plus className="size-3.5" aria-hidden /> Add
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogTitle>Add a step</DialogTitle>
-                <div className="grid gap-2 sm:grid-cols-2">
-                    {STEP_TYPES.map((s) => {
-                        const Icon = s.icon;
-                        return (
-                            <button
-                                key={s.type}
-                                type="button"
-                                onClick={() => {
-                                    onAdd(s.type);
-                                    setOpen(false);
-                                }}
-                                className="border-border hover:border-brand hover:bg-muted/40 flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors"
-                            >
-                                <Icon className={`mt-0.5 size-4 shrink-0 ${s.color}`} aria-hidden />
-                                <span>
-                                    <span className="text-foreground block text-sm font-medium">{s.label}</span>
-                                    <span className="text-muted-foreground block text-xs">{s.hint}</span>
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function OptionsEditor({
-    node,
-    ids,
-    selected,
-    nodes,
-    onChange,
-    onFieldChange,
-}: {
-    node: Node;
-    ids: string[];
-    selected: string;
-    nodes: Record<string, Node>;
-    onChange: (options: Option[]) => void;
-    onFieldChange: (field: string) => void;
-}) {
-    const options = node.options ?? [];
-
-    const update = (index: number, patch: Partial<Option>) => onChange(options.map((o, i) => (i === index ? { ...o, ...patch } : o)));
-
-    return (
-        <div className="space-y-3">
-            <div className="grid gap-1 sm:max-w-xs">
-                <Label htmlFor="choice-field">Save the answer as</Label>
-                <Input id="choice-field" value={node.field ?? ''} onChange={(e) => onFieldChange(e.target.value)} placeholder="company_size" />
-            </div>
-
-            <div className="space-y-2">
-                <Label>Answers</Label>
-                {options.map((option, index) => (
-                    <div key={index} className="border-border grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_90px_1fr_auto]">
-                        <Input value={option.label} onChange={(e) => update(index, { label: e.target.value })} placeholder="Answer text" />
-                        <Input
-                            type="number"
-                            value={option.score ?? 0}
-                            onChange={(e) => update(index, { score: Number(e.target.value) })}
-                            aria-label="Points"
-                            title="Points added when chosen"
-                        />
-                        <Select value={option.next ?? '__none'} onValueChange={(v) => update(index, { next: v === '__none' ? null : v })}>
-                            <SelectTrigger aria-label="Then go to">
-                                <SelectValue placeholder="Then go to…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__none">Not connected</SelectItem>
-                                {ids
-                                    .filter((id) => id !== selected)
-                                    .map((id) => (
-                                        <SelectItem key={id} value={id}>
-                                            {meta(nodes[id].type).label}: {summarise(nodes[id]).slice(0, 32)}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600"
-                            onClick={() => onChange(options.filter((_, i) => i !== index))}
-                            aria-label={`Remove answer ${option.label}`}
-                        >
-                            <Trash2 className="size-3.5" aria-hidden />
-                        </Button>
-                    </div>
-                ))}
-                <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                        onChange([
-                            ...options,
-                            { id: `option_${options.length + 1}_${Date.now().toString(36)}`, label: 'New answer', score: 0, next: null },
-                        ])
-                    }
-                >
-                    <Plus className="size-3.5" aria-hidden /> Add answer
-                </Button>
-            </div>
-        </div>
-    );
-}
-
-function ValidationBanner({ validation, dirty, onSelect }: { validation: Validation; dirty: boolean; onSelect: (id: string) => void }) {
+/** One line on whether the conversation can go live, with the problems listed underneath. */
+function StatusLine({ validation, dirty, onSelect }: { validation: Validation; dirty: boolean; onSelect: (id: string) => void }) {
     if (validation.valid && validation.warnings.length === 0) {
         return (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm">
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">
                 <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                <span className="text-foreground">This conversation is ready to publish.</span>
+                <span className="text-foreground">Ready to publish.</span>
                 {dirty && <span className="text-muted-foreground ml-auto text-xs">Unsaved changes</span>}
             </div>
         );
     }
 
-    return (
-        <div className="space-y-2">
-            {validation.errors.length > 0 && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400">
-                        <XCircle className="size-4" aria-hidden /> Fix these before publishing
-                    </div>
-                    <ul className="mt-1.5 space-y-1 text-sm">
-                        {validation.errors.map((e, i) => (
-                            <li key={i}>
-                                {e.node ? (
-                                    <button type="button" className="underline underline-offset-2" onClick={() => onSelect(e.node as string)}>
-                                        {e.message}
-                                    </button>
-                                ) : (
-                                    e.message
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            {validation.warnings.length > 0 && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
-                        <AlertTriangle className="size-4" aria-hidden /> Worth a look
-                    </div>
-                    <ul className="mt-1.5 space-y-1 text-sm">
-                        {validation.warnings.map((w, i) => (
-                            <li key={i}>
-                                {w.node ? (
-                                    <button type="button" className="underline underline-offset-2" onClick={() => onSelect(w.node as string)}>
-                                        {w.message}
-                                    </button>
-                                ) : (
-                                    w.message
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function TemplateDialog({ templates, widgetId }: { templates: Template[]; widgetId: number }) {
-    const [open, setOpen] = useState(false);
+    const problems = [
+        ...validation.errors.map((e) => ({ ...e, level: 'error' as const })),
+        ...validation.warnings.map((w) => ({ ...w, level: 'warning' as const })),
+    ];
+    const errorCount = validation.errors.length;
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline">Templates</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogTitle>Start from a template</DialogTitle>
-                <p className="text-muted-foreground text-sm">This replaces the current conversation. You can edit every step afterwards.</p>
-                <div className="max-h-[60vh] space-y-2 overflow-y-auto">
-                    {templates.map((t) => (
-                        <button
-                            key={t.key}
-                            type="button"
-                            onClick={() => {
-                                router.post(route('chat.flow.template', widgetId), { template: t.key }, { onFinish: () => setOpen(false) });
-                            }}
-                            className="border-border hover:border-brand hover:bg-muted/40 block w-full rounded-lg border p-3 text-left transition-colors"
-                        >
-                            <span className="text-foreground flex items-center gap-2 text-sm font-medium">
-                                {t.name}
-                                <Badge variant="secondary" className="text-[10px]">
-                                    {t.steps} steps
-                                </Badge>
-                            </span>
-                            <span className="text-muted-foreground mt-0.5 block text-xs">{t.description}</span>
-                        </button>
-                    ))}
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/** Runs the draft through the real engine so the tenant tests what visitors get. */
-function TestDialog({ widgetId, flow }: { widgetId: number; flow: Flow }) {
-    const [open, setOpen] = useState(false);
-    const [token, setToken] = useState<string | null>(null);
-    const [messages, setMessages] = useState<TestMessage[]>([]);
-    const [node, setNode] = useState<TestNode | null>(null);
-    const [done, setDone] = useState(false);
-    const [value, setValue] = useState('');
-    const [error, setError] = useState<string | null>(null);
-
-    const send = async (payload: { token?: string | null; option?: string; value?: string }, echo?: string) => {
-        setError(null);
-        if (echo !== undefined) setMessages((m) => [...m, { role: 'visitor', body: echo }]);
-        try {
-            const data = await postJson<{ token?: string; messages?: TestMessage[]; node?: TestNode | null; done?: boolean }>(
-                route('chat.flow.test', widgetId),
-                { flow, ...payload },
-            );
-            setToken(data.token ?? payload.token ?? null);
-            setMessages((m) => [...m, ...(data.messages ?? [])]);
-            setNode(data.node ?? null);
-            setDone(Boolean(data.done));
-        } catch (e) {
-            const data = (e as { data?: { errors?: Record<string, string[]>; message?: string } }).data;
-            setError(data?.errors ? Object.values(data.errors)[0][0] : (data?.message ?? 'Something went wrong.'));
-        }
-    };
-
-    const restart = () => {
-        setMessages([]);
-        setNode(null);
-        setDone(false);
-        setToken(null);
-        setError(null);
-        void send({});
-    };
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(o) => {
-                setOpen(o);
-                if (o) restart();
-            }}
+        <details
+            className={`rounded-lg border px-4 py-2 ${errorCount > 0 ? 'border-red-500/30 bg-red-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}
         >
-            <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Play className="size-3.5" aria-hidden /> Test
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogTitle>Test conversation</DialogTitle>
-                <p className="text-muted-foreground -mt-2 text-xs">
-                    This runs your unsaved draft through the real chat engine. Nothing is added to your CRM.
-                </p>
-
-                <div className="bg-muted/40 max-h-[45vh] min-h-[220px] space-y-2 overflow-y-auto rounded-lg p-3">
-                    {messages.map((m, i) => (
-                        <div key={i} className={`flex ${m.role === 'visitor' ? 'justify-end' : 'justify-start'}`}>
-                            <div
-                                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                                    m.role === 'visitor'
-                                        ? 'bg-brand text-brand-foreground rounded-br-sm'
-                                        : 'bg-card border-border rounded-bl-sm border'
-                                }`}
+            <summary className="flex cursor-pointer items-center gap-2 text-sm">
+                {errorCount > 0 ? (
+                    <XCircle className="size-4 text-red-600 dark:text-red-400" aria-hidden />
+                ) : (
+                    <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                )}
+                <span className="text-foreground font-medium">
+                    {errorCount > 0
+                        ? `${errorCount} ${errorCount === 1 ? 'thing needs' : 'things need'} fixing before this can go live`
+                        : `${validation.warnings.length} ${validation.warnings.length === 1 ? 'thing is' : 'things are'} worth a look`}
+                </span>
+                <span className="text-muted-foreground text-xs">— marked on the steps below</span>
+                {dirty && <span className="text-muted-foreground ml-auto text-xs">Unsaved changes</span>}
+            </summary>
+            <ul className="mt-2 space-y-1 pb-1 text-sm">
+                {problems.map((p, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                        <span className={p.level === 'error' ? 'text-red-600 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'} aria-hidden>
+                            •
+                        </span>
+                        {p.node ? (
+                            <button
+                                type="button"
+                                className="text-left underline underline-offset-2"
+                                onClick={() => {
+                                    onSelect(p.node as string);
+                                    document.getElementById(`flow-step-${p.node}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }}
                             >
-                                {m.body}
-                            </div>
-                        </div>
-                    ))}
-                    {done && <p className="text-muted-foreground pt-1 text-center text-xs">Conversation finished.</p>}
-                </div>
+                                {p.message}
+                            </button>
+                        ) : (
+                            p.message
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </details>
+    );
+}
 
-                {error && <p className="text-sm text-red-600">{error}</p>}
+/** The right-hand panel before a step is selected: how to build, and what the chat collects. */
+function GettingStarted({ flow }: { flow: Flow }) {
+    const collected = Object.values(flow.nodes)
+        .filter((n) => n.type === 'input' && n.field && CONTACT_FIELDS[n.field])
+        .map((n) => ({ label: CONTACT_FIELDS[n.field as string], required: !n.optional }));
 
-                {!done && node?.type === 'choice' && (
-                    <div className="space-y-1.5">
-                        {(node.options ?? []).map((o) => (
-                            <Button
-                                key={o.id}
-                                variant="outline"
-                                className="w-full justify-start"
-                                onClick={() => send({ token, option: o.id }, o.label)}
-                            >
-                                {o.label}
-                            </Button>
+    return (
+        <div className="space-y-4 text-sm">
+            <div>
+                <h2 className="text-foreground font-semibold">How to build</h2>
+                <ol className="text-muted-foreground mt-2 list-decimal space-y-1.5 pl-4">
+                    <li>Drag a block from the left into the conversation, into the gap where it belongs.</li>
+                    <li>Or click the + between two steps and pick a block.</li>
+                    <li>Click a step to change what it says, its answers, or where an answer leads.</li>
+                    <li>Switch contact details between Required and Optional right on their cards.</li>
+                    <li>Test it, then publish.</li>
+                </ol>
+            </div>
+            <div>
+                <h2 className="text-foreground font-semibold">Details this chat collects</h2>
+                {collected.length === 0 ? (
+                    <p className="text-muted-foreground mt-1">None yet. Drag in Email and First name so every chat can become a lead.</p>
+                ) : (
+                    <ul className="mt-2 space-y-1">
+                        {collected.map((c, i) => (
+                            <li key={i} className="flex items-center justify-between gap-2">
+                                <span className="text-foreground">{c.label}</span>
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.required ? 'bg-brand text-brand-foreground' : 'border-border text-muted-foreground border'}`}
+                                >
+                                    {c.required ? 'Required' : 'Optional'}
+                                </span>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 )}
-
-                {!done && node?.type === 'input' && (
-                    <form
-                        className="flex gap-2"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            const v = value.trim();
-                            if (!v && !node.optional) return;
-                            setValue('');
-                            void send({ token, value: v }, v || '—');
-                        }}
-                    >
-                        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Type an answer…" />
-                        <Button type="submit">Send</Button>
-                    </form>
-                )}
-
-                <Button variant="outline" size="sm" onClick={restart}>
-                    Start over
-                </Button>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 }

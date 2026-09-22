@@ -7,6 +7,7 @@ use App\Billing\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\ChatWidget;
 use App\Security\UploadScanner;
+use App\Services\Chat\ChatFlowTemplates;
 use App\Services\Chat\DefaultChatFlow;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
@@ -37,7 +38,7 @@ class ChatWidgetController extends Controller
         return $organization !== null && $this->entitlements->feature($organization, Feature::WhiteLabel);
     }
 
-    public function index(): Response
+    public function index(ChatFlowTemplates $templates): Response
     {
         $widgets = ChatWidget::query()
             ->withCount('conversations')
@@ -57,20 +58,34 @@ class ChatWidgetController extends Controller
                 ),
             ]);
 
-        return Inertia::render('chat/widgets/index', ['widgets' => $widgets]);
+        return Inertia::render('chat/widgets/index', [
+            'widgets' => $widgets,
+            // What a new widget can start from; the conversations themselves stay server-side.
+            'templates' => array_map(
+                fn (array $t) => ['key' => $t['key'], 'name' => $t['name'], 'category' => $t['category']],
+                $templates->catalog(),
+            ),
+        ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ChatFlowTemplates $templates): RedirectResponse
     {
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'description' => 'nullable|string|max:255',
+            // CHAT-057: start from the conversation for their type of business.
+            'template' => ['nullable', 'string', Rule::in(array_column($templates->catalog(), 'key'))],
+        ], [
+            'template.in' => 'That template no longer exists. Choose another, or start from the standard conversation.',
         ]);
+
+        $flow = isset($data['template']) ? $templates->flow($data['template']) : null;
+        unset($data['template']);
 
         $widget = ChatWidget::create([
             ...$data,
             'status' => 'draft',
-            'flow' => DefaultChatFlow::definition(),
+            'flow' => $flow ?? DefaultChatFlow::definition(),
             'theme' => ['accent' => '#0bb39e', 'position' => 'bottom-right', 'title' => 'Chat with us'],
             'consent' => ['required' => false],
             'settings' => ['language' => 'en', 'mode' => 'bot'],
