@@ -477,3 +477,8 @@ worker is running (the scripts install one).
   so the visitor's own local copy cannot be relied on for display. The bubble shows the
   file name until the saved copy (served from the chat's own origin, like the logo) has
   loaded, and stays a link rather than a broken image if a site blocks that too.
+- **Pictures only (2026-09-22, owner decision):** visitors can no longer send documents,
+  text, PDFs or video - PNG, JPG, GIF and WebP only. The picker offers only those, the
+  widget refuses anything else before uploading, and the server checks both the type read
+  from the file's bytes and its name (a real PDF renamed to `.png` is refused). Files sent
+  before the change remain download-only for the team.

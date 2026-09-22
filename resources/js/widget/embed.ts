@@ -357,10 +357,14 @@ const ICON_SEND = svg('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z
 const ICON_CLIP = svg(
     '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
 );
-/** What the file picker offers; the server holds the real list and checks every file. */
-const ATTACHMENT_TYPES = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx';
-/** Pictures drawn in the conversation; the server decides the same from the bytes. */
+/**
+ * Visitors may send pictures only - no documents, text, PDFs or video. This is
+ * what the file picker offers (on a phone: the camera and photo library); the
+ * server reads the type from the bytes and refuses anything else regardless.
+ */
 const INLINE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const ATTACHMENT_TYPES = INLINE_IMAGE_TYPES.join(',');
+const PICTURES_ONLY = 'You can send pictures only: PNG, JPG, GIF or WebP.';
 
 /** What the box is for once a person has the chat: plain messages, no script. */
 const LIVE_NODE: ChatNode = { id: '_live', type: 'input', text: 'Write a message', input: 'text', optional: false, live: true };
@@ -535,7 +539,7 @@ class ChatWidget {
                     <input type="text" placeholder="Write a message…" aria-label="Write a message" autocomplete="off" maxlength="1000">
                     ${
                         this.config.attachments
-                            ? `<button type="button" class="send attach" aria-label="Attach a file">${ICON_CLIP}</button>
+                            ? `<button type="button" class="send attach" aria-label="Send a picture" title="Send a picture">${ICON_CLIP}</button>
                                <input type="file" class="file" hidden accept="${ATTACHMENT_TYPES}">`
                             : ''
                     }
@@ -636,23 +640,30 @@ class ChatWidget {
     }
 
     /**
-     * Send a file the visitor picked. A picture is made smaller first and shows
-     * in the conversation straight away, from the visitor's own copy; other
-     * files show as their name. It does not answer the question on screen,
-     * which stays as it was.
+     * Send a picture the visitor picked. Anything that is not a picture is
+     * refused here, before it is uploaded (the server refuses it too). The
+     * picture is made smaller first and shows in the conversation straight
+     * away. It does not answer the question on screen, which stays as it was.
      */
     private async attach(picked: File) {
         if (!this.token || this.input.disabled) return;
         this.clearError();
 
-        const file = await compressImage(picked);
-        if (file.size > 5 * 1024 * 1024) {
-            this.error('Files can be up to 5 MB.');
+        // A picker can still be switched to "All files", and files can be dropped
+        // in from elsewhere: say so plainly rather than uploading and failing.
+        if (!INLINE_IMAGE_TYPES.includes(picked.type)) {
+            this.error(PICTURES_ONLY);
             return;
         }
 
-        const local = INLINE_IMAGE_TYPES.includes(file.type) ? URL.createObjectURL(file) : null;
-        const sending = local ? this.picture('visitor', local, file.name) : this.fileLink('visitor', `📎 ${file.name}`);
+        const file = await compressImage(picked);
+        if (file.size > 5 * 1024 * 1024) {
+            this.error('Pictures can be up to 5 MB.');
+            return;
+        }
+
+        const local = URL.createObjectURL(file);
+        const sending = this.picture('visitor', local, file.name);
         sending.classList.add('sending');
         const body = new FormData();
         body.append('file', file);
@@ -669,9 +680,9 @@ class ChatWidget {
             };
             if (!response.ok) {
                 sending.remove();
-                if (local) URL.revokeObjectURL(local);
+                URL.revokeObjectURL(local);
                 const refused = response.status === 422 ? Object.values(data.errors ?? {})[0]?.[0] : undefined;
-                this.error(refused ?? 'That file could not be sent. Please try again.');
+                this.error(refused ?? 'That picture could not be sent. Please try again.');
                 return;
             }
             sending.classList.remove('sending');
@@ -684,12 +695,12 @@ class ChatWidget {
                 const img = sending.querySelector('img');
                 if (img) img.src = saved;
             }
-            if (local) URL.revokeObjectURL(local);
+            URL.revokeObjectURL(local);
             if (typeof data.message?.id === 'number') this.shown.add(data.message.id);
         } catch {
             sending.remove();
-            if (local) URL.revokeObjectURL(local);
-            this.error('That file could not be sent. Please try again.');
+            URL.revokeObjectURL(local);
+            this.error('That picture could not be sent. Please try again.');
         }
     }
 

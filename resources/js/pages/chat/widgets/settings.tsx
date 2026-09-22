@@ -441,10 +441,10 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                                     onChange={(e) => form.setData('settings', { ...form.data.settings, attachments: e.target.checked })}
                                 />
                                 <span>
-                                    Let visitors send files
+                                    Let visitors send pictures
                                     <span className="text-muted-foreground block text-xs">
-                                        Images, PDFs, text, Word and Excel files up to 5 MB, checked before they are stored. Only your team can open
-                                        them.
+                                        PNG, JPG, GIF or WebP only — no documents, PDFs or video. Made smaller before upload and checked before they
+                                        are stored; only the visitor and your team can see them.
                                     </span>
                                 </span>
                             </label>

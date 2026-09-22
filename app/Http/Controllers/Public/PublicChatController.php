@@ -30,7 +30,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PublicChatController extends Controller
 {
-    /** Files one visitor may send in one conversation. */
+    /** Pictures one visitor may send in one conversation. */
     private const MAX_FILES = 10;
 
     public function __construct(
@@ -204,10 +204,12 @@ class PublicChatController extends Controller
     }
 
     /**
-     * A file the visitor attaches to the chat - a screenshot of an error, a
-     * document the team asked for. Checked like every upload (size, type, and
+     * A picture the visitor attaches to the chat - a screenshot of an error, a
+     * photo of the faulty kit. Pictures only: no documents, text, PDFs or video
+     * from anonymous visitors. Checked like every upload (size, type, and
      * content that really is that type), kept private, and shown only to the
-     * team. It is not an answer: the conversation stays where it was.
+     * team and the visitor. It is not an answer: the conversation stays where
+     * it was.
      */
     public function upload(Request $request, string $publicKey, string $token, UploadScanner $scanner): JsonResponse
     {
@@ -224,23 +226,31 @@ class PublicChatController extends Controller
 
         // Nothing the visitor sends is stored before they have agreed to it.
         if ((bool) (($widget->consent ?? [])['required'] ?? false) && empty($conversation->answers['_consent'])) {
-            throw ValidationException::withMessages(['file' => 'Please answer the privacy question before sending a file.']);
+            throw ValidationException::withMessages(['file' => 'Please answer the privacy question before sending a picture.']);
         }
 
         $sent = $conversation->messages()->where('role', 'visitor')->get(['meta'])
             ->filter(fn (ChatMessage $m) => isset($m->meta['attachment']))
             ->count();
         if ($sent >= self::MAX_FILES) {
-            throw ValidationException::withMessages(['file' => sprintf('This chat already has %d files. Please email anything else to the team.', self::MAX_FILES)]);
+            throw ValidationException::withMessages(['file' => sprintf('This chat already has %d pictures. Please email anything else to the team.', self::MAX_FILES)]);
         }
 
+        // Both the bytes and the name must say "picture": the type is read
+        // from the content, and a renamed document is refused too.
+        $pictureOnly = 'You can send pictures only: PNG, JPG, GIF or WebP.';
         $request->validate([
-            'file' => ['required', 'file', 'max:5120', 'mimes:png,jpg,jpeg,gif,webp,pdf,txt,csv,doc,docx,xls,xlsx'],
+            'file' => [
+                'required', 'file', 'max:5120',
+                'mimetypes:'.implode(',', ChatAttachments::INLINE_IMAGES),
+                'extensions:png,jpg,jpeg,gif,webp',
+            ],
         ], [
-            'file.required' => 'Choose a file to send.',
-            'file.uploaded' => 'That file could not be received. Files can be up to 5 MB.',
-            'file.max' => 'Files can be up to 5 MB.',
-            'file.mimes' => 'You can send images, PDFs, text, Word and Excel files.',
+            'file.required' => 'Choose a picture to send.',
+            'file.uploaded' => 'That picture could not be received. Pictures can be up to 5 MB.',
+            'file.max' => 'Pictures can be up to 5 MB.',
+            'file.mimetypes' => $pictureOnly,
+            'file.extensions' => $pictureOnly,
         ]);
 
         $file = $request->file('file');
