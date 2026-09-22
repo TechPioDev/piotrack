@@ -8,9 +8,12 @@ use App\Models\ChatEvent;
 use App\Models\ChatWidget;
 use App\Models\Contact;
 use App\Models\Lead;
+use App\Models\Ticket;
+use App\Services\Delivery\TicketService;
 use App\Services\Sales\AlertService;
 use App\Services\Sales\IntentService;
 use App\Services\Sales\LeadScoringService;
+use Illuminate\Support\Str;
 
 /**
  * Runs when a conversation reaches an end node: turns the collected answers into
@@ -24,7 +27,58 @@ class ChatCaptureService
         private readonly LeadScoringService $scoring,
         private readonly AlertService $alerts,
         private readonly IntentService $intent,
+        private readonly TicketService $tickets,
     ) {}
+
+    /**
+     * The support ticket for an existing customer's chat: what they told us,
+     * then the whole conversation, so whoever picks it up needs nothing else.
+     */
+    private function openTicket(ChatConversation $conversation): Ticket
+    {
+        $answers = $conversation->answers ?? [];
+        $messages = $conversation->messages()
+            ->whereIn('role', ['visitor', 'bot', 'agent', 'system'])
+            ->orderBy('id')
+            ->limit(200)
+            ->get(['role', 'body', 'meta']);
+
+        // The request is the last answer the visitor picked on the way here
+        // ("Billing", "Technical support"), whatever the flow calls that field.
+        $topic = $messages->where('role', 'visitor')
+            ->filter(fn ($m) => isset($m->meta['option']))
+            ->last()?->body;
+
+        $text = fn (string $key): string => trim((string) ($answers[$key] ?? ''));
+        $name = trim($text('first_name').' '.$text('last_name'));
+
+        $details = array_filter([
+            'Name' => $name,
+            'Email' => $text('email'),
+            'Phone' => $text('phone'),
+            'Company' => $text('company_name'),
+            'Request' => (string) $topic,
+            'Details' => $text('support_issue'),
+            'Page' => trim((string) ($conversation->attribution['page'] ?? '')),
+        ], fn (string $value) => $value !== '');
+
+        $lines = [];
+        foreach ($details as $label => $value) {
+            $lines[] = "{$label}: {$value}";
+        }
+        $transcript = $messages->map(fn ($m) => match ($m->role) {
+            'visitor' => 'Visitor',
+            'agent' => 'Agent',
+            default => 'Bot',
+        }.': '.$m->body)->implode("\n");
+
+        return $this->tickets->open([
+            'subject' => Str::limit(sprintf('Website chat: %s from %s', $topic ?? 'support request', $name !== '' ? $name : ($text('email') ?: 'a website visitor')), 180),
+            'body' => mb_substr(implode("\n", $lines)."\n\nChat transcript\n".$transcript, 0, 60000),
+            'priority' => ($answers['_priority'] ?? null) === 'high' ? 'high' : 'normal',
+            'category' => 'website_chat',
+        ]);
+    }
 
     /**
      * What is already known about a returning visitor (§17).
@@ -76,13 +130,19 @@ class ChatCaptureService
         }
 
         // Existing-customer/support outcomes never become sales leads (§13).
+        // They become a ticket on the support desk instead, so the request is
+        // worked like any other support request rather than waiting in chat.
         if ($outcome === 'support') {
-            $conversation->forceFill(['status' => 'closed'])->save();
+            $ticket = $this->openTicket($conversation);
+            $conversation->forceFill([
+                'status' => 'closed',
+                'answers' => [...($conversation->answers ?? []), '_ticket' => $ticket->id],
+            ])->save();
             ChatEvent::create([
                 'chat_widget_id' => $widget->id,
                 'chat_conversation_id' => $conversation->id,
                 'type' => 'complete',
-                'meta' => ['outcome' => 'support'],
+                'meta' => ['outcome' => 'support', 'ticket_id' => $ticket->id],
             ]);
 
             return [];

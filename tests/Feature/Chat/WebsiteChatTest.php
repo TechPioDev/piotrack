@@ -154,13 +154,16 @@ it('runs the full §51 qualification journey into CRM, scoring, routing and aler
 });
 
 it('routes existing customers to support instead of creating a sales lead', function () {
-    runChat($this->widget->public_key, [
+    $result = runChat($this->widget->public_key, [
         ['option' => 'accept'],
         ['option' => 'existing'],
         ['option' => 'billing'],
+        ['value' => 'dana@client.test'],
+        ['value' => 'Our last invoice has the wrong seat count'],
     ]);
 
-    expect(Lead::withoutGlobalScope('tenant')->count())->toBe(0)
+    expect($result['payload']['done'])->toBeTrue()
+        ->and(Lead::withoutGlobalScope('tenant')->count())->toBe(0)
         ->and(Contact::withoutGlobalScope('tenant')->count())->toBe(0);
 });
 

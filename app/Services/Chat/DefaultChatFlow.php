@@ -244,23 +244,37 @@ class DefaultChatFlow
                     'text' => 'Thanks! Our team will reach out shortly. Have a great day.',
                 ],
 
-                // ---- Existing customer routing (§13): support, never a sales lead ----
+                // ---- Existing customer routing (§13): a support ticket, never a sales lead ----
                 'q_support' => [
                     'type' => 'choice',
                     'text' => 'Happy to help. What do you need?',
                     'field' => 'support_topic',
                     'options' => [
-                        ['id' => 'technical', 'label' => 'Technical Support', 'score' => 0, 'next' => 'end_support'],
-                        ['id' => 'billing', 'label' => 'Billing', 'score' => 0, 'next' => 'end_support'],
-                        ['id' => 'account', 'label' => 'Account Manager', 'score' => 0, 'next' => 'end_support'],
-                        ['id' => 'project', 'label' => 'Project Question', 'score' => 0, 'next' => 'end_support'],
-                        ['id' => 'other', 'label' => 'Other', 'score' => 0, 'next' => 'end_support'],
+                        ['id' => 'technical', 'label' => 'Technical Support', 'score' => 0, 'next' => 'in_support_email'],
+                        ['id' => 'billing', 'label' => 'Billing', 'score' => 0, 'next' => 'in_support_email'],
+                        ['id' => 'account', 'label' => 'Account Manager', 'score' => 0, 'next' => 'in_support_email'],
+                        ['id' => 'project', 'label' => 'Project Question', 'score' => 0, 'next' => 'in_support_email'],
+                        ['id' => 'other', 'label' => 'Other', 'score' => 0, 'next' => 'in_support_email'],
                     ],
+                ],
+                'in_support_email' => [
+                    'type' => 'input',
+                    'input' => 'email',
+                    'field' => 'email',
+                    'text' => 'What email address should we reply to?',
+                    'next' => 'in_support_issue',
+                ],
+                'in_support_issue' => [
+                    'type' => 'input',
+                    'input' => 'text',
+                    'field' => 'support_issue',
+                    'text' => 'Briefly, what do you need help with?',
+                    'next' => 'end_support',
                 ],
                 'end_support' => [
                     'type' => 'end',
                     'outcome' => 'support',
-                    'text' => 'Thanks — our support team has been notified and will follow up through your usual support channel.',
+                    'text' => 'Thanks — we have opened a support ticket and our team will follow up by email.',
                 ],
             ],
         ];

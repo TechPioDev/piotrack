@@ -24,6 +24,8 @@ use Illuminate\Support\Str;
  * @property Carbon|null $last_message_at
  * @property string|null $summary
  * @property Carbon|null $summary_generated_at
+ * @property Carbon|null $visitor_seen_at
+ * @property int|null $visitor_seen_message_id
  */
 class ChatConversation extends Model
 {
@@ -71,7 +73,24 @@ class ChatConversation extends Model
             'is_live' => 'boolean',
             'handoff_requested_at' => 'datetime',
             'last_message_at' => 'datetime',
+            'visitor_seen_at' => 'datetime',
+            'visitor_seen_message_id' => 'integer',
         ];
+    }
+
+    /**
+     * The visitor's widget has just been in touch; with $deliveredThrough, it
+     * now holds every message up to that id. Presence is written at most every
+     * few seconds, so a polling widget costs no extra write per poll.
+     */
+    public function markSeen(?int $deliveredThrough = null): void
+    {
+        $through = max((int) $this->visitor_seen_message_id, (int) $deliveredThrough);
+        $stale = $this->visitor_seen_at === null || $this->visitor_seen_at->lt(now()->subSeconds(10));
+
+        if ($stale || $through !== (int) $this->visitor_seen_message_id) {
+            $this->forceFill(['visitor_seen_at' => now(), 'visitor_seen_message_id' => $through ?: null])->save();
+        }
     }
 
     /** @return BelongsTo<ChatWidget, $this> */

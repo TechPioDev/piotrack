@@ -423,3 +423,37 @@ business hours, targeting, progressive profiling, analytics, funnel, drop-off, n
 website visitor into a known visitor, qualified lead, CRM contact, sales opportunity,
 meeting and attributed revenue, configurable per tenant — works end to end and is covered
 by 52 module tests inside a 678-test suite.
+
+---
+
+# Appendix — HubSpot parity pass (2026-09-22)
+
+A feature comparison with Jumpfactor's website chat (HubSpot Conversations, "HubBot")
+found five gaps worth closing. All five are built, tested and registered as CHAT-047..051.
+
+| Row | What it does | Tests |
+|---|---|---|
+| CHAT-047 | An existing customer's support request opens a ticket on the support desk with their details, the issue and the full transcript. The default flow and the existing-customer template now ask for an email and the issue first. Never a lead; previews never file one. | `ChatSupportTicketTest` (4) |
+| CHAT-048 | A team reply the visitor never saw is emailed once they have left (not seen for 60 s), batched, with Reply-To the agent. The widget reports how far it has read, so nothing it already showed is sent. On by default; a widget setting turns it off. | `ChatReplyEmailTest` (5) |
+| CHAT-049 | Visitors can attach images, PDFs, text, Word and Excel files up to 5 MB. Every file is scanned, stored privately, capped at 10 per conversation, refused before consent, and downloadable only by the widget's own team. | `ChatAttachmentTest` (8) |
+| CHAT-050 | "Powered by Piotrack" can be removed on plans with white-labelling (Agency, Enterprise), re-checked on every load so a downgrade restores it. | `ChatBrandingTest` (4) |
+| CHAT-051 | Page rules match link settings: `?utm_source=google`, `/pricing?ref=partner*`. | `targeting.test.ts` (7) |
+
+**Defect found by this pass and fixed:** anonymous rate limits share one counter per
+visitor IP across every unnamed `throttle:N,1` route. The widget now polls whenever it
+is open (so a person can step into a bot conversation), which alone would have used up
+the 10-per-minute upload allowance. Polling and uploads now have their own counters
+(`chat-poll`, `chat-files`); a test pins that a chat that has been polling can still
+send a file.
+
+**Behaviour change to note:** the widget polls every 5 seconds while the chat is open,
+not only during a live chat. Replies from the team now appear without the visitor having
+to type first, and the server can tell who is still present.
+
+**Verified in the browser:** file sent and shown in the chat; a program renamed to .pdf
+refused by the scanner; an agent reply appearing in an open bot conversation within one
+poll, switching it to live with the question's buttons cleared.
+
+**Still depends on the deployment:** replies are only emailed if the server's mail
+settings send real email (the install scripts default to `MAIL_MAILER=log`) and a queue
+worker is running (the scripts install one).

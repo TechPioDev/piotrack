@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Chat;
 
+use App\Billing\Entitlements;
+use App\Billing\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\ChatWidget;
 use App\Security\UploadScanner;
 use App\Services\Chat\DefaultChatFlow;
 use App\Support\AuditLogger;
+use App\Support\CurrentOrganization;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +23,19 @@ use Inertia\Response;
  */
 class ChatWidgetController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly Entitlements $entitlements,
+        private readonly CurrentOrganization $currentOrganization,
+    ) {}
+
+    /** Removing "Powered by Piotrack" is part of white-labelling (Agency and Enterprise plans). */
+    private function canHideBranding(): bool
+    {
+        $organization = $this->currentOrganization->get();
+
+        return $organization !== null && $this->entitlements->feature($organization, Feature::WhiteLabel);
+    }
 
     public function index(): Response
     {
@@ -84,6 +99,7 @@ class ChatWidgetController extends Controller
                 'business_hours' => $widget->business_hours ?? [],
                 'allowed_domains' => $widget->allowed_domains ?? [],
                 'logo_url' => $widget->logoUrl(),
+                'can_hide_branding' => $this->canHideBranding(),
                 'embed' => sprintf(
                     '<script src="%s" data-widget="%s" async></script>',
                     url('/widget/piotrack-chat.js'),
@@ -120,6 +136,9 @@ class ChatWidgetController extends Controller
             'settings.fallback_contact' => 'nullable|string|max:200',
             'settings.suggested_questions' => 'sometimes|array|max:6',
             'settings.suggested_questions.*' => 'string|max:120',
+            'settings.attachments' => 'sometimes|boolean',
+            'settings.email_replies' => 'sometimes|boolean',
+            'settings.hide_branding' => 'sometimes|boolean',
             'allowed_domains' => 'sometimes|array|max:20',
             'allowed_domains.*' => 'string|max:255',
             'routing' => 'sometimes|array',
@@ -170,6 +189,12 @@ class ChatWidgetController extends Controller
             'business_hours.timezone' => 'timezone',
             'business_hours.closed_message' => 'closed message',
         ]);
+
+        if (($data['settings']['hide_branding'] ?? false) && ! $this->canHideBranding()) {
+            return back()->withErrors([
+                'settings.hide_branding' => 'Removing "Powered by Piotrack" is included in the Agency and Enterprise plans.',
+            ]);
+        }
 
         $widget->update($data);
         $this->audit->log('chat.widget.updated', ['fields' => array_keys($data)], resourceType: 'chat_widget', resourceId: (string) $widget->id);

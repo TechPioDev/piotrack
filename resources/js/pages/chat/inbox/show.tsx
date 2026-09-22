@@ -7,10 +7,18 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Flame, Lock, Radio } from 'lucide-react';
+import { Flame, LifeBuoy, Lock, Paperclip, Radio } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
-type Message = { id: number; role: string; body: string | null; author: string | null; at: string };
+type Message = {
+    id: number;
+    role: string;
+    body: string | null;
+    author: string | null;
+    at: string;
+    attachment: { name: string; size: number; url: string } | null;
+    emailed: boolean;
+};
 type Conversation = {
     id: number;
     status: string;
@@ -20,6 +28,7 @@ type Conversation = {
     contact: { id: number; name: string; email: string; lead_score: number } | null;
     answers: Record<string, string>;
     priority: boolean;
+    ticket_id: number | null;
     is_live: boolean;
     summary: string | null;
     summary_generated_at: string | null;
@@ -38,8 +47,13 @@ const FIELD_LABELS: Record<string, string> = {
     current_provider: 'Has an IT provider',
     challenge: 'Biggest challenge',
     support_topic: 'Support topic',
+    support_issue: 'Support request',
     wants_meeting: 'Wants a meeting',
 };
+
+function fileSize(bytes: number): string {
+    return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
 
 const ATTRIBUTION_LABELS: Record<string, string> = {
     source: 'Source',
@@ -190,8 +204,24 @@ export default function ChatConversationShow({
                                                     : 'bg-muted text-foreground rounded-bl-sm'
                                             }`}
                                         >
-                                            {m.body}
-                                            {m.role === 'agent' && m.author && <div className="mt-1 text-[11px] opacity-70">{m.author}</div>}
+                                            {m.attachment ? (
+                                                // A download, never an inline preview: it came from an anonymous visitor.
+                                                <a
+                                                    href={m.attachment.url}
+                                                    className="flex items-center gap-1.5 font-medium underline underline-offset-2"
+                                                >
+                                                    <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                                                    {m.attachment.name}
+                                                    <span className="font-normal no-underline opacity-75">({fileSize(m.attachment.size)})</span>
+                                                </a>
+                                            ) : (
+                                                m.body
+                                            )}
+                                            {m.role === 'agent' && (m.author || m.emailed) && (
+                                                <div className="mt-1 text-[11px] opacity-70">
+                                                    {[m.author, m.emailed ? 'Emailed to the visitor' : null].filter(Boolean).join(' · ')}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -269,6 +299,18 @@ export default function ChatConversationShow({
                                 <Link href={route('crm.contacts.show', conversation.contact.id)}>Open in CRM</Link>
                             </Button>
                         )}
+                        {conversation.ticket_id !== null &&
+                            (can('support.view') ? (
+                                <Button asChild variant="outline" className="mt-2 w-full">
+                                    <Link href={route('support.index')}>
+                                        <LifeBuoy className="size-4" aria-hidden /> Support ticket #{conversation.ticket_id}
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <p className="text-muted-foreground mt-3 flex items-center gap-1.5 text-sm">
+                                    <LifeBuoy className="size-4" aria-hidden /> Support ticket #{conversation.ticket_id} opened
+                                </p>
+                            ))}
                     </div>
 
                     <section className="bg-card rounded-xl border p-4">

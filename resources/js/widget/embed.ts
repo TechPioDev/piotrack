@@ -14,6 +14,7 @@
  */
 
 import { fetchWithRetry } from './retry';
+import { pageMatches } from './targeting';
 
 type Option = { id: string; label: string };
 type ChatNode = {
@@ -46,6 +47,9 @@ type Config = {
     consent_required: boolean;
     privacy_url: string | null;
     fallback_contact?: string | null;
+    // Absent from an older server: files off, branding on.
+    attachments?: boolean;
+    branding?: boolean;
     targeting?: Targeting;
 };
 
@@ -57,28 +61,11 @@ const SEEN_KEY = 'piotrack_chat_seen';
  * appropriate. A rule left empty always passes, so an unconfigured widget shows
  * everywhere, which is what a tenant expects.
  */
-function pageMatches(patterns: string[]): boolean {
-    const path = location.pathname;
-    return patterns.some((raw) => {
-        const pattern = raw.trim();
-        if (!pattern) return false;
-        if (pattern.includes('*')) {
-            // Escape everything except the wildcard, then let * mean "anything".
-            const escaped = pattern
-                .split('*')
-                .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                .join('.*');
-            return new RegExp('^' + escaped + '$').test(path);
-        }
-        return path === pattern || path.startsWith(pattern.endsWith('/') ? pattern : pattern + '/');
-    });
-}
-
 function targetingAllows(t: Targeting | undefined): boolean {
     if (!t) return true;
 
-    if (t.include.length > 0 && !pageMatches(t.include)) return false;
-    if (t.exclude.length > 0 && pageMatches(t.exclude)) return false;
+    if (t.include.length > 0 && !pageMatches(t.include, location.pathname, location.search)) return false;
+    if (t.exclude.length > 0 && pageMatches(t.exclude, location.pathname, location.search)) return false;
 
     if (t.devices.length > 0) {
         const isMobile = window.matchMedia('(max-width: 767px)').matches;
@@ -263,6 +250,7 @@ button { font: inherit; cursor: pointer; }
 .msg { padding: 12px 16px; border-radius: 14px; font-size: 15px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg.bot { background: #f2f3f5; color: #1f2a37; }
 .msg.visitor { align-self: flex-end; max-width: 80%; background: ${accent}; color: #fff; }
+.msg.visitor.sending { opacity: .6; }
 .typing { display: flex; gap: 4px; padding: 16px; background: #f2f3f5; border-radius: 14px; }
 .typing i { width: 7px; height: 7px; border-radius: 50%; background: #9aa3ad; animation: blink 1.2s infinite; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
@@ -335,6 +323,11 @@ const ICON_EXPAND = svg('<path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10
 const ICON_SHRINK = svg('<path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M4 14h6v6"/><path d="M10 14l-7 7"/>');
 const ICON_CLOSE = svg('<path d="M6 6l12 12"/><path d="M18 6L6 18"/>');
 const ICON_SEND = svg('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>');
+const ICON_CLIP = svg(
+    '<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+);
+/** What the file picker offers; the server holds the real list and checks every file. */
+const ATTACHMENT_TYPES = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx';
 
 /** What the box is for once a person has the chat: plain messages, no script. */
 const LIVE_NODE: ChatNode = { id: '_live', type: 'input', text: 'Write a message', input: 'text', optional: false, live: true };
@@ -352,6 +345,9 @@ class ChatWidget {
     private busy = false;
     private live = false;
     private expanded = false;
+    private attachButton: HTMLButtonElement | null = null;
+    // Message ids already drawn, so a line carried by both a reply and a poll appears once.
+    private shown = new Set<number>();
     private lastSeenId = 0;
     // The question on screen, kept so a refused answer can put its controls back.
     private lastNode: ChatNode | null = null;
@@ -503,9 +499,15 @@ class ChatWidget {
             <div class="foot">
                 <div class="compose">
                     <input type="text" placeholder="Write a message…" aria-label="Write a message" autocomplete="off" maxlength="1000">
+                    ${
+                        this.config.attachments
+                            ? `<button type="button" class="send attach" aria-label="Attach a file">${ICON_CLIP}</button>
+                               <input type="file" class="file" hidden accept="${ATTACHMENT_TYPES}">`
+                            : ''
+                    }
                     <button type="button" class="send" aria-label="Send message">${ICON_SEND}</button>
                 </div>
-                <div class="brand">Powered by Piotrack</div>
+                ${this.config.branding === false ? '' : '<div class="brand">Powered by Piotrack</div>'}
             </div>
         `;
         this.el.appendChild(panel);
@@ -513,8 +515,10 @@ class ChatWidget {
         panel.querySelector('.head-ava')?.prepend(this.avatar());
         this.log = panel.querySelector('.log') as HTMLDivElement;
         this.foot = panel.querySelector('.foot') as HTMLDivElement;
-        this.input = panel.querySelector('.compose input') as HTMLInputElement;
-        this.sendButton = panel.querySelector('.send') as HTMLButtonElement;
+        this.input = panel.querySelector('.compose input[type="text"]') as HTMLInputElement;
+        this.sendButton = panel.querySelector('.send:not(.attach)') as HTMLButtonElement;
+        this.attachButton = panel.querySelector('.attach');
+        this.shown.clear();
         this.renderNotice();
         this.setExpanded(this.expanded);
 
@@ -531,6 +535,13 @@ class ChatWidget {
             }
         });
         this.sendButton.addEventListener('click', () => this.submit());
+        const picker = panel.querySelector('.file') as HTMLInputElement | null;
+        this.attachButton?.addEventListener('click', () => picker?.click());
+        picker?.addEventListener('change', () => {
+            const file = picker.files?.[0];
+            picker.value = '';
+            if (file) void this.attach(file);
+        });
         this.setComposer(false);
 
         // Count one open per page load: a visitor toggling the panel is still a
@@ -586,7 +597,56 @@ class ChatWidget {
     private setComposer(enabled: boolean, placeholder = 'Write a message…') {
         this.input.disabled = !enabled;
         this.sendButton.disabled = !enabled;
+        if (this.attachButton) this.attachButton.disabled = !enabled;
         this.input.placeholder = placeholder;
+    }
+
+    /**
+     * Send a file the visitor picked. It joins the conversation for the team to
+     * open; it does not answer the question on screen, which stays as it was.
+     */
+    private async attach(file: File) {
+        if (!this.token || this.input.disabled) return;
+        this.clearError();
+        if (file.size > 5 * 1024 * 1024) {
+            this.error('Files can be up to 5 MB.');
+            return;
+        }
+
+        const sending = this.bubble('visitor', `📎 ${file.name}`);
+        sending.classList.add('sending');
+        const body = new FormData();
+        body.append('file', file);
+
+        try {
+            const response = await fetch(`${origin}/wc/${widgetKey}/conversations/${this.token}/files`, {
+                method: 'POST',
+                headers: { Accept: 'application/json' },
+                body,
+            });
+            const data = (await response.json().catch(() => ({}))) as { errors?: Record<string, string[]>; message?: { id?: number } };
+            if (!response.ok) {
+                sending.remove();
+                const refused = response.status === 422 ? Object.values(data.errors ?? {})[0]?.[0] : undefined;
+                this.error(refused ?? 'That file could not be sent. Please try again.');
+                return;
+            }
+            sending.classList.remove('sending');
+            if (typeof data.message?.id === 'number') this.shown.add(data.message.id);
+        } catch {
+            sending.remove();
+            this.error('That file could not be sent. Please try again.');
+        }
+    }
+
+    /** A line from the conversation, drawn once even when both a reply and a poll carry it. */
+    private incoming(message: { id?: number; role?: string; body: string }) {
+        if (typeof message.id === 'number') {
+            if (this.shown.has(message.id)) return;
+            this.shown.add(message.id);
+            this.lastSeenId = Math.max(this.lastSeenId, message.id);
+        }
+        this.bubble(message.role === 'visitor' ? 'visitor' : 'bot', message.body);
     }
 
     /** Send what is in the box: an answer, a question for the assistant, or a message to the team. */
@@ -613,13 +673,9 @@ class ChatWidget {
                 node?: ChatNode | null;
             }>(`conversations/${this.token}/poll?since=0&transcript=1`);
             this.typing(false);
-            (data.messages ?? []).forEach((m) => {
-                this.lastSeenId = Math.max(this.lastSeenId, m.id);
-                this.bubble(m.role === 'visitor' ? 'visitor' : 'bot', m.body);
-            });
+            (data.messages ?? []).forEach((m) => this.incoming(m));
             if (data.live && !data.closed) {
                 this.live = true;
-                this.startPolling();
                 this.controls(LIVE_NODE);
             } else if (data.node && !data.closed) {
                 this.controls(data.node);
@@ -688,13 +744,16 @@ class ChatWidget {
     }
 
     /**
-     * Live chat arrives by polling: this stack has no websocket server, and the
-     * product runs on isolated networks where one could not be reached anyway.
-     * Polling stops as soon as the conversation closes or the widget is shut.
+     * Replies from the team arrive by polling: this stack has no websocket
+     * server, and the product runs on isolated networks where one could not be
+     * reached anyway. The widget polls whenever the chat is open and going, so
+     * a person can step into a bot conversation at any point - and the server
+     * learns the visitor is still here, so it does not email what they can see.
+     * Polling stops when the conversation ends or the widget is shut.
      */
     private startPolling() {
         if (this.pollTimer !== null || !this.token) return;
-        this.pollTimer = window.setInterval(() => void this.poll(), 4000);
+        this.pollTimer = window.setInterval(() => void this.poll(), 5000);
     }
 
     private stopPolling() {
@@ -705,16 +764,25 @@ class ChatWidget {
     }
 
     private async poll() {
-        if (!this.token || !this.open) return;
+        // While an answer is on its way, the reply itself brings what comes next.
+        if (!this.token || !this.open || this.busy) return;
         try {
             const data = await api<{ messages?: { id: number; role: string; body: string }[]; live?: boolean; closed?: boolean }>(
                 `conversations/${this.token}/poll?since=${this.lastSeenId}`,
             );
-            (data.messages ?? []).forEach((m) => {
-                this.lastSeenId = Math.max(this.lastSeenId, m.id);
-                this.bubble('bot', m.body);
-            });
-            if (data.closed) this.stopPolling();
+            (data.messages ?? []).forEach((m) => this.incoming(m));
+
+            // A person stepped in: the script stands down and the box is theirs.
+            if (data.live && !this.live && !data.closed) {
+                this.live = true;
+                const sub = this.panel?.querySelector('.head-sub');
+                if (sub) sub.textContent = 'Connected to our team';
+                this.controls(LIVE_NODE);
+            }
+            if (data.closed) {
+                this.stopPolling();
+                this.ended();
+            }
         } catch {
             /* a blip must not break the visitor's chat */
         }
@@ -722,10 +790,7 @@ class ChatWidget {
 
     private render(reply: Reply) {
         this.typing(false);
-        (reply.messages ?? []).forEach((m) => {
-            if (typeof m.id === 'number') this.lastSeenId = Math.max(this.lastSeenId, m.id);
-            this.bubble('bot', m.body);
-        });
+        (reply.messages ?? []).forEach((m) => this.incoming({ ...m, role: 'bot' }));
 
         if (reply.booking_url) {
             const link = document.createElement('a');
@@ -739,7 +804,6 @@ class ChatWidget {
 
         if (reply.live) {
             this.live = true;
-            this.startPolling();
             const sub = this.panel?.querySelector('.head-sub');
             if (sub) sub.textContent = reply.agent ? `${reply.agent} is here to help` : 'Connected to our team';
         }
@@ -761,6 +825,10 @@ class ChatWidget {
      * a typed reply that names one of the answers counts as picking it.
      */
     private controls(node: ChatNode, prefill = '') {
+        this.startPolling();
+        // A new question (or a person taking over) makes any older error stale;
+        // a refusal of this very answer is shown again right after this call.
+        this.clearError();
         this.lastNode = node;
         this.clearAnswers();
 
@@ -813,6 +881,7 @@ class ChatWidget {
 
     /** The conversation is over: say so in the box, and offer a fresh start. */
     private ended() {
+        this.stopPolling();
         this.lastNode = null;
         this.clearAnswers();
         this.setComposer(false, 'This chat has ended');
@@ -828,6 +897,7 @@ class ChatWidget {
             this.lastSeenId = 0;
             this.live = false;
             this.log.innerHTML = '';
+            this.shown.clear();
             this.clearError();
             void this.begin();
         });
@@ -912,6 +982,7 @@ class ChatWidget {
 
     /** Never break the host site: show a calm fallback instead of an error. */
     private fail() {
+        this.stopPolling();
         this.typing(false);
         this.clearAnswers();
         const contact = this.config.fallback_contact;

@@ -26,6 +26,7 @@ type Widget = {
     business_hours: Record<string, unknown>;
     allowed_domains: string[];
     logo_url: string | null;
+    can_hide_branding: boolean;
     embed: string;
 };
 
@@ -146,6 +147,9 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
             variant: (widget.settings.variant as string) ?? '',
             fallback_contact: (widget.settings.fallback_contact as string) ?? '',
             suggested_questions: ((widget.settings.suggested_questions as string[]) ?? []).join('\n'),
+            attachments: (widget.settings.attachments as boolean | undefined) ?? true,
+            email_replies: (widget.settings.email_replies as boolean | undefined) ?? true,
+            hide_branding: Boolean(widget.settings.hide_branding),
         },
         consent: {
             required: Boolean(widget.consent.required),
@@ -321,6 +325,25 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
 
                         <LogoField widgetId={widget.id} logoUrl={widget.logo_url} />
 
+                        <div className="grid gap-1">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={form.data.settings.hide_branding}
+                                    disabled={!widget.can_hide_branding}
+                                    aria-describedby="branding-help"
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, hide_branding: e.target.checked })}
+                                />
+                                Hide “Powered by Piotrack”
+                            </label>
+                            <p id="branding-help" className="text-muted-foreground text-xs">
+                                {widget.can_hide_branding
+                                    ? 'The chat window then carries only your own brand.'
+                                    : 'Included in the Agency and Enterprise plans.'}
+                            </p>
+                            <InputError message={(form.errors as Record<string, string | undefined>)['settings.hide_branding']} />
+                        </div>
+
                         {/* A live preview of the chat header and launcher, so colour and logo choices are not blind. */}
                         <div className="border-border bg-muted/30 space-y-2 rounded-lg border p-3" aria-hidden>
                             <div className="flex items-center gap-3">
@@ -409,6 +432,39 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                             </p>
                         </div>
 
+                        <div className="grid gap-2">
+                            <label className="flex items-start gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="mt-1"
+                                    checked={form.data.settings.attachments}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, attachments: e.target.checked })}
+                                />
+                                <span>
+                                    Let visitors send files
+                                    <span className="text-muted-foreground block text-xs">
+                                        Images, PDFs, text, Word and Excel files up to 5 MB, checked before they are stored. Only your team can open
+                                        them.
+                                    </span>
+                                </span>
+                            </label>
+                            <label className="flex items-start gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="mt-1"
+                                    checked={form.data.settings.email_replies}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, email_replies: e.target.checked })}
+                                />
+                                <span>
+                                    Email replies to visitors who have left
+                                    <span className="text-muted-foreground block text-xs">
+                                        If a visitor has closed the chat when your team replies, the reply is sent to the email they gave. Their
+                                        answer by email goes straight to whoever replied.
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
+
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="grid gap-1">
                                 <Label htmlFor="experiment">Experiment key</Label>
@@ -458,6 +514,10 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                                     onChange={(e) => form.setData('targeting', { ...form.data.targeting, exclude: e.target.value })}
                                 />
                             </div>
+                            <p className="text-muted-foreground text-xs sm:col-span-2">
+                                One rule per line; <code>*</code> matches anything. To match a link setting such as a campaign tag, add it after a{' '}
+                                <code>?</code> — <code>?utm_source=google</code> on any page, or <code>/pricing?ref=partner*</code> on one.
+                            </p>
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-3">

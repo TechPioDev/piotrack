@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\Public;
 
 use App\Billing\Entitlements;
+use App\Billing\Feature;
 use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatEvent;
+use App\Models\ChatMessage;
 use App\Models\ChatWidget;
+use App\Security\UploadScanner;
 use App\Services\Chat\ChatCaptureService;
 use App\Services\Chat\ChatFlowEngine;
 use App\Support\CurrentOrganization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -24,6 +29,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class PublicChatController extends Controller
 {
+    /** Files one visitor may send in one conversation. */
+    private const MAX_FILES = 10;
+
     public function __construct(
         private readonly CurrentOrganization $currentOrganization,
         private readonly Entitlements $entitlements,
@@ -84,6 +92,10 @@ class PublicChatController extends Controller
             'consent_required' => (bool) ($consent['required'] ?? false),
             'privacy_url' => $consent['privacy_url'] ?? null,
             'fallback_contact' => $settings['fallback_contact'] ?? null,
+            'attachments' => (bool) ($settings['attachments'] ?? true),
+            // "Powered by Piotrack" comes off only on a plan that includes
+            // white-labelling - checked here too, so a downgrade restores it.
+            'branding' => ! ((bool) ($settings['hide_branding'] ?? false) && $this->whiteLabelled()),
             // Display rules (§34, §35). These decide WHEN to show, never what the
             // visitor may do, so evaluating them in the browser is appropriate.
             'targeting' => [
@@ -161,6 +173,7 @@ class PublicChatController extends Controller
 
         $this->engine->event($widget, 'start', $conversation);
         $result = $this->engine->start($widget, $conversation);
+        $conversation->markSeen();
 
         return response()->json(['token' => $conversation->token, ...$result]);
     }
@@ -182,9 +195,74 @@ class PublicChatController extends Controller
             'value' => 'nullable|string|max:1000',
         ]);
 
+        $conversation->markSeen();
         $result = $this->engine->handle($widget, $conversation, $data);
 
         return response()->json($result);
+    }
+
+    /**
+     * A file the visitor attaches to the chat - a screenshot of an error, a
+     * document the team asked for. Checked like every upload (size, type, and
+     * content that really is that type), kept private, and shown only to the
+     * team. It is not an answer: the conversation stays where it was.
+     */
+    public function upload(Request $request, string $publicKey, string $token, UploadScanner $scanner): JsonResponse
+    {
+        $widget = $this->resolve($request, $publicKey);
+        abort_unless((bool) (($widget->settings ?? [])['attachments'] ?? true), 404);
+
+        $conversation = ChatConversation::query()
+            ->where('chat_widget_id', $widget->id)
+            ->where('token', $token)
+            ->first();
+
+        abort_if($conversation === null, 404);
+        abort_if(in_array($conversation->status, ['closed', 'spam'], true), 410);
+
+        // Nothing the visitor sends is stored before they have agreed to it.
+        if ((bool) (($widget->consent ?? [])['required'] ?? false) && empty($conversation->answers['_consent'])) {
+            throw ValidationException::withMessages(['file' => 'Please answer the privacy question before sending a file.']);
+        }
+
+        $sent = $conversation->messages()->where('role', 'visitor')->get(['meta'])
+            ->filter(fn (ChatMessage $m) => isset($m->meta['attachment']))
+            ->count();
+        if ($sent >= self::MAX_FILES) {
+            throw ValidationException::withMessages(['file' => sprintf('This chat already has %d files. Please email anything else to the team.', self::MAX_FILES)]);
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:5120', 'mimes:png,jpg,jpeg,gif,webp,pdf,txt,csv,doc,docx,xls,xlsx'],
+        ], [
+            'file.required' => 'Choose a file to send.',
+            'file.uploaded' => 'That file could not be received. Files can be up to 5 MB.',
+            'file.max' => 'Files can be up to 5 MB.',
+            'file.mimes' => 'You can send images, PDFs, text, Word and Excel files.',
+        ]);
+
+        $file = $request->file('file');
+        abort_unless($file instanceof UploadedFile, 422);
+        $scanner->scan($file);
+
+        $path = $file->store("org-{$widget->organization_id}/chat-files/{$conversation->id}", 'local');
+        $name = mb_substr(trim((string) preg_replace('/[\x00-\x1F\x7F\/\\\\]+/u', '', $file->getClientOriginalName())), 0, 120) ?: 'file';
+
+        $message = ChatMessage::create([
+            'chat_conversation_id' => $conversation->id,
+            'role' => 'visitor',
+            'body' => "📎 {$name}",
+            'meta' => ['attachment' => [
+                'path' => $path,
+                'name' => $name,
+                'size' => $file->getSize(),
+                'mime' => $file->getMimeType(),
+            ]],
+        ]);
+        $conversation->forceFill(['last_message_at' => now()])->save();
+        $conversation->markSeen();
+
+        return response()->json(['message' => ['id' => $message->id, 'role' => 'visitor', 'body' => $message->body]]);
     }
 
     /**
@@ -225,6 +303,9 @@ class PublicChatController extends Controller
             $messages = $messages->reverse()->values();
         }
 
+        // The widget now holds everything up to the newest line it was sent.
+        $conversation->markSeen(max($since, (int) $messages->max('id')));
+
         return response()->json([
             'messages' => $messages->map(fn ($m) => ['id' => $m->id, 'role' => $m->role, 'body' => $m->body])->all(),
             'live' => (bool) $conversation->is_live,
@@ -262,6 +343,13 @@ class PublicChatController extends Controller
         }
 
         return crc32($visitorKey) % 2 === 0 ? 'a' : 'b';
+    }
+
+    private function whiteLabelled(): bool
+    {
+        $organization = $this->currentOrganization->get();
+
+        return $organization !== null && $this->entitlements->feature($organization, Feature::WhiteLabel);
     }
 
     private function resolve(Request $request, string $publicKey): ChatWidget

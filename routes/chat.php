@@ -29,11 +29,18 @@ Route::prefix('wc/{publicKey}')->name('public.chat.')->group(function () {
         ->middleware('throttle:20,1')->name('start');
     Route::post('conversations/{token}/messages', [PublicChatController::class, 'message'])
         ->middleware('throttle:60,1')->name('message');
-    // Live chat is delivered by polling: there is no websocket server in this
-    // stack, and the product runs on isolated networks. Allowance is generous
-    // because an open chat polls every few seconds.
+    // Team replies are delivered by polling: there is no websocket server in
+    // this stack, and the product runs on isolated networks. Allowance is
+    // generous because an open chat polls every few seconds - and it has its
+    // own counter: unnamed throttles share one per visitor IP, so without a
+    // prefix a few minutes of polling would use up the allowance of the
+    // routes below it.
     Route::get('conversations/{token}/poll', [PublicChatController::class, 'poll'])
-        ->middleware('throttle:240,1')->name('poll');
+        ->middleware('throttle:240,1,chat-poll')->name('poll');
+    // A file the visitor attaches: tightly throttled on its own counter,
+    // size-capped and scanned.
+    Route::post('conversations/{token}/files', [PublicChatController::class, 'upload'])
+        ->middleware('throttle:10,1,chat-files')->name('files');
 });
 
 /*
@@ -56,6 +63,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.inbox.handle')->name('conversations.update');
         Route::get('conversations/{conversation}/poll', [ChatInboxController::class, 'poll'])
             ->middleware('can:chat.view')->name('conversations.poll');
+        Route::get('conversations/{conversation}/files/{message}', [ChatInboxController::class, 'file'])
+            ->middleware('can:chat.view')->name('conversations.files.show');
 
         // An agent's own availability. Anyone who can work the inbox may set it.
         Route::post('presence', [ChatPresenceController::class, 'update'])

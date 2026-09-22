@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\EmailChatReplies;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Notifications\ChatMentionNotification;
@@ -15,9 +16,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The Conversations inbox: list, transcript, agent replies, internal notes,
@@ -56,7 +59,7 @@ class ChatInboxController extends Controller
                     'name' => trim($c->contact->first_name.' '.$c->contact->last_name),
                     'email' => $c->contact->email,
                 ] : null,
-                'answers' => Arr::except($c->answers ?? [], ['_node', '_consent', '_priority']),
+                'answers' => Arr::except($c->answers ?? [], ['_node', '_consent', '_priority', '_ticket']),
                 'priority' => ($c->answers['_priority'] ?? null) === 'high',
                 'last_message_at' => $c->last_message_at?->toIso8601String(),
             ]);
@@ -96,21 +99,16 @@ class ChatInboxController extends Controller
                     'email' => $conversation->contact->email,
                     'lead_score' => $conversation->contact->lead_score,
                 ] : null,
-                'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority']),
+                'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority', '_ticket']),
                 'priority' => ($conversation->answers['_priority'] ?? null) === 'high',
+                'ticket_id' => $conversation->answers['_ticket'] ?? null,
                 'is_live' => (bool) $conversation->is_live,
                 'summary' => $conversation->summary,
                 'summary_generated_at' => $conversation->summary_generated_at?->toIso8601String(),
                 'attribution' => $conversation->attribution,
                 'created_at' => $conversation->created_at->toIso8601String(),
             ],
-            'messages' => $conversation->messages->map(fn (ChatMessage $m) => [
-                'id' => $m->id,
-                'role' => $m->role,
-                'body' => $m->body,
-                'author' => $m->author?->name,
-                'at' => $m->created_at->toIso8601String(),
-            ]),
+            'messages' => $conversation->messages->map(fn (ChatMessage $m) => $this->present($conversation, $m)),
             'statuses' => ChatConversation::STATUSES,
             'presence' => [
                 'me' => $this->presence->statusFor(request()->user()),
@@ -152,7 +150,51 @@ class ChatInboxController extends Controller
             'is_live' => true,
         ])->save();
 
+        // If the visitor has left by the time this could have reached them in
+        // the chat, it goes to them by email instead.
+        EmailChatReplies::dispatch($conversation->id, (int) $conversation->organization_id)
+            ->delay(now()->addMinutes(2));
+
         return back();
+    }
+
+    /**
+     * A file the visitor sent in the chat. Always downloaded, never rendered
+     * inline: it came from an anonymous website visitor.
+     */
+    public function file(ChatConversation $conversation, ChatMessage $message): StreamedResponse
+    {
+        $attachment = $message->meta['attachment'] ?? null;
+        abort_unless(
+            $message->chat_conversation_id === $conversation->id
+                && is_array($attachment)
+                && Storage::disk('local')->exists((string) ($attachment['path'] ?? '')),
+            404,
+        );
+
+        return Storage::disk('local')->download((string) $attachment['path'], (string) ($attachment['name'] ?? 'attachment'), [
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function present(ChatConversation $conversation, ChatMessage $message): array
+    {
+        $attachment = $message->meta['attachment'] ?? null;
+
+        return [
+            'id' => $message->id,
+            'role' => $message->role,
+            'body' => $message->body,
+            'author' => $message->author?->name,
+            'at' => $message->created_at?->toIso8601String(),
+            'attachment' => is_array($attachment) ? [
+                'name' => (string) ($attachment['name'] ?? 'attachment'),
+                'size' => (int) ($attachment['size'] ?? 0),
+                'url' => route('chat.conversations.files.show', [$conversation, $message]),
+            ] : null,
+            'emailed' => isset($message->meta['emailed_at']),
+        ];
     }
 
     public function note(Request $request, ChatConversation $conversation): RedirectResponse
@@ -224,13 +266,7 @@ class ChatInboxController extends Controller
             ->get();
 
         return response()->json([
-            'messages' => $messages->map(fn (ChatMessage $m) => [
-                'id' => $m->id,
-                'role' => $m->role,
-                'body' => $m->body,
-                'author' => $m->author?->name,
-                'at' => $m->created_at?->toIso8601String(),
-            ])->all(),
+            'messages' => $messages->map(fn (ChatMessage $m) => $this->present($conversation, $m))->all(),
             'status' => $conversation->status,
             'is_live' => (bool) $conversation->is_live,
         ]);
