@@ -1126,7 +1126,15 @@ class ChatWidget {
         });
         answers.appendChild(again);
         this.botStack().appendChild(answers);
-        this.reveal();
+        // Not reveal(): that keeps the last question at the top of the view,
+        // which at the end of a chat hides everything after the closing line -
+        // the rating and "Start a new chat" both sit below it.
+        this.toBottom();
+    }
+
+    /** All the way down, for when what matters is the last thing on screen. */
+    private toBottom() {
+        this.log.scrollTop = this.log.scrollHeight;
     }
 
     /**
@@ -1160,6 +1168,7 @@ class ChatWidget {
                 thanks.setAttribute('role', 'status');
                 thanks.textContent = 'Thank you.';
                 box.appendChild(thanks);
+                this.toBottom();
                 void api(`conversations/${this.token}/rating`, { rating: score }).catch(() => undefined);
             });
             stars.appendChild(star);
