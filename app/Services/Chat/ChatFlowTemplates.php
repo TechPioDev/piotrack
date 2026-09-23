@@ -59,6 +59,105 @@ class ChatFlowTemplates
     }
 
     /**
+     * Put a real time-picker in front of every "we'll book you in" ending.
+     *
+     * A template used to finish a meeting by handing over a link to the booking
+     * page, which meant "Yes, book it" ended the conversation and started a
+     * second one in another tab - and if the tenant had no booking page live,
+     * the visitor was told to pick a time and given nothing at all. So every
+     * ending that promises a meeting gets a booking step in front of it: free
+     * times as buttons, right there in the chat. The original ending stays as
+     * the fallback, so a tenant with no booking page, or no free slots, still
+     * gets the old behaviour rather than a dead end.
+     *
+     * @param  array{start: string, nodes: array<string, array<string, mixed>>}  $flow
+     * @return array{start: string, nodes: array<string, array<string, mixed>>}
+     */
+    private function withInChatBooking(array $flow): array
+    {
+        $nodes = $flow['nodes'];
+
+        foreach ($flow['nodes'] as $id => $node) {
+            if (($node['type'] ?? '') !== 'end' || ($node['outcome'] ?? '') !== 'meeting') {
+                continue;
+            }
+
+            // An ending that is already a booking step's fallback is where a
+            // visitor lands when there were no times to offer. Putting another
+            // time-picker in front of it would ask twice and answer once.
+            $alreadyOffered = false;
+            foreach ($flow['nodes'] as $other) {
+                if (($other['type'] ?? '') === 'booking' && in_array($id, [$other['fallback'] ?? null, $other['next'] ?? null], true)) {
+                    $alreadyOffered = true;
+                }
+            }
+            if ($alreadyOffered) {
+                continue;
+            }
+
+            $pick = 'bk_'.$id;
+            $booked = $id.'_booked';
+            if (isset($nodes[$pick])) {
+                continue;
+            }
+
+            $nodes[$pick] = [
+                'type' => 'booking',
+                'text' => 'Pick a time that suits you:',
+                'next' => $booked,
+                'fallback' => (string) $id,
+            ];
+            $nodes[$booked] = [
+                'type' => 'end',
+                'outcome' => 'booked',
+                'text' => 'You are booked in — the invitation is on its way to your inbox.',
+            ];
+
+            // Everything that led to the ending now leads to the time-picker.
+            foreach ($nodes as $otherId => $other) {
+                if ($otherId === $pick || $otherId === $booked) {
+                    continue;
+                }
+                $nodes[$otherId] = $this->pointAt($other, (string) $id, $pick);
+            }
+            if ($flow['start'] === $id) {
+                $flow['start'] = $pick;
+            }
+        }
+
+        $flow['nodes'] = $nodes;
+
+        return $flow;
+    }
+
+    /**
+     * Send every way out of a step that pointed at `$from` to `$to` instead.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array<string, mixed>
+     */
+    private function pointAt(array $node, string $from, string $to): array
+    {
+        foreach (['next', 'otherwise', 'fallback'] as $exit) {
+            if (($node[$exit] ?? null) === $from) {
+                $node[$exit] = $to;
+            }
+        }
+
+        if (isset($node['options']) && is_array($node['options'])) {
+            $node['options'] = array_map(function (array $option) use ($from, $to): array {
+                if (($option['next'] ?? null) === $from) {
+                    $option['next'] = $to;
+                }
+
+                return $option;
+            }, $node['options']);
+        }
+
+        return $node;
+    }
+
+    /**
      * @return list<array{key: string, name: string, description: string, category: string, flow: array{start: string, nodes: array<string, array<string, mixed>>}}>
      */
     private function all(): array
@@ -69,112 +168,112 @@ class ChatFlowTemplates
                 'category' => 'IT & managed services',
                 'name' => 'Managed IT services (MSP)',
                 'description' => 'The full managed-IT qualification: service interest, company size, current provider, biggest challenge, contact details and a meeting offer.',
-                'flow' => DefaultChatFlow::definition(),
+                'flow' => $this->withInChatBooking(DefaultChatFlow::definition()),
             ],
             [
                 'key' => 'cybersecurity',
                 'category' => 'IT & managed services',
                 'name' => 'Cybersecurity / MSSP',
                 'description' => 'Focused on security buyers, with a high-priority route for anyone reporting a live incident.',
-                'flow' => $this->cybersecurity(),
+                'flow' => $this->withInChatBooking($this->cybersecurity()),
             ],
             [
                 'key' => 'cmmc',
                 'category' => 'IT & managed services',
                 'name' => 'Compliance (CMMC readiness)',
                 'description' => 'Qualifies defence-contract suppliers on CMMC level, timeline and contract exposure.',
-                'flow' => $this->cmmc(),
+                'flow' => $this->withInChatBooking($this->cmmc()),
             ],
             [
                 'key' => 'cloud_m365',
                 'category' => 'IT & managed services',
                 'name' => 'Cloud & Microsoft 365',
                 'description' => 'Migration, security, licensing and backup enquiries, sized by users and timeline, with a call offer.',
-                'flow' => $this->cloudM365(),
+                'flow' => $this->withInChatBooking($this->cloudM365()),
             ],
             [
                 'key' => 'voip',
                 'category' => 'IT & managed services',
                 'name' => 'VoIP & business phones',
                 'description' => 'New systems, switching providers and Teams calling, sized by seats, ending in a quote or a call.',
-                'flow' => $this->voip(),
+                'flow' => $this->withInChatBooking($this->voip()),
             ],
             [
                 'key' => 'saas_demo',
                 'category' => 'Software & agencies',
                 'name' => 'Software company: demo requests',
                 'description' => 'Demo, pricing and feature questions (answered by AI), team size, and straight to booking a demo.',
-                'flow' => $this->saasDemo(),
+                'flow' => $this->withInChatBooking($this->saasDemo()),
             ],
             [
                 'key' => 'agency',
                 'category' => 'Software & agencies',
                 'name' => 'Marketing or web agency',
                 'description' => 'The service they want and their budget, then contact details and a call offer.',
-                'flow' => $this->agency(),
+                'flow' => $this->withInChatBooking($this->agency()),
             ],
             [
                 'key' => 'professional_services',
                 'category' => 'Professional services',
                 'name' => 'Accounting, legal or consulting firm',
                 'description' => 'New enquiries by client type and urgency, booked into a first consultation; existing clients get a ticket.',
-                'flow' => $this->professionalServices(),
+                'flow' => $this->withInChatBooking($this->professionalServices()),
             ],
             [
                 'key' => 'healthcare',
                 'category' => 'Professional services',
                 'name' => 'Clinic or healthcare practice',
                 'description' => 'Appointment call-back requests without asking for any medical details; billing questions become a ticket.',
-                'flow' => $this->healthcare(),
+                'flow' => $this->withInChatBooking($this->healthcare()),
             ],
             [
                 'key' => 'real_estate',
                 'category' => 'Local services',
                 'name' => 'Real estate agency',
                 'description' => 'Buying, selling, renting or a valuation, with the area and timeline, then a call with an agent.',
-                'flow' => $this->realEstate(),
+                'flow' => $this->withInChatBooking($this->realEstate()),
             ],
             [
                 'key' => 'home_services',
                 'category' => 'Local services',
                 'name' => 'Home & trade services',
                 'description' => 'Quote and booking requests by job type, timing and location, with a fast path for emergencies.',
-                'flow' => $this->homeServices(),
+                'flow' => $this->withInChatBooking($this->homeServices()),
             ],
             [
                 'key' => 'ecommerce',
                 'category' => 'Online store',
                 'name' => 'Online store',
                 'description' => 'Order and returns help becomes a ticket, product questions go to AI, wholesale enquiries become leads.',
-                'flow' => $this->ecommerce(),
+                'flow' => $this->withInChatBooking($this->ecommerce()),
             ],
             [
                 'key' => 'contact_capture',
                 'category' => 'Any business',
                 'name' => 'Simple contact form',
                 'description' => 'Name, email, an optional phone number and their message. The fastest to set up.',
-                'flow' => $this->contactCapture(),
+                'flow' => $this->withInChatBooking($this->contactCapture()),
             ],
             [
                 'key' => 'consultation',
                 'category' => 'Any business',
                 'name' => 'Book a consultation',
                 'description' => 'The short path: name, email, company, and straight to booking a call.',
-                'flow' => $this->consultation(),
+                'flow' => $this->withInChatBooking($this->consultation()),
             ],
             [
                 'key' => 'existing_customer',
                 'category' => 'Any business',
                 'name' => 'Existing customer support',
                 'description' => 'Sends current clients to support, billing or their account manager instead of treating them as new leads.',
-                'flow' => $this->existingCustomer(),
+                'flow' => $this->withInChatBooking($this->existingCustomer()),
             ],
             [
                 'key' => 'after_hours',
                 'category' => 'Any business',
                 'name' => 'After-hours capture',
                 'description' => 'A short out-of-hours form that captures details and sets expectations for a reply.',
-                'flow' => $this->afterHours(),
+                'flow' => $this->withInChatBooking($this->afterHours()),
             ],
         ];
     }

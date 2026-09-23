@@ -229,7 +229,15 @@ class ChatFlowEngine
                 $this->known = $answers;
                 $conversation->save();
 
-                $result = $this->capture->complete($widget, $conversation, (string) ($node['outcome'] ?? 'lead'));
+                $outcome = (string) ($node['outcome'] ?? 'lead');
+                $result = $this->capture->complete($widget, $conversation, $outcome);
+
+                // "Pick a time" with no booking page behind it would leave the
+                // visitor staring at an instruction they cannot follow. Say what
+                // will happen instead - their details are captured either way.
+                if ($outcome === 'meeting' && ($result['booking_url'] ?? null) === null && ! $conversation->is_preview) {
+                    $this->say($conversation, 'One of the team will email you shortly to arrange a time.', $nodeId);
+                }
 
                 return [
                     'messages' => $this->drain(),

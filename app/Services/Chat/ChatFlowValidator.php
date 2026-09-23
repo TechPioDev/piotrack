@@ -2,6 +2,8 @@
 
 namespace App\Services\Chat;
 
+use App\Models\BookingPage;
+
 /**
  * Validates a conversation graph before it can be published.
  *
@@ -18,12 +20,22 @@ class ChatFlowValidator
     /** Types that terminate a path rather than pointing onward. */
     private const TERMINAL = ['end'];
 
+    /** Whether this tenant has anywhere for a visitor to book. Asked once per check. */
+    private ?bool $canBook = null;
+
+    private function canBook(): bool
+    {
+        return $this->canBook ??= BookingPage::query()->where('is_active', true)->exists();
+    }
+
     /**
      * @param  array<string, mixed>  $flow
      * @return array{valid: bool, errors: list<array{node: ?string, message: string}>, warnings: list<array{node: ?string, message: string}>}
      */
     public function validate(array $flow): array
     {
+        $this->canBook = null;
+
         $errors = [];
         $warnings = [];
 
@@ -97,6 +109,16 @@ class ChatFlowValidator
                         $this->checkTarget($nodes, (string) $id, $option['next'] ?? null, sprintf('answer "%s"', (string) $option['label'])),
                     );
                 }
+            }
+
+            // A conversation that offers a meeting needs somewhere to send
+            // people. Without a live booking page the visitor is told to pick a
+            // time and handed nothing, which is worse than not offering.
+            if (($type === 'booking' || ($type === 'end' && ($node['outcome'] ?? '') === 'meeting')) && ! $this->canBook()) {
+                $warnings[] = [
+                    'node' => (string) $id,
+                    'message' => 'This offers a meeting, but no booking page is live — turn one on under Appointments, or visitors will have nothing to book.',
+                ];
             }
 
             if ($type === 'webhook') {

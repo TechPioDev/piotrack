@@ -9,6 +9,7 @@ declare(strict_types=1);
  * through the real engine, ask for an email, and belong to a business type.
  */
 
+use App\Models\BookingPage;
 use App\Models\ChatWidget;
 use App\Services\Chat\ChatFlowTemplates;
 use App\Services\Chat\ChatFlowValidator;
@@ -37,11 +38,19 @@ it('files every template under a type of business, with a preview of its convers
 it('ships only templates that are valid with nothing to warn about', function () {
     $validator = app(ChatFlowValidator::class);
 
+    // Templates offer a time in the chat, so the tenant checking them has a
+    // booking page live - without one the validator rightly warns, which is
+    // covered in ChatBookNowTest.
+    app(CurrentOrganization::class)->set($this->org);
+    BookingPage::create(['name' => 'Discovery call', 'slug' => 'discovery-call', 'duration_minutes' => 30, 'is_active' => true]);
+
     foreach (app(ChatFlowTemplates::class)->catalog() as $template) {
         $result = $validator->validate($template['flow']);
         expect($result['errors'])->toBe([], "{$template['key']} has errors")
             ->and($result['warnings'])->toBe([], "{$template['key']} has warnings");
     }
+
+    app(CurrentOrganization::class)->forget();
 });
 
 it('asks for a required email in every template, so a chat can become a lead', function () {
