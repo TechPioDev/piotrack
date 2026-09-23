@@ -2,7 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { Flow } from '@/lib/flow-tree';
-import { useEffect, useState } from 'react';
+import { ArrowDown } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type TestNode = { id: string; type: string; text: string; options?: { id: string; label: string }[]; input?: string; optional?: boolean };
 type TestMessage = { role: string; body: string };
@@ -54,6 +55,22 @@ export function TestDialog({
     const [done, setDone] = useState(false);
     const [value, setValue] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const log = useRef<HTMLDivElement>(null);
+    const answerBox = useRef<HTMLInputElement>(null);
+    // Whether the transcript should follow new lines. It stops following the
+    // moment someone scrolls up to re-read, and starts again when they come
+    // back to the bottom - the way every chat app behaves.
+    const following = useRef(true);
+    const [behind, setBehind] = useState(false);
+
+    const toBottom = useCallback((smooth = true) => {
+        const box = log.current;
+        if (!box) return;
+        const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        box.scrollTo({ top: box.scrollHeight, behavior: smooth && !still ? 'smooth' : 'auto' });
+        following.current = true;
+        setBehind(false);
+    }, []);
 
     const send = async (payload: { token?: string | null; option?: string; value?: string }, echo?: string) => {
         setError(null);
@@ -91,6 +108,23 @@ export function TestDialog({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
+    // The answer just given, and whatever the bot says back, are what the
+    // tester wants to see - not the top of the conversation. The buttons and
+    // the box below change height too, so this runs after those as well.
+    useEffect(() => {
+        if (!following.current) {
+            setBehind(true);
+
+            return;
+        }
+        toBottom(messages.length > 1);
+    }, [messages, node, done, toBottom]);
+
+    // Ready for the next answer without reaching for the mouse.
+    useEffect(() => {
+        if (node?.type === 'input') answerBox.current?.focus();
+    }, [node]);
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
@@ -99,21 +133,45 @@ export function TestDialog({
                     This runs your unsaved draft through the real chat engine. Nothing is added to your CRM.
                 </p>
 
-                <div className="bg-muted/40 max-h-[45vh] min-h-[220px] space-y-2 overflow-y-auto rounded-lg p-3">
-                    {messages.map((m, i) => (
-                        <div key={i} className={`flex ${m.role === 'visitor' ? 'justify-end' : 'justify-start'}`}>
-                            <div
-                                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                                    m.role === 'visitor'
-                                        ? 'bg-brand text-brand-foreground rounded-br-sm'
-                                        : 'bg-card border-border rounded-bl-sm border'
-                                }`}
-                            >
-                                {m.body}
+                <div className="relative">
+                    <div
+                        ref={log}
+                        onScroll={(e) => {
+                            const box = e.currentTarget;
+                            // "At the bottom" with a little slack, since smooth
+                            // scrolling and fractional heights rarely land exactly.
+                            const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+                            following.current = atBottom;
+                            if (atBottom) setBehind(false);
+                        }}
+                        className="bg-muted/40 max-h-[45vh] min-h-[220px] space-y-2 overflow-y-auto rounded-lg p-3"
+                    >
+                        {messages.map((m, i) => (
+                            <div key={i} className={`flex ${m.role === 'visitor' ? 'justify-end' : 'justify-start'}`}>
+                                <div
+                                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                                        m.role === 'visitor'
+                                            ? 'bg-brand text-brand-foreground rounded-br-sm'
+                                            : 'bg-card border-border rounded-bl-sm border'
+                                    }`}
+                                >
+                                    {m.body}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    {done && <p className="text-muted-foreground pt-1 text-center text-xs">Conversation finished.</p>}
+                        ))}
+                        {done && <p className="text-muted-foreground pt-1 text-center text-xs">Conversation finished.</p>}
+                    </div>
+
+                    {behind && (
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => toBottom()}
+                            className="absolute inset-x-0 bottom-2 mx-auto w-fit gap-1 shadow-md"
+                        >
+                            <ArrowDown className="size-3.5" aria-hidden /> Latest reply
+                        </Button>
+                    )}
                 </div>
 
                 {error && <p className="text-sm text-red-600">{error}</p>}
@@ -144,7 +202,13 @@ export function TestDialog({
                             void send({ token, value: v }, v || '—');
                         }}
                     >
-                        <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Type an answer…" aria-label={node.text} />
+                        <Input
+                            ref={answerBox}
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            placeholder="Type an answer…"
+                            aria-label={node.text}
+                        />
                         <Button type="submit">Send</Button>
                         {node.optional && (
                             <Button type="button" variant="ghost" onClick={() => void send({ token, value: '' }, '—')}>
