@@ -9,12 +9,14 @@ use App\Models\Contact;
 use App\Models\SeoLocation;
 use App\Models\User;
 use App\Notifications\BookingCreatedNotification;
+use App\Services\Calendar\MicrosoftCalendar;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Marketing\MarketingTrigger;
 use App\Services\Marketing\MessageDispatcher;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use App\Support\NotificationDispatcher;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -35,7 +37,31 @@ class BookingService
         private VisitorTracker $visitors,
         private WebhookDispatcher $webhooks,
         private MarketingTrigger $trigger,
+        private MicrosoftCalendar $calendar,
     ) {}
+
+    /**
+     * Put the meeting in the team's own calendar, and keep the link it gets.
+     *
+     * With Microsoft 365 connected this is a real Outlook event with the
+     * visitor invited and a Teams link Microsoft created. Without it, nothing
+     * happens here and the booking behaves exactly as it always did: our own
+     * record, a confirmation email, and an .ics to add by hand.
+     */
+    private function putInCalendar(Booking $booking, BookingPage $page): void
+    {
+        $event = $this->calendar->createEvent(
+            sprintf('%s with %s', ucfirst((string) ($page->meeting_type ?? 'meeting')), $booking->name),
+            CarbonImmutable::parse($booking->scheduled_at),
+            max(5, (int) $page->duration_minutes),
+            [$booking->email, ...$this->calendar->calendarsFor($booking->owner_id ?? $page->user_id)],
+            trim((string) $booking->notes),
+        );
+
+        if ($event !== null) {
+            $booking->forceFill(['calendar_event_id' => $event['id'], 'meeting_url' => $event['join_url']])->save();
+        }
+    }
 
     /**
      * Confirm the appointment to the person who booked it.
@@ -53,11 +79,18 @@ class BookingService
         $this->messages->sendEmail(
             $contact,
             __(':type confirmed for :when', ['type' => ucfirst((string) $page->meeting_type), 'when' => $when]),
-            __('Your :type is confirmed for :when (UTC). Add it to your calendar: :ics — or reply to this email if you need to reschedule.', [
-                'type' => $page->meeting_type,
-                'when' => $when,
-                'ics' => url('/b/ics/'.$booking->ics_token.'.ics'),
-            ]),
+            $booking->meeting_url
+                ? __('Your :type is confirmed for :when (UTC). Join here: :join — the invitation is in your calendar too, or add it with :ics. Reply to this email if you need to reschedule.', [
+                    'type' => $page->meeting_type,
+                    'when' => $when,
+                    'join' => $booking->meeting_url,
+                    'ics' => url('/b/ics/'.$booking->ics_token.'.ics'),
+                ])
+                : __('Your :type is confirmed for :when (UTC). Add it to your calendar: :ics — or reply to this email if you need to reschedule.', [
+                    'type' => $page->meeting_type,
+                    'when' => $when,
+                    'ics' => url('/b/ics/'.$booking->ics_token.'.ics'),
+                ]),
             'booking',
         );
     }
@@ -109,6 +142,7 @@ class BookingService
             'due_at' => $booking->scheduled_at,
         ]);
 
+        $this->putInCalendar($booking, $page);
         $this->confirm($booking, $page, $contact);
 
         // ALRT / NOTIF-006: tell the seller too, not only the prospect. Covers
@@ -141,6 +175,12 @@ class BookingService
     public function setStatus(Booking $booking, string $status): Booking
     {
         $booking->update(['status' => $status]);
+
+        // A cancelled meeting leaves the team's calendar too, so nobody holds
+        // an hour for a call that is not happening.
+        if ($status === 'cancelled' && is_string($booking->calendar_event_id) && $booking->calendar_event_id !== '') {
+            $this->calendar->cancelEvent($booking->calendar_event_id);
+        }
         $this->audit->log('sales.booking.status_changed', context: ['status' => $status], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 
         $contact = $booking->contact()->first();
@@ -185,6 +225,13 @@ class BookingService
     public function reschedule(Booking $booking, Carbon $when): Booking
     {
         $booking->update(['scheduled_at' => $when, 'status' => 'booked']);
+
+        // The meeting in the team's calendar moves with it, so the invitation
+        // everyone already has is the right one.
+        if (is_string($booking->calendar_event_id) && $booking->calendar_event_id !== '') {
+            $minutes = max(5, (int) ($booking->page()->first()->duration_minutes));
+            $this->calendar->moveEvent($booking->calendar_event_id, CarbonImmutable::parse($when), $minutes);
+        }
 
         return $booking;
     }

@@ -9,6 +9,7 @@ use App\Jobs\RunIntegrationSync;
 use App\Models\Integration;
 use App\Models\SyncRun;
 use App\Models\WebhookEndpoint;
+use App\Services\Calendar\MicrosoftCalendar;
 use App\Services\Integrations\OAuthFlow;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\IntegrationService;
@@ -189,7 +190,12 @@ class IntegrationController extends Controller
             return redirect()->route('integrations.index')->withErrors(['provider' => __('Connection failed: :error', ['error' => $e->getMessage()])]);
         }
 
-        $this->integrations->connect($provider, $tokens);
+        $integration = $this->integrations->connect($provider, $tokens);
+
+        // A calendar connection is only useful if we know whose calendar it is.
+        if ($provider === MicrosoftCalendar::PROVIDER) {
+            app(MicrosoftCalendar::class)->rememberAccount($integration);
+        }
 
         return redirect()->route('integrations.index')
             ->with('status', __(':name connected.', ['name' => $connector['name']]));

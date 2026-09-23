@@ -47,4 +47,22 @@ return [
         'secret' => env('EMAIL_WEBHOOK_SECRET'),
     ],
 
+    /*
+     * OAuth connectors (INTG-001). A provider is configuration, not code: put
+     * the app registration's id and secret in the environment and the generic
+     * flow does the rest. Microsoft 365 is what a booking uses to read the
+     * team's real free/busy and to put the meeting - with its Teams link - in
+     * their calendar; 'common' lets any work account connect, and a single
+     * tenant id locks it to one organisation.
+     */
+    'connectors' => [
+        'microsoft_365' => [
+            'client_id' => env('MICROSOFT_CLIENT_ID'),
+            'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+            'authorize_url' => 'https://login.microsoftonline.com/'.env('MICROSOFT_TENANT', 'common').'/oauth2/v2.0/authorize',
+            'token_url' => 'https://login.microsoftonline.com/'.env('MICROSOFT_TENANT', 'common').'/oauth2/v2.0/token',
+            'scopes' => 'offline_access openid email User.Read Calendars.ReadWrite Calendars.Read.Shared OnlineMeetings.ReadWrite',
+        ],
+    ],
+
 ];

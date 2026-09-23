@@ -4,6 +4,7 @@ namespace App\Services\Chat;
 
 use App\Models\Booking;
 use App\Models\BookingPage;
+use App\Services\Calendar\MicrosoftCalendar;
 use Carbon\CarbonImmutable;
 
 /**
@@ -21,6 +22,8 @@ use Carbon\CarbonImmutable;
  */
 class ChatBookingSlots
 {
+    public function __construct(private readonly MicrosoftCalendar $calendar) {}
+
     /** Chat shows at most this many choices; more is a wall of buttons. */
     public const MAX_SLOTS = 6;
 
@@ -57,6 +60,16 @@ class ChatBookingSlots
             ->map(fn ($at) => CarbonImmutable::parse($at)->format('Y-m-d H:i'))
             ->all();
 
+        // When Microsoft 365 is connected, the team's real diary has the final
+        // say: a time they are already booked for is not free, however empty
+        // the availability grid says it is. Without a connection, or if Graph
+        // is having a bad day, this is an empty list and nothing changes.
+        $busy = $this->calendar->busy(
+            $this->calendar->calendarsFor($page->user_id),
+            CarbonImmutable::now(),
+            CarbonImmutable::now()->addDays($daysAhead),
+        );
+
         $slots = [];
         $day = CarbonImmutable::now()->startOfDay();
 
@@ -71,7 +84,15 @@ class ChatBookingSlots
 
             while ($cursor->addMinutes($duration) <= $close && count($slots) < $max) {
                 // Nothing in the past, and nothing so soon nobody could join it.
-                if ($cursor > now()->addMinutes(30) && ! in_array($cursor->format('Y-m-d H:i'), $taken, true)) {
+                $clashes = false;
+                foreach ($busy as $window) {
+                    if ($window['from'] < $cursor->addMinutes($duration) && $window['to'] > $cursor) {
+                        $clashes = true;
+                        break;
+                    }
+                }
+
+                if ($cursor > now()->addMinutes(30) && ! $clashes && ! in_array($cursor->format('Y-m-d H:i'), $taken, true)) {
                     $slots[] = [
                         'id' => 'slot_'.$cursor->format('Y-m-d\TH:i'),
                         'label' => $this->label($cursor),

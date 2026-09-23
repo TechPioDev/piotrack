@@ -86,4 +86,39 @@ class OAuthFlow
             'expires_at' => is_numeric($expiresIn) ? now()->addSeconds((int) $expiresIn)->toIso8601String() : null,
         ];
     }
+
+    /**
+     * Renew an expired access token without sending anyone back through consent.
+     *
+     * A provider that rotates refresh tokens returns a new one; one that does
+     * not returns nothing, and the old one keeps working - so the caller merges
+     * rather than replaces.
+     *
+     * @return array{access_token: string, refresh_token: ?string, expires_at: ?string}
+     */
+    public function refresh(string $key, string $refreshToken): array
+    {
+        $config = $this->config($key) ?? throw new RuntimeException("OAuth connector {$key} is not configured.");
+
+        $response = Http::asForm()->post($config['token_url'], array_filter([
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+            'client_id' => $config['client_id'],
+            'client_secret' => $config['client_secret'],
+            'scope' => $config['scopes'] !== '' ? $config['scopes'] : null,
+        ]));
+
+        $token = (string) $response->json('access_token', '');
+        if (! $response->successful() || $token === '') {
+            throw new RuntimeException('Token refresh failed: HTTP '.$response->status());
+        }
+
+        $expiresIn = $response->json('expires_in');
+
+        return [
+            'access_token' => $token,
+            'refresh_token' => $response->json('refresh_token') ?: $refreshToken,
+            'expires_at' => is_numeric($expiresIn) ? now()->addSeconds((int) $expiresIn)->toIso8601String() : null,
+        ];
+    }
 }
