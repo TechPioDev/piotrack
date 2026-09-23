@@ -48,6 +48,12 @@ won deals.
 | **Typebot** | Pure flow builder, bring-your-own LLM, no human layer | The best craft reference for the canvas |
 | **Tawk.to** | Free live chat, paid AI and white-label add-ons | The price floor; no flow builder at all |
 | **ManyChat** | Instagram/WhatsApp/TikTok DM automation | **No website chat**; only editor ideas transfer |
+| **HubSpot** | CRM with free live chat and a rule-based chatbot | What a buyer coming from a CRM expects |
+| **Intercom / Fin** | Messenger + Fin AI agent — **bought by Salesforce, 10 Sep 2026** | The deepest reporting and AI pricing model |
+| **Zendesk** | Support suite, AI agents, mid-migration to a new bot builder | Where support-led buyers come from |
+| **LiveChat / Text** | SMB live chat, merged with ChatBot.com | The nearest thing to honest SMB pricing |
+| **Drift** | **Switched off 31 January 2027** | Its customers must replace their widget |
+| **Qualified** | ABM chat on Salesforce, ~$40k+/yr | Out of reach for our buyers, and US-only data |
 
 ## 3. Steps you can put in a flow
 
@@ -58,13 +64,13 @@ won deals.
 | Question with validation | ✅ email/phone/number/text | ⚠️ undocumented | ✅ success/failure paths | ✅ regex, min/max, required | ✅ + one global error handler |
 | Multi-question form | ❌ | ❌ | ✅ | ✅ | ❌ |
 | Save to a variable | ⚠️ answers only | ✅ | ✅ | ✅ typed | ✅ |
-| Merge fields in text ("Hi {{name}}") | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Merge fields in text ("Hi {{name}}") | ✅ *(new)* | ✅ | ✅ | ✅ | ✅ |
 | Condition | ✅ 6 operators | ✅ 26 kinds | ✅ 13 kinds | ✅ | ✅ 12 operators + regex |
 | Calculation / formula | ❌ | ❌ | ⚠️ limited | ✅ live preview editor | ✅ inline JS |
-| Delay / typing | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Delay / typing | ✅ *(new)* | ✅ | ✅ | ✅ | ✅ |
 | Image / video / carousel | ❌ | ✅ | ✅ cards | ✅ | ✅ |
 | Ask for a file | ❌ (visitor can attach) | ❌ | ✅ | ✅ | ✅ |
-| Rating / CSAT | ❌ | ✅ | ⚠️ inbox only | ✅ | ✅ |
+| Rating / CSAT | ✅ *(new)* | ✅ | ⚠️ inbox only | ✅ | ✅ |
 | Webhook / API call | ❌ | ✅ + branch on response | ✅ | ✅ | ✅ + pause-until-callback |
 | Jump / go to | ✅ (go-to in settings) | ⚠️ workflow only | ✅ | ✅ | ✅ |
 | Reusable sub-flow | ❌ | ✅ | ✅ | ✅ Bricks, shared library | ✅ link + return |
@@ -100,8 +106,8 @@ feature we could match with our own AI gateway.
 ## 5. Team side and channels
 
 - **Saved replies:** everyone has them (Crisp, Tidio macros, Landbot shortcuts, Tawk.to
-  shortcuts). We do not.
-- **Rating at the end of a chat:** Crisp, Tidio, Landbot, Typebot. We do not.
+  shortcuts). ✅ shipped 2026-09-23.
+- **Rating at the end of a chat:** Crisp, Tidio, Landbot, Typebot. ✅ shipped 2026-09-23.
 - **Mobile app for agents:** Crisp, Tidio, Tawk.to, ManyChat, Landbot (unclear). We have a
   responsive web inbox only.
 - **Live typing preview** (seeing what the visitor types before they send): Crisp, Tidio. Not us.
@@ -154,6 +160,9 @@ already asks, so the conversation itself is competitive.
    be saved. Typebot's own docs admit unconnected blocks silently end conversations.
 
 ## 7. Gaps worth closing, in order
+
+**Done on 2026-09-23** (CHAT-064..069): both defects below, merge fields, the pause before a
+message, the rating and saved replies. The rest of the list stands.
 
 **Tier 0 — defects, not gaps**
 
@@ -210,6 +219,38 @@ already asks, so the conversation itself is competitive.
 - **Export the canvas as a picture** (Landbot) — sending a flow to a client for approval is an
   agency-shaped job we should expect.
 - **Consistent green/red outputs** on every branching step (Landbot).
+
+## 8b. What the enterprise platforms treat as table stakes in 2026
+
+From the seven above, the things every serious vendor now ships — a new entrant is measured
+against these:
+
+1. **An AI agent grounded in the customer's own content**, with a website crawler, file upload,
+   scheduled re-sync and answers that cite their source. HubSpot crawls 5,000 URLs per domain;
+   Qualified 5,000 pages; ChatBot.com 5,000 sources. **We do not crawl anything.**
+2. **Outcome-based AI pricing with a published definition of "resolved"** — $0.50 (HubSpot) to
+   $2.00 (Salesforce) per resolution, and a published list of what you are *not* billed for.
+   Intercom refunds a resolution if the customer comes back, and guarantees up to $1M.
+3. **Draft / publish / version history with rollback on the flow itself.** We have draft and
+   publish; we have no history. HubSpot is criticised for exactly this.
+4. **Testing beyond a preview pane** — multi-turn simulations, batch tests with traces, a
+   confidence-scored answer scorecard fed by real unanswered questions.
+5. **Natural-language authoring** of agent behaviour with explicit must / must-not guardrails.
+6. **An API/webhook step that isn't a separate product** (HubSpot makes you buy Data Hub for it).
+7. **Omnichannel in one inbox** — WhatsApp, Messenger, Instagram, SMS, email.
+8. **Routing a sales team recognises** — round robin, load balanced, skills, capacity, hours.
+   We have round-robin by load and presence; skills-based routing we do not.
+9. **Analytics that reach revenue**, not just volume. We already do this, and better than
+   HubSpot's chatbot report, which gives only started / completed / abandoned.
+10. **Published accessibility and AI disclosure.** A WCAG 2.2 AA claim with a VPAT for the widget
+    (LiveChat has one; Zendesk publishes per-surface reports; HubSpot, Intercom, Qualified and
+    Salesforce publish nothing), and an **AI-disclosure toggle for EU AI Act Article 50**, in
+    force since 2 August 2026. Our widget is built to WCAG practice but claims nothing, and has
+    no AI-disclosure setting. Both are cheap to close and both are now legal exposure in the EU.
+
+**Two openings worth naming.** Every Drift customer must replace their widget before 31 January
+2027 and is being referred to enterprise-priced successors — nobody is serving the small ones.
+And Intercom's 30,000-plus mostly-small customers have just been bought by Salesforce.
 
 ## 9. Things the research could not settle
 
