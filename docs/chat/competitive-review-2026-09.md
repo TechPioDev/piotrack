@@ -71,7 +71,7 @@ won deals.
 | Image / video / carousel | ❌ | ✅ | ✅ cards | ✅ | ✅ |
 | Ask for a file | ❌ (visitor can attach) | ❌ | ✅ | ✅ | ✅ |
 | Rating / CSAT | ✅ *(new)* | ✅ | ⚠️ inbox only | ✅ | ✅ |
-| Webhook / API call | ❌ | ✅ + branch on response | ✅ | ✅ | ✅ + pause-until-callback |
+| Webhook / API call | ✅ *(new)* | ✅ + branch on response | ✅ | ✅ | ✅ + pause-until-callback |
 | Jump / go to | ✅ (go-to in settings) | ⚠️ workflow only | ✅ | ✅ | ✅ |
 | Reusable sub-flow | ❌ | ✅ | ✅ | ✅ Bricks, shared library | ✅ link + return |
 | A/B split inside a flow | ⚠️ teaser only | ❌ | ⚠️ random | ✅ | ✅ |
@@ -90,7 +90,7 @@ that show in a demo are: **merge fields, delay/typing, media, rating, webhook, a
 
 | | Grounded in your content | Flow written by AI | Agent-side AI | Priced |
 | --- | --- | --- | --- | --- |
-| **Us** | ❌ company name + service list only | ❌ | ✅ takeover summary | in plan credits |
+| **Us** | ✅ *(new)* your own pages, posts and notes | ❌ | ✅ takeover summary | in plan credits |
 | Crisp (Hugo) | ✅ crawl, KB, files, Q&A | ❌ | ✅ Copilot | ~$0.05–0.10 per conversation, no rollover |
 | Tidio (Lyro) | ✅ crawl (60 pages), PDF/CSV, harvested from solved chats | ❌ | ✅ Copilot on every plan | ~$0.70 per conversation |
 | Landbot | ✅ 200k chars, PDF/DOCX, auto-refreshing URLs | ✅ prompt → draft flow | ❌ | €0.10 per AI chat (2× a normal chat) |
@@ -113,8 +113,8 @@ feature we could match with our own AI gateway.
 - **Live typing preview** (seeing what the visitor types before they send): Crisp, Tidio. Not us.
 - **Channels beyond the website:** everyone except Typebot sells WhatsApp/Messenger/Instagram;
   Tidio and Tawk.to include them on free plans. We are website-only.
-- **Reassignment in the inbox:** our API supports it, the screen has no control for it.
-- **Transcript export:** Tidio and Typebot export CSV. We do not.
+- **Reassignment in the inbox:** ✅ shipped 2026-09-23 (owner picker showing who is online).
+- **Transcript export:** Tidio and Typebot export CSV. ✅ shipped 2026-09-23 (text file).
 
 ## 5b. The MSP market specifically
 
@@ -161,8 +161,11 @@ already asks, so the conversation itself is competitive.
 
 ## 7. Gaps worth closing, in order
 
-**Done on 2026-09-23** (CHAT-064..069): both defects below, merge fields, the pause before a
-message, the rating and saved replies. The rest of the list stands.
+**Done on 2026-09-23** (CHAT-064..073): both defects below; merge fields; the pause before a
+message; the rating; saved replies; **AI answers grounded in the customer's own published
+content**; a **"Send to Your System"** step (https only, through the SSRF guard) that is the road
+to PSA connectors; the **AI disclosure** notice for EU AI Act Article 50; and **reassignment and
+transcript export** in the inbox. What is left below still stands.
 
 **Tier 0 — defects, not gaps**
 
