@@ -148,6 +148,7 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
             fallback_contact: (widget.settings.fallback_contact as string) ?? '',
             suggested_questions: ((widget.settings.suggested_questions as string[]) ?? []).join('\n'),
             attachments: (widget.settings.attachments as boolean | undefined) ?? true,
+            rating: (widget.settings.rating as boolean | undefined) ?? true,
             email_replies: (widget.settings.email_replies as boolean | undefined) ?? true,
             hide_branding: Boolean(widget.settings.hide_branding),
         },
@@ -445,6 +446,21 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                                     <span className="text-muted-foreground block text-xs">
                                         PNG, JPG, GIF or WebP only — no documents, PDFs or video. Made smaller before upload and checked before they
                                         are stored; only the visitor and your team can see them.
+                                    </span>
+                                </span>
+                            </label>
+                            <label className="flex items-start gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="mt-1"
+                                    checked={form.data.settings.rating}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, rating: e.target.checked })}
+                                />
+                                <span>
+                                    Ask how the chat went
+                                    <span className="text-muted-foreground block text-xs">
+                                        One star to five, once the conversation has finished. The score shows on the conversation and in your chat
+                                        analytics.
                                     </span>
                                 </span>
                             </label>

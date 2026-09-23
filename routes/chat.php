@@ -37,6 +37,10 @@ Route::prefix('wc/{publicKey}')->name('public.chat.')->group(function () {
     // routes below it.
     Route::get('conversations/{token}/poll', [PublicChatController::class, 'poll'])
         ->middleware('throttle:240,1,chat-poll')->name('poll');
+    // How the chat went, once it has finished. Its own counter, and low: a
+    // visitor rates a conversation once, twice if they change their mind.
+    Route::post('conversations/{token}/rating', [PublicChatController::class, 'rate'])
+        ->middleware('throttle:10,1,chat-rating')->name('rating');
     // A file the visitor attaches: tightly throttled on its own counter,
     // size-capped and scanned.
     Route::post('conversations/{token}/files', [PublicChatController::class, 'upload'])
@@ -62,6 +66,11 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.inbox.handle')->name('conversations.reply');
         Route::post('conversations/{conversation}/note', [ChatInboxController::class, 'note'])
             ->middleware('can:chat.inbox.handle')->name('conversations.note');
+        // The answers a team types over and over, kept once and shared.
+        Route::post('saved-replies', [ChatInboxController::class, 'storeSavedReply'])
+            ->middleware('can:chat.inbox.handle')->name('saved-replies.store');
+        Route::delete('saved-replies/{savedReply}', [ChatInboxController::class, 'destroySavedReply'])
+            ->middleware('can:chat.inbox.handle')->name('saved-replies.destroy');
         Route::post('conversations/{conversation}/summarize', [ChatInboxController::class, 'summarize'])
             ->middleware('can:chat.inbox.handle')->name('conversations.summarize');
         Route::patch('conversations/{conversation}', [ChatInboxController::class, 'update'])

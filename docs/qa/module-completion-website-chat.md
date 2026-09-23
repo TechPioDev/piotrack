@@ -574,3 +574,43 @@ Settings); on a phone the settings slide-over showed two overlapping close butto
 duplicate, steps inside a fold); interface tests 11 → 18 (edit text and Esc, replies on the
 card, pick and place, duplicate and Delete, fold and show, hide panels and remember, focus
 mode). Vitest 157.
+
+## Follow-up (2026-09-23): competitive review and what it found (CHAT-064..069)
+
+`docs/chat/competitive-review-2026-09.md` compares the module, read from the code, against
+Crisp, Tidio/Lyro, Landbot, Typebot, Tawk.to and ManyChat, against the enterprise platforms
+(HubSpot, Intercom/Fin, Zendesk, LiveChat/Text, Qualified, Agentforce — Drift is being
+switched off on 31 January 2027 and Intercom was bought by Salesforce on 10 September 2026),
+and against the chat our own buyers meet: the MSP agency stacks.
+
+**Two defects it turned up, both fixed here:**
+
+- A chat lead fired none of the outbound webhooks a form lead fires, so it could not reach
+  Zapier, n8n or a PSA. It now fires the same `lead.captured` event, carrying its source, lead
+  id and score, its tags and every answer (never the engine's `_`-prefixed bookkeeping).
+- The "Add Tag" step wrote tags nothing read. They are kept on the conversation, shown in the
+  inbox and sent with that webhook.
+
+**Four gaps closed, chosen because they show in the first five minutes of a demo:**
+
+- **Answers used in later steps.** `{{first_name}}` fills from any answer already given, in the
+  messages and in the question still waiting, with `{{first_name|there}}` as a fallback and a
+  tidy disappearance otherwise — a visitor never sees braces. Buttons under the text box insert
+  a field.
+- **A pause before a message**, up to ten seconds with typing dots, so a run of messages arrives
+  the way a person types them. The composer stays shut while it types.
+- **"How did we do?"** — one to five once the chat has finished, asked once, skippable, off per
+  widget; on the conversation and as an average in analytics.
+- **Saved replies**, shared across the team, picked from the reply box or kept from what was
+  just written, with the same placeholders.
+
+**Automated testing:** `ChatLeadReachTest` (6), `ChatRatingTest` (6), `ChatSavedReplyTest` (5).
+Full gate green: Pest 1,182, Vitest 157.
+
+**Still open, in the order the review recommends:** AI answers grounded in the customer's own
+content (we have `KbArticle` and no crawler); a webhook/API step inside a flow; media and
+carousels; ask-for-a-file; reassignment from the inbox screen; transcript export; paging to
+Teams/Slack/SMS; PSA connectors (ConnectWise, Autotask, HaloPSA); AI-drafted flows; reusable
+sub-flows; version history; WhatsApp; multi-language. Two compliance items the review raises
+and nobody here has scheduled: an AI-disclosure setting for EU AI Act Article 50 (in force
+since 2 August 2026) and a published accessibility conformance claim for the widget.

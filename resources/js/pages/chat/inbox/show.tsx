@@ -1,13 +1,22 @@
 import { InitialAvatar } from '@/components/initial-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Flame, LifeBuoy, Lock, Paperclip, Radio } from 'lucide-react';
+import { Flame, LifeBuoy, Lock, MessageSquareText, Paperclip, Plus, Radio } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 type Message = {
@@ -23,6 +32,7 @@ type Conversation = {
     id: number;
     status: string;
     lead_score: number;
+    rating: number | null;
     widget: string | null;
     assignee: { id: number; name: string } | null;
     contact: { id: number; name: string; email: string; lead_score: number } | null;
@@ -71,20 +81,26 @@ function label(key: string): string {
     return FIELD_LABELS[key] ?? key.replace(/_/g, ' ');
 }
 
+type SavedReply = { id: number; title: string; body: string };
+
 export default function ChatConversationShow({
     conversation,
     messages: initialMessages,
     statuses,
     presence,
+    saved_replies: savedReplies = [],
 }: {
     conversation: Conversation;
     messages: Message[];
     statuses: string[];
     presence: { me: string; roster: { id: number; name: string; status: string }[] };
+    saved_replies?: SavedReply[];
 }) {
     const [summarizing, setSummarizing] = useState(false);
     const { can } = usePermissions();
     const reply = useForm({ body: '' });
+    const keep = useForm({ title: '', body: '' });
+    const [keeping, setKeeping] = useState(false);
     const note = useForm({ body: '' });
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [isLive, setIsLive] = useState(conversation.is_live);
@@ -144,6 +160,36 @@ export default function ChatConversationShow({
     };
 
     const name = conversation.contact?.name ?? 'Anonymous visitor';
+
+    /**
+     * A saved reply may carry the same {{first_name}} placeholders a flow does.
+     * Anything we do not know is dropped rather than shown to the visitor.
+     */
+    const fill = (body: string) => {
+        const known: Record<string, string> = {
+            ...conversation.answers,
+            first_name: conversation.answers.first_name ?? (conversation.contact?.name ?? '').split(' ')[0] ?? '',
+            email: conversation.answers.email ?? conversation.contact?.email ?? '',
+            agent_name: presence.me,
+        };
+        return body
+            .replace(/\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:\|([^}]*))?\}\}/g, (_match, field: string, fallback?: string) =>
+                (known[field.toLowerCase()] || fallback || '').trim(),
+            )
+            .replace(/ {2,}/g, ' ')
+            .trim();
+    };
+
+    const keepReply: FormEventHandler = (e) => {
+        e.preventDefault();
+        keep.post(route('chat.saved-replies.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                keep.reset();
+                setKeeping(false);
+            },
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -244,6 +290,41 @@ export default function ChatConversationShow({
                         {can('chat.inbox.handle') && (
                             <div className="border-border space-y-2 border-t p-3">
                                 <form onSubmit={sendReply} className="flex gap-2">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button type="button" variant="outline" size="icon" title="Saved replies" aria-label="Saved replies">
+                                                <MessageSquareText className="size-4" aria-hidden />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="max-h-80 w-72 overflow-y-auto">
+                                            <DropdownMenuLabel>Saved replies</DropdownMenuLabel>
+                                            {savedReplies.length === 0 && (
+                                                <p className="text-muted-foreground px-2 py-1.5 text-xs">
+                                                    None yet. Write a reply, then keep it for next time.
+                                                </p>
+                                            )}
+                                            {savedReplies.map((saved) => (
+                                                <DropdownMenuItem
+                                                    key={saved.id}
+                                                    className="flex-col items-start gap-0.5"
+                                                    onSelect={() => reply.setData('body', fill(saved.body))}
+                                                >
+                                                    <span className="text-sm font-medium">{saved.title}</span>
+                                                    <span className="text-muted-foreground line-clamp-2 text-xs">{saved.body}</span>
+                                                </DropdownMenuItem>
+                                            ))}
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                disabled={!reply.data.body.trim()}
+                                                onSelect={() => {
+                                                    keep.setData('body', reply.data.body);
+                                                    setKeeping(true);
+                                                }}
+                                            >
+                                                <Plus className="size-3.5" aria-hidden /> Keep what I have written
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <Input
                                         value={reply.data.body}
                                         onChange={(e) => reply.setData('body', e.target.value)}
@@ -253,6 +334,34 @@ export default function ChatConversationShow({
                                         Send
                                     </Button>
                                 </form>
+
+                                <Dialog open={keeping} onOpenChange={setKeeping}>
+                                    <DialogContent>
+                                        <DialogTitle>Keep this reply</DialogTitle>
+                                        <DialogDescription>
+                                            Your whole team can use it. {'{{first_name}}'} fills in the visitor's name when it is picked.
+                                        </DialogDescription>
+                                        <form onSubmit={keepReply} className="space-y-3">
+                                            <Input
+                                                autoFocus
+                                                value={keep.data.title}
+                                                onChange={(e) => keep.setData('title', e.target.value)}
+                                                maxLength={80}
+                                                placeholder="What is it for — “Pricing”, “Out of hours”…"
+                                                aria-label="Name for this saved reply"
+                                            />
+                                            <p className="text-muted-foreground bg-muted/50 rounded-md p-2 text-xs">{keep.data.body}</p>
+                                            <DialogFooter>
+                                                <Button type="button" variant="outline" onClick={() => setKeeping(false)}>
+                                                    Cancel
+                                                </Button>
+                                                <Button type="submit" disabled={keep.processing || !keep.data.title.trim()}>
+                                                    Keep it
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                                 <form onSubmit={sendNote} className="flex gap-2">
                                     <Input
                                         value={note.data.body}
@@ -275,6 +384,18 @@ export default function ChatConversationShow({
                             <span className="text-muted-foreground text-sm font-medium">Lead score</span>
                             <span className="text-brand-strong text-3xl font-semibold tabular-nums">{conversation.lead_score}</span>
                         </div>
+                        {conversation.rating !== null && (
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                                <span className="text-muted-foreground text-sm">They rated this chat</span>
+                                <span className="text-sm font-medium" title={`${conversation.rating} out of 5`}>
+                                    <span className="text-amber-500" aria-hidden>
+                                        {'★'.repeat(conversation.rating)}
+                                        {'☆'.repeat(5 - conversation.rating)}
+                                    </span>
+                                    <span className="sr-only">{conversation.rating} out of 5</span>
+                                </span>
+                            </div>
+                        )}
                         <div className="mt-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-muted-foreground text-sm">Status</span>

@@ -51,6 +51,11 @@ class ChatAnalyticsService
         $impressions = $events['impression'] ?? 0;
         $opens = $events['open'] ?? 0;
 
+        // How the chats went, from the visitors who said. An average over a
+        // handful of answers is noise, so the count travels with it.
+        $rated = (clone $conversations)->whereNotNull('rating');
+        $ratings = (clone $rated)->count();
+
         return [
             'impressions' => $impressions,
             'opens' => $opens,
@@ -64,6 +69,8 @@ class ChatAnalyticsService
             'completion_rate' => $this->rate($completed, $started),
             'lead_rate' => $this->rate($leads, $started),
             'revenue' => $this->revenue($since, $widgetId),
+            'ratings' => $ratings,
+            'rating' => $ratings > 0 ? round((float) (clone $rated)->avg('rating'), 1) : null,
         ];
     }
 

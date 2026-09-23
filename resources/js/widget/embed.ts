@@ -49,9 +49,10 @@ type Config = {
     consent_required: boolean;
     privacy_url: string | null;
     fallback_contact?: string | null;
-    // Absent from an older server: files off, branding on.
+    // Absent from an older server: files off, branding on, rating asked.
     attachments?: boolean;
     branding?: boolean;
+    rating?: boolean;
     targeting?: Targeting;
 };
 
@@ -289,6 +290,17 @@ button { font: inherit; cursor: pointer; }
 
 /* Answers, offered in the conversation right under the question they answer */
 .choices { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 100%; }
+.rating { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.rating-q { font-size: 13px; color: #5b6673; }
+.stars { display: flex; gap: 4px; }
+.star {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 1px solid #9aa5b1; border-radius: 10px; font-size: 17px; line-height: 1;
+    color: #9aa5b1; cursor: pointer; transition: border-color .15s ease, color .15s ease, transform .15s ease;
+}
+.star:hover, .star:focus-visible { border-color: var(--accent); color: #f5a623; transform: translateY(-1px); }
+.star[aria-pressed="true"] { color: #f5a623; border-color: #f5a623; }
+.rating-thanks { font-size: 13px; color: #5b6673; }
 .choice {
     max-width: 100%; text-align: left; padding: 10px 16px; font-size: 14.5px; font-weight: 600; line-height: 1.4;
     background: #fff; color: #2d3e50; border: 1px solid #9aa5b1; border-radius: 12px;
@@ -378,6 +390,8 @@ class ChatWidget {
     private sendButton!: HTMLButtonElement;
     private panel: HTMLDivElement | null = null;
     private token: string | null = null;
+    /** Asked once per conversation, however many times it ends on screen. */
+    private rated = false;
     private open = false;
     private busy = false;
     private live = false;
@@ -1076,6 +1090,8 @@ class ChatWidget {
         this.clearAnswers();
         this.setComposer(false, 'This chat has ended');
 
+        if (this.config?.rating !== false && this.token && !this.rated) this.askHowItWent();
+
         const answers = document.createElement('div');
         answers.className = 'choices';
         const again = document.createElement('button');
@@ -1086,6 +1102,7 @@ class ChatWidget {
             this.token = null;
             this.lastSeenId = 0;
             this.live = false;
+            this.rated = false;
             this.log.innerHTML = '';
             this.shown.clear();
             this.clearError();
@@ -1094,6 +1111,47 @@ class ChatWidget {
         answers.appendChild(again);
         this.botStack().appendChild(answers);
         this.reveal();
+    }
+
+    /**
+     * One to five, asked once and only once the chat is over. Skipping it is
+     * simply not answering: there is no nagging and nothing blocks the visitor.
+     */
+    private askHowItWent() {
+        this.rated = true;
+        const box = document.createElement('div');
+        box.className = 'rating';
+        const question = document.createElement('p');
+        question.className = 'rating-q';
+        question.textContent = 'How did we do?';
+        const stars = document.createElement('div');
+        stars.className = 'stars';
+        stars.setAttribute('role', 'group');
+        stars.setAttribute('aria-label', 'How did we do? One star to five.');
+
+        for (let score = 1; score <= 5; score++) {
+            const star = document.createElement('button');
+            star.type = 'button';
+            star.className = 'star';
+            star.textContent = '★';
+            star.setAttribute('aria-label', `${score} ${score === 1 ? 'star' : 'stars'}`);
+            star.setAttribute('aria-pressed', 'false');
+            star.addEventListener('click', () => {
+                [...stars.children].forEach((other, index) => other.setAttribute('aria-pressed', index < score ? 'true' : 'false'));
+                [...stars.children].forEach((other) => ((other as HTMLButtonElement).disabled = true));
+                const thanks = document.createElement('p');
+                thanks.className = 'rating-thanks';
+                thanks.setAttribute('role', 'status');
+                thanks.textContent = 'Thank you.';
+                box.appendChild(thanks);
+                void api(`conversations/${this.token}/rating`, { rating: score }).catch(() => undefined);
+            });
+            stars.appendChild(star);
+        }
+
+        box.appendChild(question);
+        box.appendChild(stars);
+        this.botStack().appendChild(box);
     }
 
     private clearAnswers() {

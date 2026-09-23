@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\EmailChatReplies;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
+use App\Models\ChatSavedReply;
 use App\Notifications\ChatMentionNotification;
 use App\Services\Chat\ChatAttachments;
 use App\Services\Chat\ChatConversationSummarizer;
@@ -93,6 +94,7 @@ class ChatInboxController extends Controller
                 'id' => $conversation->id,
                 'status' => $conversation->status,
                 'lead_score' => $conversation->lead_score,
+                'rating' => $conversation->rating,
                 'widget' => $conversation->widget?->name,
                 'assignee' => $conversation->assignee ? ['id' => $conversation->assignee->id, 'name' => $conversation->assignee->name] : null,
                 'contact' => $conversation->contact ? [
@@ -113,6 +115,7 @@ class ChatInboxController extends Controller
                 'attribution' => $conversation->attribution,
                 'created_at' => $conversation->created_at->toIso8601String(),
             ],
+            'saved_replies' => ChatSavedReply::query()->orderBy('title')->get(['id', 'title', 'body']),
             'messages' => $conversation->messages->map(fn (ChatMessage $m) => $this->present($conversation, $m)),
             'statuses' => ChatConversation::STATUSES,
             'presence' => [
@@ -120,6 +123,33 @@ class ChatInboxController extends Controller
                 'roster' => $this->presence->roster($this->currentOrganization->get()),
             ],
         ]);
+    }
+
+    /**
+     * Keep an answer the team types often. Shared with the whole team: the
+     * answer to "what does onboarding cost?" should not depend on who is on
+     * chat today.
+     */
+    public function storeSavedReply(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:80',
+            'body' => 'required|string|max:2000',
+        ]);
+
+        ChatSavedReply::create([...$data, 'created_by' => $request->user()?->id]);
+        $this->audit->log('chat.saved_reply.created', context: ['title' => $data['title']]);
+
+        return back()->with('status', 'Saved reply added.');
+    }
+
+    public function destroySavedReply(Request $request, ChatSavedReply $savedReply): RedirectResponse
+    {
+        $title = $savedReply->title;
+        $savedReply->delete();
+        $this->audit->log('chat.saved_reply.deleted', context: ['title' => $title]);
+
+        return back()->with('status', 'Saved reply removed.');
     }
 
     /**

@@ -152,6 +152,7 @@ class ChatWidgetController extends Controller
             'settings.suggested_questions' => 'sometimes|array|max:6',
             'settings.suggested_questions.*' => 'string|max:120',
             'settings.attachments' => 'sometimes|boolean',
+            'settings.rating' => 'sometimes|boolean',
             'settings.email_replies' => 'sometimes|boolean',
             'settings.hide_branding' => 'sometimes|boolean',
             'allowed_domains' => 'sometimes|array|max:20',

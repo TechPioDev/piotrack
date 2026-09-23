@@ -95,6 +95,7 @@ class PublicChatController extends Controller
             'privacy_url' => $consent['privacy_url'] ?? null,
             'fallback_contact' => $settings['fallback_contact'] ?? null,
             'attachments' => (bool) ($settings['attachments'] ?? true),
+            'rating' => ($settings['rating'] ?? true) !== false,
             // "Powered by Piotrack" comes off only on a plan that includes
             // white-labelling - checked here too, so a downgrade restores it.
             'branding' => ! ((bool) ($settings['hide_branding'] ?? false) && $this->whiteLabelled()),
@@ -201,6 +202,32 @@ class PublicChatController extends Controller
         $result = $this->engine->handle($widget, $conversation, $data);
 
         return response()->json($result);
+    }
+
+    /**
+     * How the chat went, in the visitor's own words - one star to five.
+     *
+     * Asked once the conversation has finished, so it rates the whole thing.
+     * A visitor may change their mind; a preview is never rated, and a widget
+     * whose owner turned the question off does not accept one.
+     */
+    public function rate(Request $request, string $publicKey, string $token): JsonResponse
+    {
+        $widget = $this->resolve($request, $publicKey);
+        abort_unless(($widget->settings['rating'] ?? true) !== false, 404);
+
+        $conversation = ChatConversation::query()
+            ->where('chat_widget_id', $widget->id)
+            ->where('token', $token)
+            ->first();
+
+        abort_if($conversation === null || $conversation->is_preview, 404);
+
+        $rating = (int) $request->validate(['rating' => 'required|integer|min:1|max:5'])['rating'];
+        $conversation->forceFill(['rating' => $rating, 'rated_at' => now()])->save();
+        $this->engine->event($widget, 'rating', $conversation);
+
+        return response()->json(['ok' => true]);
     }
 
     /**

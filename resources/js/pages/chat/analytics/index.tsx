@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { BarChart3, MessagesSquare, MousePointerClick, Target, TrendingDown, UserPlus } from 'lucide-react';
+import { BarChart3, MessagesSquare, MousePointerClick, Star, Target, TrendingDown, UserPlus } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Website Chat', href: '/chat' },
@@ -27,6 +27,9 @@ type Summary = {
     completion_rate: number;
     lead_rate: number;
     revenue: number;
+    /** Average of the ratings visitors gave, and how many said. */
+    rating: number | null;
+    ratings: number;
 };
 type FunnelRow = { stage: string; count: number; of: string | null; rate: number | null };
 type DropOffRow = { node: string; label: string; reached: number; abandoned: number; rate: number };
@@ -148,6 +151,15 @@ export default function ChatAnalytics({
                                 icon={UserPlus}
                             />
                             <StatCard label="Attributed revenue" value={money(summary.revenue)} icon={Target} />
+                            <StatCard
+                                label="How chats went"
+                                value={summary.rating === null ? '—' : `${summary.rating.toFixed(1)} / 5`}
+                                delta={{
+                                    value: summary.ratings === 0 ? 'nobody has rated yet' : `${summary.ratings} rated`,
+                                    direction: 'neutral',
+                                }}
+                                icon={Star}
+                            />
                         </div>
 
                         {/* Funnel */}

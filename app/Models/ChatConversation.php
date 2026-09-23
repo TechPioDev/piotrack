@@ -48,6 +48,8 @@ class ChatConversation extends Model
         'lead_id',
         'lead_score',
         'tags',
+        'rating',
+        'rated_at',
         'answers',
         'attribution',
         'last_message_at',
@@ -68,6 +70,8 @@ class ChatConversation extends Model
         return [
             'answers' => 'array',
             'tags' => 'array',
+            'rating' => 'integer',
+            'rated_at' => 'datetime',
             'summary_generated_at' => 'datetime',
             'attribution' => 'array',
             'lead_score' => 'integer',
