@@ -227,6 +227,25 @@ export function ConversationBuilder({
         const made = block.make();
         if (!canInsert(flow, slot, made.type)) return;
         const { flow: next, id } = insertStep(flow, slot, made);
+
+        // An ending that promises a meeting arrives with a time-picker in front
+        // of it, because "we will book you in" and then nothing to click is the
+        // way this goes wrong. The ending stays as its fallback, so a tenant
+        // with no booking page still hands over their booking link - and anyone
+        // who only wanted the link can delete the picker.
+        if (key === 'end_meeting') {
+            const withPicker = insertStep(next, slot, { type: 'booking', text: 'Pick a time that suits you:' });
+            const picker = withPicker.flow.nodes[withPicker.id];
+            apply({
+                ...withPicker.flow,
+                nodes: { ...withPicker.flow.nodes, [withPicker.id]: { ...picker, fallback: id } },
+            });
+            setSelected(withPicker.id);
+            setNotice(null);
+
+            return;
+        }
+
         apply(next);
         setSelected(id);
         setNotice(null);

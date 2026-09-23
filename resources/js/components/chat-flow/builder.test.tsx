@@ -350,4 +350,32 @@ describe('conversation builder', () => {
         expect(screen.getByRole('button', { name: 'Focus mode' })).toHaveAttribute('aria-pressed', 'false');
         expect(document.body.style.overflow).toBe('');
     });
+
+    it('gives a meeting ending a time-picker in front of it, so nobody is told to book with nothing', async () => {
+        const user = userEvent.setup();
+        // A conversation that has not been finished off yet: the End blocks are
+        // only allowed where nothing follows.
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: { type: 'message', text: 'Hi there!', next: 'ask_name' },
+                ask_name: { type: 'input', input: 'text', field: 'first_name', text: 'What is your first name?' },
+            },
+        });
+
+        await user.click(screen.getAllByRole('button', { name: 'Add a step' })[0]);
+        await user.click(await screen.findByRole('menuitem', { name: /End: Book a Meeting/ }));
+
+        const flow = publishedFlow();
+        const picker = Object.entries(flow.nodes).find(([, node]) => node.type === 'booking');
+        const ending = Object.entries(flow.nodes).find(([, node]) => node.type === 'end' && node.outcome === 'meeting');
+
+        expect(picker).toBeDefined();
+        expect(ending).toBeDefined();
+        // Times first, the ending after them - and the ending is also where a
+        // tenant with no booking page lands instead.
+        expect(flow.nodes.ask_name.next).toBe(picker?.[0]);
+        expect(picker?.[1].next).toBe(ending?.[0]);
+        expect(picker?.[1].fallback).toBe(ending?.[0]);
+    });
 });

@@ -178,7 +178,7 @@ export const BLOCKS: Block[] = [
         key: 'end_meeting',
         group: 'End',
         label: 'End: Book a Meeting',
-        hint: 'Saves the lead and offers your booking page',
+        hint: 'Offers your free times, then saves the lead',
         make: () => ({ type: 'end', outcome: 'meeting', text: 'Great, pick a time that suits you.' }),
     },
     {
