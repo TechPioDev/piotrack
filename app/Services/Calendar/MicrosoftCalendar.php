@@ -3,7 +3,6 @@
 namespace App\Services\Calendar;
 
 use App\Models\Integration;
-use App\Models\User;
 use App\Services\Integrations\OAuthFlow;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -30,7 +29,7 @@ use Throwable;
  * product carries on exactly as it did before. A visitor's booking must never
  * depend on Microsoft answering.
  */
-class MicrosoftCalendar
+class MicrosoftCalendar implements CalendarProvider
 {
     public const PROVIDER = 'microsoft_365';
 
@@ -40,6 +39,16 @@ class MicrosoftCalendar
     private const BUSY_CACHE_SECONDS = 60;
 
     public function __construct(private readonly OAuthFlow $oauth) {}
+
+    public function key(): string
+    {
+        return self::PROVIDER;
+    }
+
+    public function name(): string
+    {
+        return 'Microsoft 365 / Outlook';
+    }
 
     /** The tenant's connection, if they have one that still works. */
     public function connection(): ?Integration
@@ -72,7 +81,7 @@ class MicrosoftCalendar
 
         $key = 'ms-busy:'.md5(implode(',', $emails).$from->toIso8601String().$to->toIso8601String());
 
-        return Cache::remember($key, self::BUSY_CACHE_SECONDS, function () use ($emails, $from, $to): array {
+        $windows = Cache::remember($key, self::BUSY_CACHE_SECONDS, function () use ($emails, $from, $to): array {
             $response = $this->call('post', '/me/calendar/getSchedule', [
                 'schedules' => $emails,
                 'startTime' => ['dateTime' => $from->format('Y-m-d\TH:i:s'), 'timeZone' => 'UTC'],
@@ -90,13 +99,24 @@ class MicrosoftCalendar
                     $start = $item['start']['dateTime'] ?? null;
                     $end = $item['end']['dateTime'] ?? null;
                     if (is_string($start) && is_string($end)) {
-                        $busy[] = ['from' => CarbonImmutable::parse($start, 'UTC'), 'to' => CarbonImmutable::parse($end, 'UTC')];
+                        $busy[] = [
+                            'from' => CarbonImmutable::parse($start, 'UTC')->toIso8601String(),
+                            'to' => CarbonImmutable::parse($end, 'UTC')->toIso8601String(),
+                        ];
                     }
                 }
             }
 
             return $busy;
         });
+
+        return array_map(
+            fn (array $window): array => [
+                'from' => CarbonImmutable::parse($window['from']),
+                'to' => CarbonImmutable::parse($window['to']),
+            ],
+            $windows,
+        );
     }
 
     /**
@@ -284,18 +304,5 @@ class MicrosoftCalendar
     {
         Log::warning($problem);
         $this->connection()?->forceFill(['last_error' => mb_substr($problem, 0, 500)])->save();
-    }
-
-    /**
-     * The people whose calendars a booking should respect.
-     *
-     * @return list<string>
-     */
-    public function calendarsFor(?int $ownerId): array
-    {
-        $owner = $ownerId !== null ? User::query()->find($ownerId) : null;
-        $account = $this->account();
-
-        return array_values(array_filter(array_unique([$owner?->email, $account])));
     }
 }

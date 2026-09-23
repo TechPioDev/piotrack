@@ -9,6 +9,7 @@ use App\Jobs\RunIntegrationSync;
 use App\Models\Integration;
 use App\Models\SyncRun;
 use App\Models\WebhookEndpoint;
+use App\Services\Calendar\GoogleCalendar;
 use App\Services\Calendar\MicrosoftCalendar;
 use App\Services\Integrations\OAuthFlow;
 use App\Services\Integrations\WebhookDispatcher;
@@ -195,6 +196,8 @@ class IntegrationController extends Controller
         // A calendar connection is only useful if we know whose calendar it is.
         if ($provider === MicrosoftCalendar::PROVIDER) {
             app(MicrosoftCalendar::class)->rememberAccount($integration);
+        } elseif ($provider === GoogleCalendar::PROVIDER) {
+            app(GoogleCalendar::class)->rememberAccount($integration);
         }
 
         return redirect()->route('integrations.index')

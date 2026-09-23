@@ -23,6 +23,7 @@ class ConnectorRegistry
         ['key' => 'google_search_console', 'name' => 'Google Search Console', 'category' => 'SEO', 'auth_type' => 'oauth'],
         ['key' => 'google_ads', 'name' => 'Google Ads', 'category' => 'Advertising', 'auth_type' => 'oauth'],
         ['key' => 'google_business_profile', 'name' => 'Google Business Profile', 'category' => 'SEO', 'auth_type' => 'oauth'],
+        ['key' => 'google_calendar', 'name' => 'Google Calendar', 'category' => 'Communication', 'auth_type' => 'oauth'],
 
         // Microsoft (INTG-005)
         ['key' => 'microsoft_ads', 'name' => 'Microsoft Ads', 'category' => 'Advertising', 'auth_type' => 'oauth'],

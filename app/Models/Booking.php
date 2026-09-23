@@ -19,7 +19,7 @@ class Booking extends Model
     protected $fillable = [
         'organization_id', 'booking_page_id', 'contact_id', 'owner_id', 'name', 'email',
         'scheduled_at', 'status', 'source', 'notes', 'ics_token', 'answers', 'utm',
-        'calendar_event_id', 'meeting_url',
+        'calendar_provider', 'calendar_event_id', 'meeting_url',
     ];
 
     protected function casts(): array

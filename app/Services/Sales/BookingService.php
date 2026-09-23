@@ -9,7 +9,7 @@ use App\Models\Contact;
 use App\Models\SeoLocation;
 use App\Models\User;
 use App\Notifications\BookingCreatedNotification;
-use App\Services\Calendar\MicrosoftCalendar;
+use App\Services\Calendar\TeamCalendar;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Marketing\MarketingTrigger;
 use App\Services\Marketing\MessageDispatcher;
@@ -37,7 +37,7 @@ class BookingService
         private VisitorTracker $visitors,
         private WebhookDispatcher $webhooks,
         private MarketingTrigger $trigger,
-        private MicrosoftCalendar $calendar,
+        private TeamCalendar $calendar,
     ) {}
 
     /**
@@ -59,7 +59,11 @@ class BookingService
         );
 
         if ($event !== null) {
-            $booking->forceFill(['calendar_event_id' => $event['id'], 'meeting_url' => $event['join_url']])->save();
+            $booking->forceFill([
+                'calendar_provider' => $event['provider'],
+                'calendar_event_id' => $event['id'],
+                'meeting_url' => $event['join_url'],
+            ])->save();
         }
     }
 
@@ -179,7 +183,7 @@ class BookingService
         // A cancelled meeting leaves the team's calendar too, so nobody holds
         // an hour for a call that is not happening.
         if ($status === 'cancelled' && is_string($booking->calendar_event_id) && $booking->calendar_event_id !== '') {
-            $this->calendar->cancelEvent($booking->calendar_event_id);
+            $this->calendar->cancelEvent($booking->calendar_provider, $booking->calendar_event_id);
         }
         $this->audit->log('sales.booking.status_changed', context: ['status' => $status], resourceType: 'booking', resourceId: (string) $booking->id, organizationId: $booking->organization_id);
 
@@ -230,7 +234,7 @@ class BookingService
         // everyone already has is the right one.
         if (is_string($booking->calendar_event_id) && $booking->calendar_event_id !== '') {
             $minutes = max(5, (int) ($booking->page()->first()->duration_minutes));
-            $this->calendar->moveEvent($booking->calendar_event_id, CarbonImmutable::parse($when), $minutes);
+            $this->calendar->moveEvent($booking->calendar_provider, $booking->calendar_event_id, CarbonImmutable::parse($when), $minutes);
         }
 
         return $booking;

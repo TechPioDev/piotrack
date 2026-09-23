@@ -68,3 +68,46 @@ appearing in Outlook, look there first — an expired client secret is the usual
 
 Access tokens are refreshed automatically. If the refresh token itself is rejected (consent
 revoked, secret rotated), reconnect from the integrations page.
+
+---
+
+# Connecting Google Calendar
+
+Exactly the same behaviour for a team on Google Workspace: real free/busy before a time is
+offered, the meeting written into their calendar with the visitor invited, and a **Google Meet**
+link on it instead of Teams.
+
+## 1. Create the OAuth client
+
+Google Cloud console → a project for this → **APIs & Services**:
+
+- **Enable APIs**: Google Calendar API.
+- **OAuth consent screen**: Internal if everyone connecting is in your own Workspace, External
+  otherwise (an External app in testing mode expires refresh tokens after seven days — publish it
+  before relying on it).
+- **Credentials → Create credentials → OAuth client ID → Web application**, with this redirect
+  URI: `https://YOUR-PIOTRACK-DOMAIN/settings/integrations/oauth/google_calendar/callback`
+- Scopes requested: `openid`, `email`, `calendar.events`, `calendar.readonly`.
+
+## 2. Put the credentials on the server
+
+```
+GOOGLE_CALENDAR_CLIENT_ID=the client id
+GOOGLE_CALENDAR_CLIENT_SECRET=the client secret
+```
+
+Then `php artisan config:clear`.
+
+## 3. Connect
+
+Settings → **Integrations** → **Google Calendar** → Connect, signing in as the account whose
+calendar should hold the meetings. Piotrack asks Google every time for consent, because Google
+only hands back a refresh token when it is asked to — without it the connection would quietly
+stop working after an hour.
+
+## Both at once
+
+A tenant may connect Microsoft 365 and Google Calendar together. Free/busy is then read from
+both — a busy hour is busy whichever diary it is in — and the meeting is created in the first
+connected one, which is Microsoft. The booking remembers which calendar holds it, so moving or
+cancelling later talks to the right one.

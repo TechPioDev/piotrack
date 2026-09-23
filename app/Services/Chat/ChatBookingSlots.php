@@ -4,7 +4,7 @@ namespace App\Services\Chat;
 
 use App\Models\Booking;
 use App\Models\BookingPage;
-use App\Services\Calendar\MicrosoftCalendar;
+use App\Services\Calendar\TeamCalendar;
 use Carbon\CarbonImmutable;
 
 /**
@@ -22,7 +22,7 @@ use Carbon\CarbonImmutable;
  */
 class ChatBookingSlots
 {
-    public function __construct(private readonly MicrosoftCalendar $calendar) {}
+    public function __construct(private readonly TeamCalendar $calendar) {}
 
     /** Chat shows at most this many choices; more is a wall of buttons. */
     public const MAX_SLOTS = 6;

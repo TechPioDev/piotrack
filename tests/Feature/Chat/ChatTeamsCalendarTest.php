@@ -65,51 +65,62 @@ function connectMicrosoft($test, string $account = 'sales@piomanage.test'): Inte
     return $integration;
 }
 
-/** Graph says the team is busy for the whole of the given day. */
-function graphBusyAllDay(CarbonImmutable $day): void
+/**
+ * One responder for every Graph call, answering from variables the test owns.
+ *
+ * Http::fake keeps the first stub registered for a pattern, so re-faking the
+ * same URL later in a test silently changes nothing - which is exactly the trap
+ * this used to fall into. A single closure, reading state by reference, always
+ * answers with what the test means right now.
+ *
+ * @param  list<array{start: string, end: string}>  $busy
+ */
+function graphAnswers(array &$busy, ?array $event = null): void
 {
-    Http::fake([
-        'graph.microsoft.com/v1.0/me/calendar/getSchedule' => Http::response([
-            'value' => [[
+    Http::fake(function ($request) use (&$busy, $event) {
+        if (str_contains($request->url(), 'getSchedule')) {
+            return Http::response(['value' => [[
                 'scheduleId' => 'sales@piomanage.test',
-                'scheduleItems' => [[
+                'scheduleItems' => array_map(fn (array $window) => [
                     'status' => 'busy',
-                    'start' => ['dateTime' => $day->setTime(0, 0)->format('Y-m-d\TH:i:s')],
-                    'end' => ['dateTime' => $day->setTime(23, 59)->format('Y-m-d\TH:i:s')],
-                ]],
-            ]],
-        ]),
-        'graph.microsoft.com/*' => Http::response([]),
-    ]);
+                    'start' => ['dateTime' => $window['start']],
+                    'end' => ['dateTime' => $window['end']],
+                ], $busy),
+            ]]]);
+        }
+
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'fresh-token', 'expires_in' => 3600]);
+        }
+
+        return Http::response($event ?? []);
+    });
 }
 
 it('does not offer a time the team is already busy for', function () {
     connectMicrosoft($this);
+    $busy = [];
+    graphAnswers($busy);
 
     app(CurrentOrganization::class)->set($this->org);
     $free = app(ChatBookingSlots::class)->available($this->page);
 
-    // Now the whole of the first offered day is taken in Outlook.
+    // Now Outlook says that whole day is taken.
+    $day = CarbonImmutable::parse($free[0]['at'])->startOfDay();
+    $busy = [['start' => $day->format('Y-m-d\TH:i:s'), 'end' => $day->setTime(23, 59)->format('Y-m-d\TH:i:s')]];
     Cache::flush();
-    graphBusyAllDay(CarbonImmutable::parse($free[0]['at'])->startOfDay());
     $after = app(ChatBookingSlots::class)->available($this->page);
     app(CurrentOrganization::class)->forget();
 
     expect($free)->not->toBeEmpty();
-    $busyDay = CarbonImmutable::parse($free[0]['at'])->format('Y-m-d');
-    expect(collect($after)->filter(fn ($slot) => CarbonImmutable::parse($slot['at'])->format('Y-m-d') === $busyDay))->toBeEmpty();
+    expect(collect($free)->filter(fn ($slot) => CarbonImmutable::parse($slot['at'])->isSameDay($day)))->not->toBeEmpty();
+    expect(collect($after)->filter(fn ($slot) => CarbonImmutable::parse($slot['at'])->isSameDay($day)))->toBeEmpty();
 });
 
 it('puts the meeting in the calendar with the visitor invited, and keeps the Teams link', function () {
     connectMicrosoft($this);
-    Http::fake([
-        'graph.microsoft.com/v1.0/me/calendar/getSchedule' => Http::response(['value' => []]),
-        'graph.microsoft.com/v1.0/me/events' => Http::response([
-            'id' => 'AAMkAGI2...',
-            'onlineMeeting' => ['joinUrl' => 'https://teams.microsoft.com/l/meetup-join/19%3ameeting'],
-        ]),
-        'graph.microsoft.com/*' => Http::response([]),
-    ]);
+    $busy = [];
+    graphAnswers($busy, ['id' => 'AAMkAGI2...', 'onlineMeeting' => ['joinUrl' => 'https://teams.microsoft.com/l/meetup-join/19%3ameeting']]);
 
     app(CurrentOrganization::class)->set($this->org);
     $booking = app(BookingService::class)->book($this->page, [
@@ -137,7 +148,8 @@ it('puts the meeting in the calendar with the visitor invited, and keeps the Tea
 
 it('moves and cancels that meeting when the booking does', function () {
     connectMicrosoft($this);
-    Http::fake(['graph.microsoft.com/*' => Http::response(['id' => 'AAMkAGI2...'])]);
+    $busy = [];
+    graphAnswers($busy, ['id' => 'AAMkAGI2...']);
 
     app(CurrentOrganization::class)->set($this->org);
     $booking = Booking::create([
@@ -211,10 +223,8 @@ it('renews an expired token rather than asking anyone to connect again', functio
         'expires_at' => now()->subMinute()->toIso8601String(),
     ]])->save();
 
-    Http::fake([
-        'login.microsoftonline.com/*' => Http::response(['access_token' => 'fresh-token', 'expires_in' => 3600]),
-        'graph.microsoft.com/*' => Http::response(['value' => []]),
-    ]);
+    $busy = [];
+    graphAnswers($busy);
     config(['services.connectors.microsoft_365.client_id' => 'id', 'services.connectors.microsoft_365.client_secret' => 'secret']);
 
     app(MicrosoftCalendar::class)->busy(['sales@piomanage.test'], CarbonImmutable::now(), CarbonImmutable::now()->addDay());

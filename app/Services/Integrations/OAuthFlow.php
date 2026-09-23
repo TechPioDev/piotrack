@@ -14,7 +14,7 @@ use RuntimeException;
 class OAuthFlow
 {
     /**
-     * @return array{client_id: string, client_secret: string, authorize_url: string, token_url: string, scopes: string}|null
+     * @return array{client_id: string, client_secret: string, authorize_url: string, token_url: string, scopes: string, params: array<string, string>}|null
      */
     public function config(string $key): ?array
     {
@@ -35,6 +35,9 @@ class OAuthFlow
             'authorize_url' => (string) $config['authorize_url'],
             'token_url' => (string) $config['token_url'],
             'scopes' => (string) ($config['scopes'] ?? ''),
+            // Anything a particular vendor insists on: Google needs
+            // access_type=offline before it will part with a refresh token.
+            'params' => (array) ($config['params'] ?? []),
         ];
     }
 
@@ -53,6 +56,7 @@ class OAuthFlow
             'response_type' => 'code',
             'scope' => $config['scopes'] !== '' ? $config['scopes'] : null,
             'state' => $state,
+            ...$config['params'],
         ]));
     }
 

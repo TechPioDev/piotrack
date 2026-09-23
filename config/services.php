@@ -63,6 +63,17 @@ return [
             'token_url' => 'https://login.microsoftonline.com/'.env('MICROSOFT_TENANT', 'common').'/oauth2/v2.0/token',
             'scopes' => 'offline_access openid email User.Read Calendars.ReadWrite Calendars.Read.Shared OnlineMeetings.ReadWrite',
         ],
+
+        'google_calendar' => [
+            'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),
+            'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET'),
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'token_url' => 'https://oauth2.googleapis.com/token',
+            'scopes' => 'openid email https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+            // Google hands back a refresh token only when asked, and only the
+            // first time somebody consents - so ask every time.
+            'params' => ['access_type' => 'offline', 'prompt' => 'consent'],
+        ],
     ],
 
 ];
