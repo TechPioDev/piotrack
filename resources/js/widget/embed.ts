@@ -53,6 +53,8 @@ type Config = {
     attachments?: boolean;
     branding?: boolean;
     rating?: boolean;
+    /** What to tell the visitor about talking to a machine (EU AI Act Article 50). */
+    ai_notice?: string | null;
     targeting?: Targeting;
 };
 
@@ -290,6 +292,10 @@ button { font: inherit; cursor: pointer; }
 
 /* Answers, offered in the conversation right under the question they answer */
 .choices { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 100%; }
+.ai-notice {
+    margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: #eef1f4;
+    color: #5b6673; font-size: 12px; line-height: 1.45;
+}
 .rating { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .rating-q { font-size: 13px; color: #5b6673; }
 .stars { display: flex; gap: 4px; }
@@ -881,6 +887,16 @@ class ChatWidget {
     }
 
     private async begin() {
+        // Said before anything else, so nobody is a sentence into the
+        // conversation before they know what they are talking to.
+        const notice = this.config?.ai_notice;
+        if (notice && !this.log.querySelector('.ai-notice')) {
+            const line = document.createElement('p');
+            line.className = 'ai-notice';
+            line.setAttribute('role', 'note');
+            line.textContent = notice;
+            this.log.appendChild(line);
+        }
         this.typing(true);
         try {
             const params = new URLSearchParams(location.search);

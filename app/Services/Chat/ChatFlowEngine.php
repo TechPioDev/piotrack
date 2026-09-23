@@ -10,6 +10,8 @@ use App\Models\ChatWidget;
 use App\Models\ServiceLine;
 use App\Services\Ai\AiGateway;
 use App\Services\Sales\BookingService;
+use App\Support\UrlGuard;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -27,7 +29,8 @@ class ChatFlowEngine
 
     private const CONSENT = '_consent';
 
-    public function __construct(private readonly ChatCaptureService $capture,
+    public function __construct(private readonly ChatKnowledge $knowledge,
+        private readonly ChatCaptureService $capture,
         private readonly ChatHandoffService $handoff,
         private readonly ChatBookingSlots $slots,
         private readonly BookingService $booking,
@@ -183,6 +186,13 @@ class ChatFlowEngine
             // never sees them.
             if (in_array($node['type'], ['score', 'tag', 'assign', 'condition'], true)) {
                 $nodeId = $this->applyAction($conversation, $node);
+
+                continue;
+            }
+
+            // The owner's own system, called while the visitor waits.
+            if ($node['type'] === 'webhook') {
+                $nodeId = $this->applyWebhook($widget, $conversation, $nodeId, $node);
 
                 continue;
             }
@@ -561,12 +571,18 @@ class ChatFlowEngine
 
         try {
             $organization = $widget->organization()->first();
-            $services = ServiceLine::query()->orderBy('name')->limit(15)->pluck('name')->implode(', ');
+            // The answer comes from what this business has published, not from
+            // what a model believes about IT companies in general.
+            $knowledge = $this->knowledge->forQuestion($question, $widget);
 
             $completion = $this->ai->run('chat.answer', 'chat.answer', [
                 'question' => $question,
                 'company' => (string) ($organization->name ?? 'this company'),
-                'services' => $services !== '' ? $services : 'IT services',
+                // Older prompt versions still ask for the services on their own.
+                'services' => ServiceLine::query()->orderBy('name')->limit(15)->pluck('name')->implode(', ') ?: 'IT services',
+                'knowledge' => $knowledge['text'] !== ''
+                    ? $knowledge['text']
+                    : 'Nothing has been published yet, so you have no facts about this company.',
             ]);
 
             $answers['_ai_turns'] = $turns + 1;
@@ -574,7 +590,10 @@ class ChatFlowEngine
             $this->known = $answers;
             $conversation->save();
 
-            $this->say($conversation, trim($completion->text), $nodeId);
+            // What it drew on is kept with the line, so the team can see where
+            // an answer came from when they read the transcript.
+            $message = $this->record($conversation, $nodeId, 'bot', trim($completion->text), $knowledge['sources'] !== [] ? ['sources' => $knowledge['sources']] : []);
+            $this->pending[] = ['id' => $message->id, 'role' => 'bot', 'body' => trim($completion->text)];
 
             return $node['next'] ?? null;
         } catch (\Throwable) {
@@ -584,6 +603,92 @@ class ChatFlowEngine
 
             return $node['fallback'] ?? $node['next'] ?? null;
         }
+    }
+
+    /**
+     * Hand what the visitor has said to the owner's own system, mid-conversation.
+     *
+     * This is how a chat reaches a PSA, a Zapier hook or an internal API while
+     * the visitor is still there: it posts the answers so far, waits a moment,
+     * and may keep one value out of the reply for a later step to use ("your
+     * account is in good standing", a ticket number, a quote).
+     *
+     * The URL is the tenant's, so it goes through the SSRF guard first: nobody
+     * points this at 169.254.169.254 or at a service on our private network.
+     * Anything that fails - refused, slow, broken - takes the fallback path if
+     * the flow has one and otherwise simply carries on, because a visitor must
+     * never be stranded by someone else's server having a bad day.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function applyWebhook(ChatWidget $widget, ChatConversation $conversation, string $nodeId, array $node): ?string
+    {
+        $url = trim((string) ($node['url'] ?? ''));
+        $onwards = $node['next'] ?? null;
+        $failed = $node['fallback'] ?? $onwards;
+
+        // A preview must not call anyone's live system.
+        if ($conversation->is_preview || $url === '') {
+            return $onwards;
+        }
+
+        try {
+            app(UrlGuard::class)->assertFetchable($url);
+        } catch (\RuntimeException $e) {
+            $this->record($conversation, $nodeId, 'system', 'Step skipped: '.$e->getMessage(), ['internal' => true]);
+
+            return $failed;
+        }
+
+        try {
+            $response = Http::asJson()
+                ->withoutRedirecting()
+                ->timeout((int) ($node['timeout'] ?? 5))
+                ->withHeaders(array_filter(['X-Piotrack-Widget' => (string) $widget->id]))
+                ->post($url, [
+                    'conversation' => $conversation->token,
+                    'widget' => $widget->name,
+                    'page' => $conversation->attribution['page'] ?? null,
+                    'answers' => $this->visibleAnswers($conversation->answers ?? []),
+                ]);
+        } catch (\Throwable $e) {
+            $this->record($conversation, $nodeId, 'system', 'Step could not reach '.parse_url($url, PHP_URL_HOST).': '.$e->getMessage(), ['internal' => true]);
+
+            return $failed;
+        }
+
+        if ($response->failed()) {
+            $this->record($conversation, $nodeId, 'system', 'Step got '.$response->status().' from '.parse_url($url, PHP_URL_HOST), ['internal' => true]);
+
+            return $failed;
+        }
+
+        // Keep one value from the reply, if the step was asked to.
+        $field = trim((string) ($node['field'] ?? ''));
+        $path = trim((string) ($node['path'] ?? ''));
+        if ($field !== '' && $path !== '') {
+            $value = data_get($response->json(), $path);
+            if (is_scalar($value)) {
+                $answers = $conversation->answers ?? [];
+                $answers[$field] = (string) $value;
+                $conversation->answers = $answers;
+                $this->known = $answers;
+                $conversation->save();
+            }
+        }
+
+        return $onwards;
+    }
+
+    /**
+     * What the visitor told us, without the engine's own bookkeeping keys.
+     *
+     * @param  array<string, mixed>  $answers
+     * @return array<string, mixed>
+     */
+    private function visibleAnswers(array $answers): array
+    {
+        return array_filter($answers, fn (string $key): bool => ! str_starts_with($key, '_'), ARRAY_FILTER_USE_KEY);
     }
 
     /**

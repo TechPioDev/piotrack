@@ -131,6 +131,13 @@ export const BLOCKS: Block[] = [
         make: () => ({ type: 'tag', tag: 'interested' }),
     },
     {
+        key: 'webhook',
+        group: 'Actions',
+        label: 'Send to Your System',
+        hint: 'Post the answers to your PSA, Zapier or your own API',
+        make: () => ({ type: 'webhook', url: '', field: '', path: '' }),
+    },
+    {
         key: 'assign',
         group: 'Logic & Flow',
         label: 'Assign Salesperson',
@@ -190,6 +197,8 @@ export function blockByKey(key: string): Block | undefined {
 /** The step's title on its card: "Send Message", "Collect Email", "Human Handoff". */
 export function stepKind(node: FlowNode): string {
     switch (node.type) {
+        case 'webhook':
+            return 'Send to Your System';
         case 'message':
             return 'Send Message';
         case 'choice':

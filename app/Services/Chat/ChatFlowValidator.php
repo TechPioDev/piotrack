@@ -13,7 +13,7 @@ namespace App\Services\Chat;
 class ChatFlowValidator
 {
     /** Node types the engine can execute. */
-    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'handoff', 'end', 'booking', 'ai'];
+    public const TYPES = ['message', 'choice', 'input', 'condition', 'score', 'tag', 'assign', 'handoff', 'end', 'booking', 'ai', 'webhook'];
 
     /** Types that terminate a path rather than pointing onward. */
     private const TERMINAL = ['end'];
@@ -57,13 +57,13 @@ class ChatFlowValidator
             }
 
             // Every non-terminal step needs somewhere to go.
-            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign', 'handoff', 'booking', 'ai'], true)) {
+            if (in_array($type, ['message', 'input', 'score', 'tag', 'assign', 'handoff', 'booking', 'ai', 'webhook'], true)) {
                 $errors = array_merge($errors, $this->checkTarget($nodes, (string) $id, $node['next'] ?? null, 'next step'));
             }
 
             // Booking and AI steps may name a fallback for when they cannot run
             // (nothing free, AI unavailable). Optional, but if named it must exist.
-            if (in_array($type, ['booking', 'ai'], true) && ($node['fallback'] ?? null) !== null) {
+            if (in_array($type, ['booking', 'ai', 'webhook'], true) && ($node['fallback'] ?? null) !== null) {
                 $errors = array_merge($errors, $this->checkTarget($nodes, (string) $id, $node['fallback'], 'fallback path'));
             }
 
@@ -96,6 +96,26 @@ class ChatFlowValidator
                         $errors,
                         $this->checkTarget($nodes, (string) $id, $option['next'] ?? null, sprintf('answer "%s"', (string) $option['label'])),
                     );
+                }
+            }
+
+            if ($type === 'webhook') {
+                $url = trim((string) ($node['url'] ?? ''));
+                if ($url === '') {
+                    $errors[] = ['node' => (string) $id, 'message' => 'This step does not say which address to send to.'];
+                } elseif (! str_starts_with(mb_strtolower($url), 'https://')) {
+                    // Answers a visitor gave must not cross the internet in the clear.
+                    $errors[] = ['node' => (string) $id, 'message' => 'The address must start with https:// so the answers are sent securely.'];
+                }
+                // Keeping a value from the reply needs both halves: where to
+                // find it, and what to call it.
+                $field = trim((string) ($node['field'] ?? ''));
+                $path = trim((string) ($node['path'] ?? ''));
+                if (($field === '') !== ($path === '')) {
+                    $warnings[] = [
+                        'node' => (string) $id,
+                        'message' => 'To keep something from the reply this step needs both what to look for and a name to save it under.',
+                    ];
                 }
             }
 

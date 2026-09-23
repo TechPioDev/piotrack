@@ -62,6 +62,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
             ->middleware('can:chat.view')->name('inbox');
         Route::get('conversations/{conversation}', [ChatInboxController::class, 'show'])
             ->middleware('can:chat.view')->name('conversations.show');
+        Route::get('conversations/{conversation}/transcript', [ChatInboxController::class, 'transcript'])
+            ->middleware('can:chat.view')->name('conversations.transcript');
         Route::post('conversations/{conversation}/reply', [ChatInboxController::class, 'reply'])
             ->middleware('can:chat.inbox.handle')->name('conversations.reply');
         Route::post('conversations/{conversation}/note', [ChatInboxController::class, 'note'])

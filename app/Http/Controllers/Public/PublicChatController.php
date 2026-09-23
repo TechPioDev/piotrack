@@ -96,6 +96,11 @@ class PublicChatController extends Controller
             'fallback_contact' => $settings['fallback_contact'] ?? null,
             'attachments' => (bool) ($settings['attachments'] ?? true),
             'rating' => ($settings['rating'] ?? true) !== false,
+            // EU AI Act Article 50: a person must be told they are talking to a
+            // machine. Shown whenever the conversation starts with the bot.
+            'ai_notice' => ($settings['ai_disclosure'] ?? true) !== false && ($settings['mode'] ?? 'bot') !== 'live'
+                ? trim((string) ($settings['ai_disclosure_text'] ?? '')) ?: 'You are chatting with an automated assistant. Ask for a person at any time.'
+                : null,
             // "Powered by Piotrack" comes off only on a plan that includes
             // white-labelling - checked here too, so a downgrade restores it.
             'branding' => ! ((bool) ($settings['hide_branding'] ?? false) && $this->whiteLabelled()),

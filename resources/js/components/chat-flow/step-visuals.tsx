@@ -18,6 +18,7 @@ import {
     TextCursorInput,
     User,
     UserCheck,
+    Webhook,
 } from 'lucide-react';
 
 /**
@@ -137,6 +138,7 @@ const BY_BLOCK: Record<string, Visual> = {
     tag: { icon: Tag, tone: TONES.teal },
     assign: { icon: UserCheck, tone: TONES.teal },
     condition: { icon: GitBranch, tone: TONES.cyan },
+    webhook: { icon: Webhook, tone: TONES.slate },
     end_lead: { icon: Flag, tone: TONES.rose },
     end_meeting: { icon: Flag, tone: TONES.rose },
     end_support: { icon: Flag, tone: TONES.rose },

@@ -66,6 +66,8 @@ function purpose(node: FlowNode): string {
             return 'Chooses who follows up the lead.';
         case 'condition':
             return 'Sends visitors one way or another by an earlier answer.';
+        case 'webhook':
+            return 'Posts the answers to your own system while the visitor waits.';
         case 'end':
             return 'Ends the conversation.';
         default:
@@ -388,6 +390,49 @@ export function StepSettings({
                                         </Button>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {node.type === 'webhook' && (
+                            <div className="space-y-3">
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="hook-url">Address to send to</Label>
+                                    <Input
+                                        id="hook-url"
+                                        value={node.url ?? ''}
+                                        placeholder="https://hooks.zapier.com/…"
+                                        onChange={(e) => onPatch({ url: e.target.value }, `${id}:url`)}
+                                    />
+                                    <p className="text-muted-foreground text-xs">
+                                        Everything the visitor has answered is posted here as JSON while they wait. It must start with https://. If it
+                                        is slow, refused or broken the conversation carries on — set a path below for where it should go instead.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="hook-path">Keep this from the reply</Label>
+                                        <Input
+                                            id="hook-path"
+                                            value={node.path ?? ''}
+                                            placeholder="ticket.number"
+                                            onChange={(e) => onPatch({ path: e.target.value }, `${id}:path`)}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="hook-field">Save it as</Label>
+                                        <Input
+                                            id="hook-field"
+                                            value={node.field ?? ''}
+                                            placeholder="ticket_number"
+                                            onChange={(e) => onPatch({ field: e.target.value }, `${id}:field`)}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                    A later step can then say it back with {'{{'}
+                                    {node.field || 'ticket_number'}
+                                    {'}}'}.
+                                </p>
                             </div>
                         )}
 

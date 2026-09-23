@@ -36,6 +36,9 @@ export type FlowNode = {
     fallback?: string | null;
     /** message steps: seconds of typing dots before the line appears (0-10). */
     delay?: number;
+    /** webhook steps: where to post the answers, what to read back, and what to call it. */
+    url?: string;
+    path?: string;
 };
 export type Flow = { start: string | null; nodes: Record<string, FlowNode> };
 
@@ -80,7 +83,7 @@ export type TreeBranch = {
 };
 
 /** Steps that simply lead on to one next step, and so can be moved anywhere. */
-export const LINEAR_TYPES = ['message', 'input', 'score', 'tag', 'assign', 'handoff'];
+export const LINEAR_TYPES = ['message', 'input', 'score', 'tag', 'assign', 'handoff', 'webhook'];
 
 type Edge = { key: string; target: string | null };
 
@@ -579,6 +582,15 @@ export function sameSlot(a: Slot, b: Slot): boolean {
     return JSON.stringify(a) === JSON.stringify(b);
 }
 
+/** Just the host of a URL, for a card that has no room for the rest. */
+function hostOf(url: string): string {
+    try {
+        return new URL(url).host;
+    } catch {
+        return url.slice(0, 40);
+    }
+}
+
 /** A short, readable line for a step: what the visitor sees, or what it does. */
 export function describe(node: FlowNode): string {
     switch (node.type) {
@@ -586,6 +598,8 @@ export function describe(node: FlowNode): string {
             return `${(node.points ?? 0) >= 0 ? '+' : ''}${node.points ?? 0} lead score`;
         case 'tag':
             return node.tag ? `Tag “${node.tag}”` : 'Tag (none set)';
+        case 'webhook':
+            return node.url ? `Send the answers to ${hostOf(node.url)}` : 'Send the answers (no address set)';
         case 'assign':
             return node.assignee_id ? 'Route to a chosen salesperson' : 'Route automatically';
         case 'condition':

@@ -16,7 +16,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Flame, LifeBuoy, Lock, MessageSquareText, Paperclip, Plus, Radio } from 'lucide-react';
+import { Download, Flame, LifeBuoy, Lock, MessageSquareText, Paperclip, Plus, Radio } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 type Message = {
@@ -89,12 +89,14 @@ export default function ChatConversationShow({
     statuses,
     presence,
     saved_replies: savedReplies = [],
+    teammates = [],
 }: {
     conversation: Conversation;
     messages: Message[];
     statuses: string[];
     presence: { me: string; roster: { id: number; name: string; status: string }[] };
     saved_replies?: SavedReply[];
+    teammates?: { id: number; name: string; status: string }[];
 }) {
     const [summarizing, setSummarizing] = useState(false);
     const { can } = usePermissions();
@@ -423,9 +425,42 @@ export default function ChatConversationShow({
                                     </Badge>
                                 )}
                             </div>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                                 <span className="text-muted-foreground text-sm">Owner</span>
-                                <span className="text-sm">{conversation.assignee?.name ?? 'Unassigned'}</span>
+                                {can('chat.inbox.handle') && teammates.length > 0 ? (
+                                    <Select
+                                        value={conversation.assignee ? String(conversation.assignee.id) : 'none'}
+                                        onValueChange={(v) =>
+                                            router.patch(
+                                                route('chat.conversations.update', conversation.id),
+                                                { assignee_id: v === 'none' ? null : Number(v) },
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger className="h-8 w-40" aria-label="Who owns this conversation">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Unassigned</SelectItem>
+                                            {teammates.map((mate) => (
+                                                <SelectItem key={mate.id} value={String(mate.id)}>
+                                                    {mate.name}
+                                                    {mate.status === 'online' ? ' — online' : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <span className="text-sm">{conversation.assignee?.name ?? 'Unassigned'}</span>
+                                )}
+                            </div>
+                            <div className="pt-1">
+                                <Button asChild variant="outline" size="sm" className="w-full">
+                                    <a href={route('chat.conversations.transcript', conversation.id)} download>
+                                        <Download className="size-3.5" aria-hidden /> Download transcript
+                                    </a>
+                                </Button>
                             </div>
                         </div>
                         {conversation.contact && (

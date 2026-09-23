@@ -614,3 +614,37 @@ Teams/Slack/SMS; PSA connectors (ConnectWise, Autotask, HaloPSA); AI-drafted flo
 sub-flows; version history; WhatsApp; multi-language. Two compliance items the review raises
 and nobody here has scheduled: an AI-disclosure setting for EU AI Act Article 50 (in force
 since 2 August 2026) and a published accessibility conformance claim for the widget.
+
+## Follow-up (2026-09-23, later): the rest of the gaps (CHAT-070..073)
+
+- **AI answers from the customer's own content.** The AI step used to answer from the company
+  name and a list of service lines. It now answers from what the tenant has published in the
+  product - content pieces, website pages and their sections, service lines - plus a "What the
+  assistant should know" box on the widget for facts that live nowhere else. Drafts are
+  excluded, another tenant's rows are unreachable, and the titles an answer drew on are kept
+  with the message so the team can see where it came from. Note the product's own `KbArticle`
+  help centre is deliberately **not** a source: it is Piotrack's documentation, not the
+  customer's. A migration republishes the built-in prompt for tenants who never edited theirs;
+  anyone who wrote their own keeps it.
+- **A "Send to Your System" step.** Posts the answers so far to the owner's address - a PSA, a
+  Zapier or n8n hook, an internal API - while the visitor waits, and can keep one value from the
+  reply for a later step to say back ("your ticket is 4821"). https only, through the existing
+  `UrlGuard`, so a tenant can never point it at our own network or the cloud metadata endpoint;
+  five-second timeout, no redirects, never called from a preview. Anything that fails takes the
+  fallback path, or simply carries on - a visitor is never shown someone else's outage.
+- **AI disclosure.** The widget says a visitor is talking to an automated assistant before
+  anyone types, in the owner's own words if they write some, and says nothing when the chat goes
+  straight to a person. EU AI Act Article 50 has required this since 2 August 2026, and the
+  review found we were the only obvious exposure we could fix in an afternoon.
+- **Reassign and export.** The inbox could reassign through the API and had no control for it;
+  there is now an owner picker showing who is online. And "Download transcript" writes the whole
+  conversation, internal notes included, as a text file for a ticket or a handover.
+
+**Automated testing:** `ChatKnowledgeTest` (6), `ChatWebhookStepTest` (6), `ChatInboxGapsTest`
+(5). Full gate green: Pest 1,199, Vitest 157.
+
+**Still open from the review:** media and carousels in a message; ask-for-a-file as a step;
+paging to Teams/Slack/SMS when a visitor is waiting; named PSA connectors (the webhook step is
+the road to them, not a replacement); AI-drafted flows; reusable sub-flows; version history on a
+flow; WhatsApp; multi-language; and a published accessibility conformance claim for the widget
+(the widget is built to WCAG practice and tested for it, but nothing is published).

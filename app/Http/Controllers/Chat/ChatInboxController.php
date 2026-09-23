@@ -116,6 +116,11 @@ class ChatInboxController extends Controller
                 'created_at' => $conversation->created_at->toIso8601String(),
             ],
             'saved_replies' => ChatSavedReply::query()->orderBy('title')->get(['id', 'title', 'body']),
+            // Who it can be handed to. The inbox could already do this through
+            // the API; there was simply no way to ask for it on the screen.
+            'teammates' => collect($this->presence->roster($this->currentOrganization->get()))
+                ->map(fn (array $agent) => ['id' => $agent['id'], 'name' => $agent['name'], 'status' => $agent['status']])
+                ->values(),
             'messages' => $conversation->messages->map(fn (ChatMessage $m) => $this->present($conversation, $m)),
             'statuses' => ChatConversation::STATUSES,
             'presence' => [
@@ -123,6 +128,45 @@ class ChatInboxController extends Controller
                 'roster' => $this->presence->roster($this->currentOrganization->get()),
             ],
         ]);
+    }
+
+    /**
+     * The whole conversation as a text file, for a ticket, a handover or a
+     * customer who asks what was said. Internal notes are included: whoever may
+     * read the inbox may read them, and leaving them out of an export would
+     * quietly change the record.
+     */
+    public function transcript(ChatConversation $conversation): StreamedResponse
+    {
+        $conversation->load(['widget:id,name', 'contact:id,first_name,last_name,email']);
+        $who = trim((string) $conversation->contact?->first_name.' '.(string) $conversation->contact?->last_name) ?: 'Website visitor';
+
+        $lines = [
+            'Conversation #'.$conversation->id.' — '.$who,
+            'Widget: '.((string) $conversation->widget?->name ?: 'unknown'),
+            'Started: '.$conversation->created_at?->toDayDateTimeString(),
+            'Status: '.$conversation->status.($conversation->rating !== null ? ' — rated '.$conversation->rating.'/5' : ''),
+            str_repeat('-', 60),
+        ];
+
+        foreach ($conversation->messages()->orderBy('id')->get() as $message) {
+            $who = match ($message->role) {
+                'visitor' => $who,
+                'agent' => (string) ($message->meta['author'] ?? 'Agent'),
+                'note' => 'Internal note',
+                'system' => 'System',
+                default => 'Assistant',
+            };
+            $lines[] = sprintf('[%s] %s: %s', $message->created_at?->format('H:i'), $who, (string) $message->body);
+        }
+
+        $name = 'chat-'.$conversation->id.'-'.($conversation->created_at?->format('Y-m-d') ?? 'transcript').'.txt';
+
+        return response()->streamDownload(
+            fn () => print (implode("\n", $lines)."\n"),
+            $name,
+            ['Content-Type' => 'text/plain; charset=UTF-8'],
+        );
     }
 
     /**

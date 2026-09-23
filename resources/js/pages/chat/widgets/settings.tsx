@@ -149,6 +149,9 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
             suggested_questions: ((widget.settings.suggested_questions as string[]) ?? []).join('\n'),
             attachments: (widget.settings.attachments as boolean | undefined) ?? true,
             rating: (widget.settings.rating as boolean | undefined) ?? true,
+            knowledge: (widget.settings.knowledge as string | undefined) ?? '',
+            ai_disclosure: (widget.settings.ai_disclosure as boolean | undefined) ?? true,
+            ai_disclosure_text: (widget.settings.ai_disclosure_text as string | undefined) ?? '',
             email_replies: (widget.settings.email_replies as boolean | undefined) ?? true,
             hide_branding: Boolean(widget.settings.hide_branding),
         },
@@ -417,6 +420,52 @@ export default function WidgetSettings({ widget }: { widget: Widget }) {
                             />
                             <p className="text-muted-foreground text-xs">
                                 Shown as tappable chips when a visitor reaches the AI question step, so they know what it can answer.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="flex items-start gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    className="mt-1"
+                                    checked={form.data.settings.ai_disclosure}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, ai_disclosure: e.target.checked })}
+                                />
+                                <span>
+                                    Tell visitors they are chatting with a machine
+                                    <span className="text-muted-foreground block text-xs">
+                                        Shown when the chat opens, before anyone types. EU law (AI Act, Article 50) has required this since 2 August
+                                        2026 wherever an automated assistant talks to people — leave it on unless a lawyer told you otherwise.
+                                    </span>
+                                </span>
+                            </label>
+                            {form.data.settings.ai_disclosure && (
+                                <Input
+                                    aria-label="What the notice says"
+                                    maxLength={200}
+                                    placeholder="You are chatting with an automated assistant. Ask for a person at any time."
+                                    value={form.data.settings.ai_disclosure_text}
+                                    onChange={(e) => form.setData('settings', { ...form.data.settings, ai_disclosure_text: e.target.value })}
+                                />
+                            )}
+                        </div>
+
+                        <div className="grid gap-1">
+                            <Label htmlFor="knowledge">What the assistant should know</Label>
+                            <textarea
+                                id="knowledge"
+                                maxLength={5000}
+                                className="border-input bg-background min-h-28 w-full rounded-md border px-3 py-2 text-sm"
+                                placeholder={
+                                    'We cover Reading, Slough and west London.\nManaged clients get a same-day response; everyone else, next working day.\nWe do not take on home users.'
+                                }
+                                value={form.data.settings.knowledge}
+                                onChange={(e) => form.setData('settings', { ...form.data.settings, knowledge: e.target.value })}
+                            />
+                            <p className="text-muted-foreground text-xs">
+                                The AI step answers from your own published pages and posts, your service lines, and whatever you put here — never
+                                from general knowledge. Facts that live nowhere else on your site belong here. {form.data.settings.knowledge.length}
+                                /5000
                             </p>
                         </div>
 
