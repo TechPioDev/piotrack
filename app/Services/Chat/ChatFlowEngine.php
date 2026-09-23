@@ -42,6 +42,7 @@ class ChatFlowEngine
      */
     public function start(ChatWidget $widget, ChatConversation $conversation): array
     {
+        $this->known = $conversation->answers ?? [];
         $flow = $this->flowFor($widget);
         $answers = $conversation->answers ?? [];
 
@@ -61,6 +62,7 @@ class ChatFlowEngine
      */
     public function handle(ChatWidget $widget, ChatConversation $conversation, array $payload): array
     {
+        $this->known = $conversation->answers ?? [];
         $flow = $this->flowFor($widget);
         $answers = $conversation->answers ?? [];
         $currentId = $answers[self::CURSOR] ?? null;
@@ -101,6 +103,7 @@ class ChatFlowEngine
             }
             $answers[self::CONSENT] = true;
             $conversation->answers = $answers;
+            $this->known = $answers;
             $conversation->save();
 
             return $this->advance($widget, $conversation, $flow, $flow['start']);
@@ -146,6 +149,7 @@ class ChatFlowEngine
             if ($nodeId === '_consent_gate') {
                 $answers[self::CURSOR] = '_consent_gate';
                 $conversation->answers = $answers;
+                $this->known = $answers;
                 $conversation->save();
 
                 $consent = $widget->consent ?? [];
@@ -169,7 +173,7 @@ class ChatFlowEngine
             }
 
             if ($node['type'] === 'message') {
-                $this->say($conversation, (string) $node['text'], $nodeId);
+                $this->say($conversation, (string) $node['text'], $nodeId, $node['delay'] ?? null);
                 $nodeId = $node['next'] ?? null;
 
                 continue;
@@ -212,6 +216,7 @@ class ChatFlowEngine
                 $answers = $conversation->answers ?? [];
                 unset($answers[self::CURSOR]);
                 $conversation->answers = $answers;
+                $this->known = $answers;
                 $conversation->save();
 
                 $result = $this->capture->complete($widget, $conversation, (string) ($node['outcome'] ?? 'lead'));
@@ -247,6 +252,7 @@ class ChatFlowEngine
                 $this->say($conversation, (string) ($node['text'] ?? 'Pick a time that suits you:'), $nodeId);
                 $answers[self::CURSOR] = $nodeId;
                 $conversation->answers = $answers;
+                $this->known = $answers;
                 $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
                 $conversation->save();
 
@@ -274,6 +280,7 @@ class ChatFlowEngine
             $answers = $conversation->answers ?? [];
             $answers[self::CURSOR] = $nodeId;
             $conversation->answers = $answers;
+            $this->known = $answers;
             // A freshly created row has no status in memory (the default is applied
             // by the database), so treat "unset" as new rather than writing null.
             $conversation->status = in_array($conversation->status, [null, '', 'new'], true) ? 'open' : $conversation->status;
@@ -317,6 +324,7 @@ class ChatFlowEngine
                     }
                     $answers['_tags'] = array_values($tags);
                     $conversation->answers = $answers;
+                    $this->known = $answers;
                 }
                 break;
 
@@ -390,6 +398,7 @@ class ChatFlowEngine
             $answers['_priority'] = $option['priority'];
         }
         $conversation->answers = $answers;
+        $this->known = $answers;
         $conversation->lead_score += (int) ($option['score'] ?? 0);
         $conversation->save();
 
@@ -433,6 +442,7 @@ class ChatFlowEngine
         $answers = $conversation->answers ?? [];
         $answers[$node['field'] ?? $nodeId] = $value;
         $conversation->answers = $answers;
+        $this->known = $answers;
         $conversation->save();
 
         return $node['next'] ?? null;
@@ -484,6 +494,7 @@ class ChatFlowEngine
         if ($conversation->is_preview) {
             $answers['_booking'] = $at->toIso8601String();
             $conversation->answers = $answers;
+            $this->known = $answers;
             $conversation->save();
             $this->say($conversation, "(Preview) You'd be booked for {$label}.", $nodeId);
 
@@ -502,6 +513,7 @@ class ChatFlowEngine
         $answers = $conversation->answers ?? [];
         $answers['_booking'] = $at->toIso8601String();
         $conversation->answers = $answers;
+        $this->known = $answers;
         $conversation->save();
 
         $this->event($widget, 'meeting', $conversation, $nodeId);
@@ -559,6 +571,7 @@ class ChatFlowEngine
 
             $answers['_ai_turns'] = $turns + 1;
             $conversation->answers = $answers;
+            $this->known = $answers;
             $conversation->save();
 
             $this->say($conversation, trim($completion->text), $nodeId);
@@ -584,7 +597,7 @@ class ChatFlowEngine
         $public = [
             'id' => $id,
             'type' => $node['type'],
-            'text' => $node['text'] ?? '',
+            'text' => $this->fill((string) ($node['text'] ?? '')),
         ];
 
         if ($node['type'] === 'choice') {
@@ -671,6 +684,7 @@ class ChatFlowEngine
      */
     public function current(ChatWidget $widget, ChatConversation $conversation): ?array
     {
+        $this->known = $conversation->answers ?? [];
         if ($conversation->is_live || in_array($conversation->status, ['closed', 'spam'], true)) {
             return null;
         }
@@ -769,10 +783,60 @@ class ChatFlowEngine
     /** @var list<array<string, mixed>> */
     private array $pending = [];
 
-    private function say(ChatConversation $conversation, string $text, ?string $nodeId = null): void
+    /**
+     * What the visitor has told us so far, for filling placeholders.
+     *
+     * @var array<string, mixed>
+     */
+    private array $known = [];
+
+    /**
+     * Put what the visitor told us into a step's text: "Thanks, {{first_name}}!".
+     *
+     * A field nobody has answered yet falls back to the words after a pipe
+     * ("{{first_name|there}}") and otherwise disappears, leaving a sentence that
+     * still reads - never a visitor staring at their own curly braces. The
+     * engine's own bookkeeping keys (_node, _tags) are not fields.
+     */
+    private function fill(string $text, ?ChatConversation $conversation = null): string
     {
-        $message = $this->record($conversation, $nodeId, 'bot', $text);
-        $this->pending[] = ['id' => $message->id, 'role' => 'bot', 'body' => $text];
+        if (! str_contains($text, '{{')) {
+            return $text;
+        }
+
+        $answers = $conversation !== null ? ($conversation->answers ?? []) : $this->known;
+
+        $filled = preg_replace_callback(
+            '/\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:\|([^}]*))?\}\}/',
+            function (array $match) use ($answers): string {
+                $value = $answers[strtolower($match[1])] ?? null;
+                if (is_array($value)) {
+                    $value = implode(', ', array_filter($value, 'is_scalar'));
+                }
+                $value = is_scalar($value) ? trim((string) $value) : '';
+
+                return $value !== '' ? $value : trim($match[2] ?? '');
+            },
+            $text,
+        );
+
+        // A placeholder that filled with nothing must not leave a gap behind.
+        return trim((string) preg_replace('/ {2,}/', ' ', (string) $filled));
+    }
+
+    private function say(ChatConversation $conversation, string $text, ?string $nodeId = null, int|float|string|null $delay = null): void
+    {
+        $text = $this->fill($text, $conversation);
+        // A pause before a line, so a run of messages reads like someone typing
+        // rather than a wall arriving at once. Capped: nobody waits ten seconds.
+        $pause = max(0.0, min(10.0, (float) ($delay ?? 0)));
+        $message = $this->record($conversation, $nodeId, 'bot', $text, $pause > 0 ? ['delay' => $pause] : []);
+        $this->pending[] = array_filter([
+            'id' => $message->id,
+            'role' => 'bot',
+            'body' => $text,
+            'delay' => $pause > 0 ? $pause : null,
+        ], fn ($value) => $value !== null);
     }
 
     /** @return list<array<string, mixed>> */

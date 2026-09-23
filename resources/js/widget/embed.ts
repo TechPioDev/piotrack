@@ -30,7 +30,7 @@ type ChatNode = {
     suggestions?: string[];
 };
 type Attachment = { name: string; image: boolean; url: string };
-type Message = { id?: number; role: string; body: string; attachment?: Attachment | null };
+type Message = { id?: number; role: string; body: string; attachment?: Attachment | null; delay?: number };
 type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
 type Targeting = {
     include: string[];
@@ -883,7 +883,7 @@ class ChatWidget {
                 utm,
             });
             this.token = reply.token;
-            this.render(reply);
+            await this.render(reply);
         } catch {
             this.fail();
         }
@@ -901,7 +901,8 @@ class ChatWidget {
 
         try {
             const reply = await api<Reply>(`conversations/${this.token}/messages`, payload);
-            this.render(reply);
+            // Awaited, so the composer stays shut while the bot is still typing.
+            await this.render(reply);
         } catch (error) {
             const status = (error as { status?: number }).status;
             const payloadErr = (error as { payload?: { errors?: Record<string, string[]> } }).payload;
@@ -967,9 +968,19 @@ class ChatWidget {
         }
     }
 
-    private render(reply: Reply) {
+    private async render(reply: Reply) {
         this.typing(false);
-        (reply.messages ?? []).forEach((m) => this.incoming({ ...m, role: 'bot' }));
+        // A step can ask for a pause before it speaks, so a run of messages
+        // arrives the way a person types them rather than all at once.
+        for (const message of reply.messages ?? []) {
+            const pause = Math.min(10, Math.max(0, Number(message.delay ?? 0))) * 1000;
+            if (pause > 0) {
+                this.typing(true);
+                await new Promise((resume) => window.setTimeout(resume, pause));
+                this.typing(false);
+            }
+            this.incoming({ ...message, role: 'bot' });
+        }
 
         if (reply.booking_url) {
             const link = document.createElement('a');

@@ -54,6 +54,7 @@ class ChatInboxController extends Controller
                 'id' => $c->id,
                 'status' => $c->status,
                 'lead_score' => $c->lead_score,
+                'tags' => array_filter((array) ($c->tags ?? [])),
                 'widget' => $c->widget?->name,
                 'assignee' => $c->assignee?->name,
                 'contact' => $c->contact ? [
@@ -100,7 +101,10 @@ class ChatInboxController extends Controller
                     'email' => $conversation->contact->email,
                     'lead_score' => $conversation->contact->lead_score,
                 ] : null,
-                'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority', '_ticket']),
+                'answers' => Arr::except($conversation->answers ?? [], ['_node', '_consent', '_priority', '_ticket', '_tags', '_ai_turns', '_booking']),
+                // Tags land on the conversation when it completes; until then
+                // they are still being collected, so read the live ones.
+                'tags' => array_values(array_filter((array) ($conversation->tags ?? $conversation->answers['_tags'] ?? []))),
                 'priority' => ($conversation->answers['_priority'] ?? null) === 'high',
                 'ticket_id' => $conversation->answers['_ticket'] ?? null,
                 'is_live' => (bool) $conversation->is_live,

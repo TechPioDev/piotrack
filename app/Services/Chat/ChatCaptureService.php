@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\Ticket;
 use App\Services\Delivery\TicketService;
+use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Sales\AlertService;
 use App\Services\Sales\IntentService;
 use App\Services\Sales\LeadScoringService;
@@ -28,6 +29,7 @@ class ChatCaptureService
         private readonly AlertService $alerts,
         private readonly IntentService $intent,
         private readonly TicketService $tickets,
+        private readonly WebhookDispatcher $webhooks,
     ) {}
 
     /**
@@ -117,6 +119,21 @@ class ChatCaptureService
     }
 
     /**
+     * What the visitor told us, without the engine's own bookkeeping keys.
+     *
+     * @param  array<string, mixed>  $answers
+     * @return array<string, mixed>
+     */
+    private function visibleAnswers(array $answers): array
+    {
+        return array_filter(
+            $answers,
+            fn (string $key): bool => ! str_starts_with($key, '_'),
+            ARRAY_FILTER_USE_KEY,
+        );
+    }
+
+    /**
      * @return array<string, mixed> extra payload for the widget (e.g. booking_url)
      */
     public function complete(ChatWidget $widget, ChatConversation $conversation, string $outcome): array
@@ -137,6 +154,7 @@ class ChatCaptureService
             $conversation->forceFill([
                 'status' => 'closed',
                 'answers' => [...($conversation->answers ?? []), '_ticket' => $ticket->id],
+                'tags' => array_values(array_filter((array) (($conversation->answers ?? [])['_tags'] ?? []))) ?: null,
             ])->save();
             ChatEvent::create([
                 'chat_widget_id' => $widget->id,
@@ -149,11 +167,12 @@ class ChatCaptureService
         }
 
         $answers = $conversation->answers ?? [];
+        $tags = array_values(array_filter((array) ($answers['_tags'] ?? [])));
         $email = strtolower(trim((string) ($answers['email'] ?? '')));
 
         // Without an email we have no identity to capture — record completion only.
         if ($email === '') {
-            $conversation->forceFill(['status' => 'closed'])->save();
+            $conversation->forceFill(['status' => 'closed', 'tags' => $tags ?: null])->save();
             ChatEvent::create([
                 'chat_widget_id' => $widget->id,
                 'chat_conversation_id' => $conversation->id,
@@ -231,7 +250,23 @@ class ChatCaptureService
             'lead_id' => $leadId,
             'assignee_id' => $ownerId,
             'status' => $isHot ? 'qualified' : 'converted',
+            'tags' => $tags ?: null,
         ])->save();
+
+        // A chat lead reaches the outside world the way a form lead does: the
+        // same event, so a subscriber wired to Zapier, n8n or a PSA gets both.
+        $this->webhooks->dispatch('lead.captured', [
+            'contact_id' => $contact->id,
+            'name' => $contact->fullName(),
+            'email' => $contact->email,
+            'form' => $widget->name,
+            'source' => 'website_chat',
+            'lead_id' => $leadId,
+            'lead_score' => $contact->lead_score,
+            'tags' => $tags,
+            'answers' => $this->visibleAnswers($answers),
+            'lifecycle_stage' => $contact->lifecycle_stage,
+        ]);
 
         ChatEvent::create([
             'chat_widget_id' => $widget->id,

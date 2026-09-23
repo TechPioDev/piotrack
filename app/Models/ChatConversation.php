@@ -47,6 +47,7 @@ class ChatConversation extends Model
         'contact_id',
         'lead_id',
         'lead_score',
+        'tags',
         'answers',
         'attribution',
         'last_message_at',
@@ -66,6 +67,7 @@ class ChatConversation extends Model
     {
         return [
             'answers' => 'array',
+            'tags' => 'array',
             'summary_generated_at' => 'datetime',
             'attribution' => 'array',
             'lead_score' => 'integer',

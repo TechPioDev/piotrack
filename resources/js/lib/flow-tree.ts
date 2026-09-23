@@ -34,6 +34,8 @@ export type FlowNode = {
     value?: string;
     /** booking/ai steps: where to go when the step cannot run (none: carry on as normal). */
     fallback?: string | null;
+    /** message steps: seconds of typing dots before the line appears (0-10). */
+    delay?: number;
 };
 export type Flow = { start: string | null; nodes: Record<string, FlowNode> };
 

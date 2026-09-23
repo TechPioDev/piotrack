@@ -27,6 +27,7 @@ type Conversation = {
     assignee: { id: number; name: string } | null;
     contact: { id: number; name: string; email: string; lead_score: number } | null;
     answers: Record<string, string>;
+    tags: string[];
     priority: boolean;
     ticket_id: number | null;
     is_live: boolean;
@@ -359,6 +360,24 @@ export default function ChatConversationShow({
                             </p>
                         )}
                     </section>
+
+                    {conversation.tags.length > 0 && (
+                        <div className="border-border bg-card rounded-lg border">
+                            <div className="border-border border-b px-4 py-2.5">
+                                <h2 className="text-foreground text-sm font-semibold">Tags</h2>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 px-4 py-3">
+                                {conversation.tags.map((tag) => (
+                                    <span
+                                        key={tag}
+                                        className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500/40 dark:bg-teal-500/15 dark:text-teal-300"
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {Object.keys(conversation.answers).length > 0 && (
                         <div className="border-border bg-card rounded-lg border">

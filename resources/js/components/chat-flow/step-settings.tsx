@@ -273,6 +273,32 @@ export function StepSettings({
                                 <p className="text-muted-foreground text-right text-[11px] tabular-nums">
                                     {(node.text ?? '').length}/{MAX_TEXT}
                                 </p>
+                                {fields.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-1">
+                                        <span className="text-muted-foreground text-[11px]">Use an answer:</span>
+                                        {fields.slice(0, 6).map((f) => (
+                                            <button
+                                                key={f.field}
+                                                type="button"
+                                                title={`Insert what they answered for ${f.label}`}
+                                                onClick={() => {
+                                                    const box = document.getElementById('step-text') as HTMLTextAreaElement | null;
+                                                    const text = node.text ?? '';
+                                                    const at = box?.selectionStart ?? text.length;
+                                                    const token = `{{${f.field}}}`;
+                                                    onPatch({ text: `${text.slice(0, at)}${token}${text.slice(at)}` });
+                                                    window.setTimeout(() => {
+                                                        box?.focus();
+                                                        box?.setSelectionRange(at + token.length, at + token.length);
+                                                    }, 0);
+                                                }}
+                                                className="rounded-full border px-2 py-0.5 text-[11px] hover:border-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                            >
+                                                {f.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -484,6 +510,28 @@ export function StepSettings({
 
                 {tab === 'advanced' && (
                     <>
+                        {node.type === 'message' && (
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="step-delay">Pause before this message</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        id="step-delay"
+                                        type="number"
+                                        min={0}
+                                        max={10}
+                                        step={0.5}
+                                        className="h-9 w-24"
+                                        value={node.delay ?? 0}
+                                        onChange={(e) => onPatch({ delay: Math.min(10, Math.max(0, Number(e.target.value) || 0)) }, `${id}:delay`)}
+                                    />
+                                    <span className="text-muted-foreground text-xs">seconds</span>
+                                </div>
+                                <p className="text-muted-foreground text-xs">
+                                    The visitor sees typing dots for this long first, so a run of messages arrives the way a person types them.
+                                </p>
+                            </div>
+                        )}
+
                         {node.type === 'choice' && (
                             <div className="space-y-2">
                                 <Label>Lead score and urgency per reply</Label>
