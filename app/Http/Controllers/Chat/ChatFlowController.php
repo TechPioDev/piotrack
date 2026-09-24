@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
+use App\Models\ChatFlowVersion;
 use App\Models\ChatWidget;
 use App\Services\Chat\ChatFlowEngine;
 use App\Services\Chat\ChatFlowTemplates;
@@ -47,6 +48,20 @@ class ChatFlowController extends Controller
             'flow' => $flow,
             'validation' => $this->validator->validate($flow),
             'templates' => $this->templates->catalog(),
+            'history' => ChatFlowVersion::query()
+                ->where('chat_widget_id', $widget->id)
+                ->with('author:id,name')
+                ->latest('id')
+                ->limit(ChatFlowVersion::KEEP)
+                ->get()
+                ->map(fn (ChatFlowVersion $version) => [
+                    'id' => $version->id,
+                    'steps' => $version->steps,
+                    'note' => $version->note,
+                    'published' => $version->published,
+                    'author' => $version->author?->name,
+                    'at' => $version->created_at?->toIso8601String(),
+                ]),
             'assignees' => $widget->organization()->first()?->members()
                 ->wherePivot('status', 'active')
                 ->get(['users.id', 'users.name'])
@@ -85,6 +100,10 @@ class ChatFlowController extends Controller
             ]);
         }
 
+        // Keep what this replaces before it is gone. Saved first, so a save
+        // that fails halfway leaves the history rather than losing both.
+        $this->keepVersion($request, $widget, $publishing);
+
         $widget->flow = $flow;
         if ($publishing) {
             $widget->status = 'active';
@@ -99,6 +118,78 @@ class ChatFlowController extends Controller
         );
 
         return back()->with('status', $publishing ? 'Conversation published.' : 'Draft saved.');
+    }
+
+    /**
+     * Keep the conversation as it stands, before a save overwrites it.
+     *
+     * The very first save of a brand-new widget has nothing worth keeping, and
+     * a save that changes nothing is not a version either - a list full of
+     * identical entries is worse than no list.
+     */
+    private function keepVersion(Request $request, ChatWidget $widget, bool $publishing): void
+    {
+        $current = $widget->flow ?? [];
+        if (($current['nodes'] ?? []) === []) {
+            return;
+        }
+
+        $latest = ChatFlowVersion::query()->where('chat_widget_id', $widget->id)->latest('id')->first();
+        if ($latest !== null && $latest->flow == $current) {
+            return;
+        }
+
+        ChatFlowVersion::create([
+            'chat_widget_id' => $widget->id,
+            'saved_by' => $request->user()?->id,
+            'flow' => $current,
+            'steps' => count($current['nodes'] ?? []),
+            'published' => $widget->status === 'active',
+            'note' => $publishing ? 'Before publishing' : 'Before a change',
+        ]);
+
+        // Old enough to be forgotten: the last two dozen is plenty to undo a
+        // bad afternoon, and keeping every save of a busy widget is not free.
+        $keep = ChatFlowVersion::query()
+            ->where('chat_widget_id', $widget->id)
+            ->latest('id')
+            ->limit(ChatFlowVersion::KEEP)
+            ->pluck('id');
+        ChatFlowVersion::query()
+            ->where('chat_widget_id', $widget->id)
+            ->whereNotIn('id', $keep)
+            ->delete();
+    }
+
+    /**
+     * Put an earlier version back.
+     *
+     * It arrives as a draft rather than going live: restoring is a decision
+     * about the editor, and publishing is a separate one about visitors. The
+     * version being replaced is kept too, so a restore is itself undoable.
+     */
+    public function restoreVersion(Request $request, ChatWidget $widget, ChatFlowVersion $version): RedirectResponse
+    {
+        abort_if($version->chat_widget_id !== $widget->id, 404);
+
+        $result = $this->validator->validate($version->flow);
+        if ($widget->status === 'active' && ! $result['valid']) {
+            return back()->withErrors([
+                'flow' => 'Not restored - this chat is live, and that version has a problem: '.$result['errors'][0]['message'],
+            ]);
+        }
+
+        $this->keepVersion($request, $widget, false);
+        $widget->forceFill(['flow' => $version->flow])->save();
+
+        $this->audit->log(
+            'chat.flow.restored',
+            ['version' => $version->id, 'steps' => $version->steps],
+            resourceType: 'chat_widget',
+            resourceId: (string) $widget->id,
+        );
+
+        return back()->with('status', 'Restored the conversation as it was on '.$version->created_at->toDayDateTimeString().'. Publish it when you are happy.');
     }
 
     /** Live validation while editing, without saving. */

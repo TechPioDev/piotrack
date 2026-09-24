@@ -2,29 +2,52 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * A website visitor asked to speak to someone and nobody was available (§32).
  *
  * Worth interrupting a team for: the visitor has been told they will hear back,
- * so this is a promise that now needs keeping.
+ * so this is a promise that now needs keeping - and a promise kept an hour
+ * later is usually a promise broken. It used to be email and an in-app bell
+ * only, which is no use to a team living in Teams or Slack, or to an engineer
+ * out on site. As a platform notification it now reaches the workspace's own
+ * channels as well, and the phone of anyone who opted into operations texts.
  */
-class ChatVisitorWaitingNotification extends Notification
+class ChatVisitorWaitingNotification extends PlatformNotification
 {
-    use Queueable;
-
     public function __construct(
         private readonly int $conversationId,
         private readonly string $reason,
     ) {}
 
-    /** @return list<string> */
-    public function via(object $notifiable): array
+    public function category(): string
     {
-        return ['mail', 'database'];
+        return 'operations';
+    }
+
+    public function title(): string
+    {
+        return 'A website visitor is waiting for a reply';
+    }
+
+    public function body(): string
+    {
+        return $this->reason;
+    }
+
+    public function url(): ?string
+    {
+        return url('/chat/conversations/'.$this->conversationId);
+    }
+
+    /**
+     * One page per conversation per day: a visitor who asks twice in an
+     * afternoon is the same promise, not two.
+     */
+    public function dedupeKey(): ?string
+    {
+        return 'chat.visitor_waiting:'.$this->conversationId;
     }
 
     public function toMail(object $notifiable): MailMessage

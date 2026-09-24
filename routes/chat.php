@@ -100,6 +100,8 @@ Route::middleware(['auth', 'verified', 'organization', 'entitlement:chat'])
         Route::middleware('can:chat.widget.manage')->group(function () {
             Route::get('widgets/{widget}/flow', [ChatFlowController::class, 'edit'])->name('flow.edit');
             Route::put('widgets/{widget}/flow', [ChatFlowController::class, 'update'])->name('flow.update');
+            Route::post('widgets/{widget}/flow/versions/{version}/restore', [ChatFlowController::class, 'restoreVersion'])
+                ->middleware('can:chat.widget.manage')->name('flow.restore');
             Route::post('widgets/{widget}/flow/validate', [ChatFlowController::class, 'validateFlow'])->name('flow.validate');
             Route::post('widgets/{widget}/flow/template', [ChatFlowController::class, 'applyTemplate'])->name('flow.template');
             Route::post('widgets/{widget}/flow/test', [ChatFlowController::class, 'test'])->name('flow.test');

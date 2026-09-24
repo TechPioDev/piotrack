@@ -1,4 +1,4 @@
-import { ConversationBuilder, type Validation } from '@/components/chat-flow/conversation-builder';
+import { ConversationBuilder, type SavedVersion, type Validation } from '@/components/chat-flow/conversation-builder';
 import type { Template } from '@/components/chat-flow/template-gallery';
 import AppLayout from '@/layouts/app-layout';
 import type { Flow } from '@/lib/flow-tree';
@@ -15,6 +15,7 @@ export default function FlowBuilderPage({
     validation,
     templates,
     assignees,
+    history,
 }: {
     widget: WidgetRef;
     widgets?: WidgetRef[];
@@ -22,6 +23,7 @@ export default function FlowBuilderPage({
     validation: Validation;
     templates: Template[];
     assignees: { id: number; name: string }[];
+    history?: SavedVersion[];
 }) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Website Chat', href: '/chat' },
@@ -32,7 +34,15 @@ export default function FlowBuilderPage({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${widget.name} — conversation`} />
-            <ConversationBuilder widget={widget} widgets={widgets} flow={flow} validation={validation} templates={templates} assignees={assignees} />
+            <ConversationBuilder
+                widget={widget}
+                widgets={widgets}
+                flow={flow}
+                validation={validation}
+                templates={templates}
+                assignees={assignees}
+                history={history}
+            />
         </AppLayout>
     );
 }

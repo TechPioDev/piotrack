@@ -34,6 +34,7 @@ import {
     AlertTriangle,
     CheckCircle2,
     ChevronDown,
+    History,
     LayoutTemplate,
     Maximize2,
     MessagesSquare,
@@ -60,6 +61,8 @@ import { type Template, TemplateGallery } from './template-gallery';
 import { postJson, TestDialog } from './test-dialog';
 
 export type Validation = { valid: boolean; errors: { node: string | null; message: string }[]; warnings: { node: string | null; message: string }[] };
+/** A version of the conversation as it stood before some earlier save. */
+export type SavedVersion = { id: number; steps: number; note: string | null; published: boolean; author: string | null; at: string | null };
 type Assignee = { id: number; name: string };
 type WidgetRef = { id: number; name: string; status: string };
 type History = { flow: Flow; past: Flow[]; future: Flow[] };
@@ -116,6 +119,7 @@ export function ConversationBuilder({
     validation: initialValidation,
     templates,
     assignees,
+    history: saved = [],
 }: {
     widget: WidgetRef;
     widgets?: WidgetRef[];
@@ -123,6 +127,7 @@ export function ConversationBuilder({
     validation: Validation;
     templates: Template[];
     assignees: Assignee[];
+    history?: SavedVersion[];
 }) {
     const seed = (f: Flow): Flow => ({ start: f.start ?? null, nodes: f.nodes ?? {} });
     const [history, setHistory] = useState<History>(() => ({ flow: seed(initialFlow), past: [], future: [] }));
@@ -136,6 +141,7 @@ export function ConversationBuilder({
     const [notice, setNotice] = useState<string | null>(null);
     const [pendingDelete, setPendingDelete] = useState<{ next: Flow; count: number } | null>(null);
     const [galleryOpen, setGalleryOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     const [galleryKey, setGalleryKey] = useState<string | null>(null);
     const [testOpen, setTestOpen] = useState(false);
     const [panels, setPanels] = usePanels();
@@ -549,6 +555,10 @@ export function ConversationBuilder({
                                 <DropdownMenuItem onSelect={() => openTemplates()}>
                                     <LayoutTemplate className="size-4" aria-hidden /> Browse templates
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+                                    <History className="size-4" aria-hidden /> Earlier versions
+                                    {saved.length > 0 && <span className="text-muted-foreground ml-auto text-xs">{saved.length}</span>}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => router.visit(route('chat.widgets.edit', widget.id))}>
                                     <Settings2 className="size-4" aria-hidden /> Widget settings
                                 </DropdownMenuItem>
@@ -672,6 +682,55 @@ export function ConversationBuilder({
                 }}
             />
             <TestDialog widgetId={widget.id} flow={flow} open={testOpen} onOpenChange={setTestOpen} />
+
+            <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogTitle>Earlier versions</DialogTitle>
+                    <DialogDescription>
+                        Every save keeps the conversation as it was. Putting one back brings it into the editor as a draft — nothing reaches visitors
+                        until you publish.
+                    </DialogDescription>
+                    {saved.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            Nothing yet. The first time you change this conversation, what it looks like now is kept here.
+                        </p>
+                    ) : (
+                        <ul className="max-h-80 divide-y overflow-y-auto">
+                            {saved.map((version) => (
+                                <li key={version.id} className="flex items-center justify-between gap-3 py-2">
+                                    <span className="min-w-0">
+                                        <span className="text-foreground block text-sm">
+                                            {version.at ? new Date(version.at).toLocaleString() : 'Earlier'}
+                                            {version.published && (
+                                                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                                                    was live
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="text-muted-foreground block text-xs">
+                                            {version.steps} steps{version.author ? ` · ${version.author}` : ''}
+                                            {version.note ? ` · ${version.note.toLowerCase()}` : ''}
+                                        </span>
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.post(
+                                                route('chat.flow.restore', [widget.id, version.id]),
+                                                {},
+                                                { preserveScroll: true, onSuccess: () => setHistoryOpen(false) },
+                                            )
+                                        }
+                                    >
+                                        Put this back
+                                    </Button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
                 <DialogContent>
