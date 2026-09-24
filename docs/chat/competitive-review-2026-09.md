@@ -136,8 +136,8 @@ Most of the chat our buyers actually meet is not Intercom — it is an agency st
 
 **What that means for us.** Our competitors in this vertical are not judged on node palettes.
 They are judged on: does the chat reach the PSA, does a human answer out of hours, and does the
-owner get paged on their phone. We have the conversation and the CRM; we do not have the PSA, a
-phone app, or paging beyond email.
+owner get paged on their phone. Two of those three we have now (paging reaches Slack, Teams and
+SMS since CHAT-080); the PSA one is a different product's yardstick — see §10.
 
 The canonical MSP qualification script these vendors use — business type → staff count → biggest
 IT challenge → current provider → timeline — is exactly what our `msp_qualification` template
@@ -198,8 +198,7 @@ transcript export** in the inbox. What is left below still stands.
 
 **Tier 3 — bigger bets**
 
-14. **PSA connectors** (ConnectWise, Autotask, HaloPSA) so a chat ticket lands where an MSP
-    actually works. This is the one thing every MSP-specific chat vendor sells and we do not.
+14. ~~**PSA connectors** (ConnectWise, Autotask, HaloPSA).~~ **Dropped, deliberately — see §10.**
 15. **AI writes the first draft of a flow** from a description (Landbot's "Build it for me").
 16. **Reusable sub-flows** (Landbot Bricks / Typebot link-and-return) with a shared library —
     strong for agencies running many widgets.
@@ -254,6 +253,38 @@ against these:
 **Two openings worth naming.** Every Drift customer must replace their widget before 31 January
 2027 and is being referred to enterprise-priced successors — nobody is serving the small ones.
 And Intercom's 30,000-plus mostly-small customers have just been bought by Salesforce.
+
+## 8c. Why there are no PSA connectors here, and why that is right
+
+The MSP-specific vendors above sell one thing above all: a chat that round-trips into
+ConnectWise, Autotask, HaloPSA, Syncro or Datto. It is tempting to read that as a gap. It is
+not one, and the project's own documents say so:
+
+- **PSA, ConnectWise, Autotask, HaloPSA, Syncro and RMM appear zero times** in either source
+  document — the rulebook and the 977-bullet feature inventory — and zero times across all
+  1,230 rows of the register.
+- The 75 modules are marketing and growth: SEO, ads, content, CRM, chat, booking, attribution,
+  the client portal, project management. There is no service-desk module, no contracts, no time
+  entries, no billing against client agreements. Those *are* a PSA.
+- The "support tickets" the rulebook asks for (§28) are **Piotrack's own** support surface — a
+  tenant raising a ticket with us, a help centre, a knowledge base. They are not an MSP's
+  service desk for their end clients.
+
+So the comparison was a category error on our side: MSP Process answers existing clients'
+support requests, while this product finds and converts new business. A lead does not belong in
+a PSA, and a service desk is not on the roadmap.
+
+**What covers the case anyway, without a named connector:** a chat lead fires the same
+`lead.captured` webhook a form lead does (CHAT-064), and the "Send to Your System" step
+(CHAT-071) posts mid-conversation to any https endpoint — a PSA's own API, Zapier, n8n, Make or
+Power Automate — and can keep a value from the reply. A customer who insists on ConnectWise can
+wire it themselves in an afternoon.
+
+**The one genuine seam.** The chat's support path opens a ticket on Piotrack's own desk
+(`ChatCaptureService::openTicket`). For a marketing agency that is right. For an MSP whose
+engineers live in their PSA it is a ticket nobody watches - worth either making that path
+optional per widget, or pointing it at the webhook step instead. A product decision, not a
+missing connector.
 
 ## 9. Things the research could not settle
 
