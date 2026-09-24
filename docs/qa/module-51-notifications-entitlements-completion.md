@@ -75,3 +75,54 @@ overage, storage MB from file rows).
 5 rows → Tested. Notification System **10/10** and Feature Entitlements & Usage Limits
 **7/7** — the 35th and 36th complete modules. Global: **1,060/1,190 buildable Tested
 (89.1%)**.
+
+## Follow-up (2026-09-24): visitor text posted into Slack and Teams as markup (NOTIF-011)
+
+**Defect.** `OrgChannelNotifier::post()` sent a notification's `title()` and `body()` to Slack
+and Teams incoming webhooks as a raw `text` payload. Several bodies carry what an anonymous
+website visitor typed: the hot-lead alert from the chat is
+`Hot website-chat lead: <name> (<email>)`, sent through `AlertService::fire()` →
+`SalesAlertNotification` → `NotificationDispatcher::toOrganizationOwners()` → the org channels.
+A visitor whose first name was `<!channel>` or `<!here>` therefore paged everyone in the Slack
+channel, and `<https://evil.test|click here>` showed a link under a label of their choosing.
+Teams had the same exposure through `[label](url)` links, HTML and `<at>` mentions.
+
+The Sales alerts page's own Slack/Teams webhook (`AlertService::deliverExtraChannels()`,
+ALERT-004) posted the same message raw, so that route had the same hole.
+
+**Fix.** Escaping sits in one place, `OrgChannelNotifier::escape()`:
+
+- **Slack**: `&`, `<`, `>` become `&amp;`, `&lt;`, `&gt;`, which is Slack's documented escaping.
+  The title and body are escaped first and our own `*title*` bold markup is added afterwards,
+  so it still renders.
+- **Teams**: `&`, `<`, `>`, `[`, `]`, `*`, `_`, `~`, `` ` `` and `\` become character
+  references. Teams shows them as the plain character, and markdown never treats a
+  reference as syntax. `&` is escaped too, so a visitor who types `&#91;` gets literal text
+  and not a bracket.
+- **Generic webhook**: unchanged. Its JSON is data for the receiver, not text to render.
+- **Alerts-page webhook**: stores only a URL, so `kindForUrl()` uses Slack's escaping for
+  `hooks.slack.com` and the stricter Teams set for anything else. The Teams set also
+  neutralises Slack-style `<...>` sequences.
+
+`ChatTicketOpenedNotification` still leaves out what the visitor typed, on purpose. The
+escaping is a second layer, not a reason to start echoing visitor text.
+
+**Tests.** `tests/Feature/Platform/OrgChannelEscapingTest.php` (3 tests):
+
+- A Slack, a Teams and a webhook channel receive a body containing `<!channel>`,
+  `<https://evil.test|x>`, `[click here](https://evil.test)` and `<at>Everyone</at>`. Slack and
+  Teams get only the escaped forms, the Slack title is still bold, and the webhook JSON is
+  byte-for-byte the original.
+- A contact named `<!channel> <https://evil.test|Open invoice>` fires a real
+  `AlertService::fire()`. Both routes into Slack (the org channel and a `hooks.slack.com`
+  alerts-page webhook) post the name as text.
+- `kindForUrl()` host matching, including `hooks.slack.com.evil.test` falling back to the Teams
+  rules. Pre-encoded references and backslashes stay literal.
+
+Against the unfixed code all three fail. `NotificationEntitlementsCloseoutTest`,
+`RegisterCloseoutSprint1Test` (ALERT-004 webhook) and `ChatTicketFollowUpTest` are unchanged
+and still pass.
+
+**Not covered here.** The alerts-page webhook URL gets no SSRF check at send time. It is
+validated as `https` only, and unlike the org channels it does not pass `UrlGuard`. This is
+tracked separately.
