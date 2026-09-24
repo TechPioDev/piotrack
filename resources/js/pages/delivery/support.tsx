@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
+import { replyHint, type OutsideRequester } from '@/lib/ticket-reply';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Lock, Mail, MessageSquare, UserRound } from 'lucide-react';
+import { FormEventHandler, useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Support', href: '/support' }];
 
@@ -34,6 +35,9 @@ type Ticket = {
     priority: string;
     category: string | null;
     assignee_id: number | null;
+    requester: OutsideRequester | null;
+    contact: { id: number; name: string } | null;
+    conversation_id: number | null;
     resolved_at: string | null;
     messages: TicketMessage[];
     attachments: TicketAttachment[];
@@ -302,9 +306,7 @@ function ReplyForm({ ticket }: { ticket: Ticket }) {
                     />
                     <span>
                         Internal note
-                        <span className="text-muted-foreground block text-xs">
-                            {form.data.is_internal ? 'Kept internal — the client portal never shows this.' : 'The requester will see this reply.'}
-                        </span>
+                        <span className="text-muted-foreground block text-xs">{replyHint(ticket.requester, form.data.is_internal)}</span>
                     </span>
                 </label>
                 <Button type="submit" size="sm" disabled={form.processing || form.data.body.trim() === ''}>
@@ -331,6 +333,16 @@ export default function DeliverySupport({
     // Attaching goes through the file store, which has its own permission.
     const canAttach = can('files.manage');
 
+    // Alerts and the chat inbox link to one ticket (/support#ticket-12):
+    // bring it into view and mark it, rather than leaving someone to hunt.
+    const [focused, setFocused] = useState<number | null>(null);
+    useEffect(() => {
+        const match = /^#ticket-(\d+)$/.exec(window.location.hash);
+        if (match === null) return;
+        setFocused(Number(match[1]));
+        document.getElementById(`ticket-${match[1]}`)?.scrollIntoView({ block: 'start' });
+    }, []);
+
     const assign = (ticket: Ticket, userId: string) =>
         router.post(route('support.tickets.assign', ticket.id), { user_id: Number(userId) }, { preserveScroll: true });
     const resolve = (ticket: Ticket) => router.post(route('support.tickets.resolve', ticket.id), {}, { preserveScroll: true });
@@ -353,7 +365,11 @@ export default function DeliverySupport({
                     ) : (
                         <div className="space-y-3">
                             {tickets.map((ticket) => (
-                                <Card key={ticket.id}>
+                                <Card
+                                    key={ticket.id}
+                                    id={`ticket-${ticket.id}`}
+                                    className={focused === ticket.id ? 'ring-primary scroll-mt-4 ring-2' : 'scroll-mt-4'}
+                                >
                                     <CardContent className="space-y-3 p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div className="min-w-0 space-y-1">
@@ -363,6 +379,31 @@ export default function DeliverySupport({
                                                     <Badge variant={priorityVariant(ticket.priority)}>{ticket.priority}</Badge>
                                                     {ticket.category && <Badge variant="outline">{ticket.category}</Badge>}
                                                 </div>
+                                                {ticket.requester && (
+                                                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <Mail className="size-3.5" aria-hidden />
+                                                            {ticket.requester.name ? `${ticket.requester.name} · ` : ''}
+                                                            {ticket.requester.email}
+                                                        </span>
+                                                        {ticket.contact && can('crm.contact.read') && (
+                                                            <Link
+                                                                href={route('crm.contacts.show', ticket.contact.id)}
+                                                                className="text-foreground inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                                                            >
+                                                                <UserRound className="size-3.5" aria-hidden /> Client record
+                                                            </Link>
+                                                        )}
+                                                        {ticket.conversation_id !== null && can('chat.view') && (
+                                                            <Link
+                                                                href={route('chat.conversations.show', ticket.conversation_id)}
+                                                                className="text-foreground inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                                                            >
+                                                                <MessageSquare className="size-3.5" aria-hidden /> The chat it came from
+                                                            </Link>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <p className="text-muted-foreground text-sm whitespace-pre-line">{ticket.body}</p>
                                                 {ticket.resolved_at !== null && (
                                                     <p className="text-muted-foreground text-sm">Resolved {formatTime(ticket.resolved_at)}</p>

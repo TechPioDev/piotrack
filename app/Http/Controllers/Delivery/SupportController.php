@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\Delivery\TicketService;
+use App\Support\CurrentOrganization;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class SupportController extends Controller
 {
     public function __construct(private TicketService $tickets) {}
 
-    public function index(): Response
+    public function index(CurrentOrganization $current): Response
     {
         // SUPP-002: documents attached to tickets, loaded once and keyed.
         $attachments = File::where('attachable_type', Ticket::class)
@@ -30,7 +31,7 @@ class SupportController extends Controller
             ->groupBy('attachable_id');
 
         return Inertia::render('delivery/support', [
-            'tickets' => Ticket::with('messages')->latest('id')->limit(100)->get()->map(fn (Ticket $t) => [
+            'tickets' => Ticket::with(['messages', 'contact'])->latest('id')->limit(100)->get()->map(fn (Ticket $t) => [
                 'id' => $t->id,
                 'subject' => $t->subject,
                 'body' => $t->body,
@@ -38,6 +39,12 @@ class SupportController extends Controller
                 'priority' => $t->priority,
                 'category' => $t->category,
                 'assignee_id' => $t->assignee_id,
+                // Someone outside the workspace, answered by email.
+                'requester' => $t->requester_id === null && $t->requester_email !== null
+                    ? ['name' => $t->requester_name, 'email' => $t->requester_email]
+                    : null,
+                'contact' => $t->contact !== null ? ['id' => $t->contact->id, 'name' => $t->contact->fullName()] : null,
+                'conversation_id' => $t->chat_conversation_id,
                 'resolved_at' => $t->resolved_at?->toIso8601String(),
                 'messages' => $t->messages->map(fn (TicketMessage $m) => [
                     'id' => $m->id,
@@ -67,7 +74,14 @@ class SupportController extends Controller
                     'type' => $a->type,
                     'published_at' => $a->published_at?->toIso8601String(),
                 ]),
-            'members' => User::query()->limit(100)->get(['id', 'name'])->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name]),
+            // This workspace's people only. It used to be the first hundred
+            // users on the whole platform - other companies' staff included.
+            'members' => $current->get()?->members()
+                ->wherePivot('status', 'active')
+                ->orderBy('users.name')
+                ->get(['users.id', 'users.name'])
+                ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+                ->all() ?? [],
         ]);
     }
 

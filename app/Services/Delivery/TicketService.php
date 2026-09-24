@@ -6,13 +6,21 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Notifications\TicketNotification;
+use App\Notifications\TicketRequesterNotification;
 use App\Support\AuditLogger;
 use App\Support\NotificationDispatcher;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Support tickets (SUPP-002). Internal notes are stored on the same thread but
  * are never exposed through the client portal. Lifecycle events notify the
  * requester and assignee (SUPP-004) — never the person who acted.
+ *
+ * A requester can also be someone outside the workspace - a client who asked
+ * on the website chat - known only by name and email. They are emailed when
+ * the ticket is received, when the team replies and when it is resolved, since
+ * they have no account to see it any other way.
  */
 class TicketService
 {
@@ -28,6 +36,10 @@ class TicketService
     {
         $ticket = Ticket::create([
             'requester_id' => $requester?->id,
+            'requester_email' => $requester === null ? ($data['requester_email'] ?? null) : null,
+            'requester_name' => $requester === null ? ($data['requester_name'] ?? null) : null,
+            'contact_id' => $data['contact_id'] ?? null,
+            'chat_conversation_id' => $data['chat_conversation_id'] ?? null,
             'subject' => $data['subject'],
             'body' => $data['body'],
             'priority' => $data['priority'] ?? 'normal',
@@ -58,6 +70,7 @@ class TicketService
         // about every reply they did not write themselves.
         if (! $internal) {
             $this->notifyOthers($ticket, 'replied', $author);
+            $this->emailRequester($ticket, 'replied', $author, $body);
         } else {
             $this->notifyUser($ticket->assignee_id, $ticket, 'replied', $author);
         }
@@ -79,11 +92,74 @@ class TicketService
         $ticket->update(['status' => 'resolved', 'resolved_at' => now()]);
 
         $this->notifyOthers($ticket, 'resolved', null);
+        $this->emailRequester($ticket, 'resolved', $ticket->assignee_id !== null ? User::find($ticket->assignee_id) : null);
 
         $this->audit->log('support.ticket.resolved', context: ['subject' => $ticket->subject],
             resourceType: 'ticket', resourceId: (string) $ticket->id);
 
         return $ticket->refresh();
+    }
+
+    /**
+     * Tell a requester from outside the workspace that their ticket arrived.
+     *
+     * At most three receipts per address per day for each workspace: the
+     * address was typed into a public chat, so without a limit anyone could
+     * point a stream of these at a stranger's inbox.
+     */
+    public function acknowledge(Ticket $ticket): void
+    {
+        $email = $this->externalRequester($ticket);
+        if ($email === null) {
+            return;
+        }
+
+        $key = 'ticket-receipt:'.$ticket->organization_id.':'.sha1(strtolower($email));
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            return;
+        }
+        RateLimiter::hit($key, 86400);
+
+        $this->emailRequester($ticket, 'received', null);
+    }
+
+    /**
+     * Email a requester who is not a user of the workspace. A reply carries
+     * its author's address as Reply-To, so the client's answer by email goes
+     * straight to the person who wrote to them.
+     */
+    private function emailRequester(Ticket $ticket, string $event, ?User $from, ?string $message = null): void
+    {
+        $email = $this->externalRequester($ticket);
+        if ($email === null) {
+            return;
+        }
+
+        Notification::route('mail', $email)->notify(new TicketRequesterNotification(
+            event: $event,
+            ticketId: $ticket->id,
+            company: $this->companyFor($ticket),
+            message: $message,
+            agent: $from?->name,
+            replyTo: $from?->email,
+        ));
+    }
+
+    /** The address of a requester outside the workspace, when there is a usable one. */
+    private function externalRequester(Ticket $ticket): ?string
+    {
+        $email = trim((string) $ticket->requester_email);
+
+        return $ticket->requester_id === null && filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : null;
+    }
+
+    /** The name the client knows: the chat's own company name, then the workspace's. */
+    private function companyFor(Ticket $ticket): string
+    {
+        $widget = $ticket->conversation?->widget;
+        $company = trim((string) ($widget->theme['company'] ?? $widget->name ?? ''));
+
+        return $company !== '' ? $company : (string) $ticket->organization()->value('name');
     }
 
     /** Notify requester and assignee, skipping whoever performed the action. */

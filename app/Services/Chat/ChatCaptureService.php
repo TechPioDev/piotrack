@@ -9,11 +9,14 @@ use App\Models\ChatWidget;
 use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\Ticket;
+use App\Models\User;
+use App\Notifications\ChatTicketOpenedNotification;
 use App\Services\Delivery\TicketService;
 use App\Services\Integrations\WebhookDispatcher;
 use App\Services\Sales\AlertService;
 use App\Services\Sales\IntentService;
 use App\Services\Sales\LeadScoringService;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Str;
 
 /**
@@ -30,13 +33,14 @@ class ChatCaptureService
         private readonly IntentService $intent,
         private readonly TicketService $tickets,
         private readonly WebhookDispatcher $webhooks,
+        private readonly NotificationDispatcher $notifications,
     ) {}
 
     /**
      * The support ticket for an existing customer's chat: what they told us,
      * then the whole conversation, so whoever picks it up needs nothing else.
      */
-    private function openTicket(ChatConversation $conversation): Ticket
+    private function openTicket(ChatConversation $conversation, ?string $topic): Ticket
     {
         $answers = $conversation->answers ?? [];
         $messages = $conversation->messages()
@@ -44,12 +48,6 @@ class ChatCaptureService
             ->orderBy('id')
             ->limit(200)
             ->get(['role', 'body', 'meta']);
-
-        // The request is the last answer the visitor picked on the way here
-        // ("Billing", "Technical support"), whatever the flow calls that field.
-        $topic = $messages->where('role', 'visitor')
-            ->filter(fn ($m) => isset($m->meta['option']))
-            ->last()?->body;
 
         $text = fn (string $key): string => trim((string) ($answers[$key] ?? ''));
         $name = trim($text('first_name').' '.$text('last_name'));
@@ -74,12 +72,79 @@ class ChatCaptureService
             default => 'Bot',
         }.': '.$m->body)->implode("\n");
 
+        // Who asked, so the desk can answer them: a website visitor has no
+        // account, only the address they gave. An existing client is usually
+        // already in the CRM, and the ticket points at their record - but a
+        // stranger claiming to be a client is not turned into a contact.
+        $email = strtolower($text('email'));
+        $email = filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : null;
+        $contact = $email !== null ? Contact::query()->whereRaw('LOWER(email) = ?', [$email])->first() : null;
+
         return $this->tickets->open([
             'subject' => Str::limit(sprintf('Website chat: %s from %s', $topic ?? 'support request', $name !== '' ? $name : ($text('email') ?: 'a website visitor')), 180),
             'body' => mb_substr(implode("\n", $lines)."\n\nChat transcript\n".$transcript, 0, 60000),
             'priority' => ($answers['_priority'] ?? null) === 'high' ? 'high' : 'normal',
             'category' => 'website_chat',
+            'requester_email' => $email,
+            'requester_name' => $name !== '' ? Str::limit($name, 160, '') : null,
+            'contact_id' => $contact?->id,
+            'chat_conversation_id' => $conversation->id,
         ]);
+    }
+
+    /**
+     * What the visitor asked for: the last answer they picked on the way to
+     * the ticket ("Billing", "Technical support"), whatever the flow calls that
+     * field. A button the business wrote, never text the visitor typed.
+     */
+    private function topicOf(ChatConversation $conversation): ?string
+    {
+        $picked = $conversation->messages()
+            ->where('role', 'visitor')
+            ->orderBy('id')
+            ->limit(200)
+            ->get(['body', 'meta'])
+            ->filter(fn ($m) => isset($m->meta['option']))
+            ->last()?->body;
+
+        return $picked !== null && trim((string) $picked) !== '' ? (string) $picked : null;
+    }
+
+    /**
+     * Make sure somebody knows a client is waiting on a ticket.
+     *
+     * Whoever was already talking to them keeps it; failing that, whoever this
+     * chat sends its conversations to. The owners and the workspace's Teams or
+     * Slack are told either way - once, not again for an owner who was just
+     * assigned it - and the client gets a receipt with their ticket number.
+     */
+    private function followUpTicket(ChatWidget $widget, ChatConversation $conversation, Ticket $ticket, ?string $topic): void
+    {
+        $organization = $widget->organization()->first();
+        if ($organization === null) {
+            return;
+        }
+
+        $assignee = null;
+        foreach ([$conversation->assignee_id, $widget->routing['assignee_id'] ?? null] as $candidate) {
+            // Someone who has since left the workspace cannot take it.
+            $assignee = $candidate ? $organization->members()->wherePivot('status', 'active')->find((int) $candidate) : null;
+            if ($assignee instanceof User) {
+                break;
+            }
+        }
+
+        if ($assignee instanceof User) {
+            $this->tickets->assign($ticket, $assignee);
+        }
+
+        $this->tickets->acknowledge($ticket);
+
+        $this->notifications->toOrganizationOwners(
+            $organization,
+            new ChatTicketOpenedNotification($ticket->id, $topic ?? 'Support request', $ticket->priority, $assignee?->name),
+            exceptUserId: $assignee?->id,
+        );
     }
 
     /**
@@ -150,8 +215,10 @@ class ChatCaptureService
         // They become a ticket on the support desk instead, so the request is
         // worked like any other support request rather than waiting in chat.
         if ($outcome === 'support') {
-            $ticket = $this->openTicket($conversation);
+            $topic = $this->topicOf($conversation);
+            $ticket = $this->openTicket($conversation, $topic);
             $conversation->forceFill([
+                'contact_id' => $conversation->contact_id ?? $ticket->contact_id,
                 'status' => 'closed',
                 'answers' => [...($conversation->answers ?? []), '_ticket' => $ticket->id],
                 'tags' => array_values(array_filter((array) (($conversation->answers ?? [])['_tags'] ?? []))) ?: null,
@@ -162,6 +229,8 @@ class ChatCaptureService
                 'type' => 'complete',
                 'meta' => ['outcome' => 'support', 'ticket_id' => $ticket->id],
             ]);
+
+            $this->followUpTicket($widget, $conversation, $ticket, $topic);
 
             return [];
         }

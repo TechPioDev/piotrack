@@ -471,7 +471,7 @@ export default function ChatConversationShow({
                         {conversation.ticket_id !== null &&
                             (can('support.view') ? (
                                 <Button asChild variant="outline" className="mt-2 w-full">
-                                    <Link href={route('support.index')}>
+                                    <Link href={`${route('support.index')}#ticket-${conversation.ticket_id}`}>
                                         <LifeBuoy className="size-4" aria-hidden /> Support ticket #{conversation.ticket_id}
                                     </Link>
                                 </Button>

@@ -22,9 +22,13 @@ class NotificationDispatcher
         $user->notify($notification);
     }
 
-    public function toOrganizationOwners(Organization $organization, Notification $notification): void
+    /**
+     * @param  int|null  $exceptUserId  an owner already told another way, who
+     *                                  should not hear the same news twice
+     */
+    public function toOrganizationOwners(Organization $organization, Notification $notification, ?int $exceptUserId = null): void
     {
-        $owners = $organization->owners()->get();
+        $owners = $organization->owners()->get()->reject(fn (User $owner) => $owner->id === $exceptUserId);
 
         if ($owners->isNotEmpty()) {
             NotificationFacade::send($owners, $notification);

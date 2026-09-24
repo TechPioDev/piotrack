@@ -10,6 +10,7 @@ use App\Models\ProjectTask;
 use App\Models\Sprint;
 use App\Models\User;
 use App\Services\Delivery\ProjectService;
+use App\Support\CurrentOrganization;
 use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ProjectController extends Controller
 {
     public function __construct(private ProjectService $projects) {}
 
-    public function index(): Response
+    public function index(CurrentOrganization $current): Response
     {
         return Inertia::render('delivery/projects', [
             'projects' => Project::with(['members.user:id,name'])->latest('id')->get()
@@ -70,7 +71,14 @@ class ProjectController extends Controller
                 'due_on' => $d->due_on?->toDateString(),
                 'rejection_reason' => $d->rejection_reason,
             ]),
-            'members' => User::query()->limit(100)->get(['id', 'name'])->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name]),
+            // This workspace's people only. It used to be the first hundred
+            // users on the whole platform - other companies' staff included.
+            'members' => $current->get()?->members()
+                ->wherePivot('status', 'active')
+                ->orderBy('users.name')
+                ->get(['users.id', 'users.name'])
+                ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name])
+                ->all() ?? [],
             'roles' => ProjectMember::ROLES,
         ]);
     }

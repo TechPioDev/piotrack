@@ -286,6 +286,11 @@ engineers live in their PSA it is a ticket nobody watches - worth either making 
 optional per widget, or pointing it at the webhook step instead. A product decision, not a
 missing connector.
 
+**Decided (2026-09-24):** keep opening a Piotrack ticket. What made it "a ticket nobody watches"
+is fixed instead (CHAT-081..083): it is assigned and announced to the team's own channels, the
+client gets a receipt and the team's replies by email, and it links back to the chat and the
+client's record.
+
 ## 9. Things the research could not settle
 
 Crisp's per-plan channel gating and whether its editor has zoom/undo; Tidio's exact template

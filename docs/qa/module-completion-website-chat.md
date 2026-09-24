@@ -648,3 +648,40 @@ paging to Teams/Slack/SMS when a visitor is waiting; named PSA connectors (the w
 the road to them, not a replacement); AI-drafted flows; reusable sub-flows; version history on a
 flow; WhatsApp; multi-language; and a published accessibility conformance claim for the widget
 (the widget is built to WCAG practice and tested for it, but nothing is published).
+
+## Follow-up (2026-09-24): after the chat opens a ticket (CHAT-081..083, SUPP-005)
+
+The owner decided the chat's support path keeps opening a ticket on Piotrack's own desk (no PSA -
+see the competitive review, section 8c). Following one of those tickets through showed it went
+nowhere:
+
+- **Nobody was told.** `TicketService::open()` only writes an audit entry; notifications fire on
+  reply, assign and resolve, and only to the requester and assignee - a chat ticket had neither.
+  Now the teammate already in the conversation keeps it (else the widget's routing assignee, if
+  still an active member), and owners plus the workspace's Slack/Teams/webhook channels are told
+  once. The alert names the ticket and the button the visitor picked, never their typed words:
+  those go straight into Slack, where `<!channel>` pages everyone.
+- **The client never heard back.** The chat says "our team will follow up by email", and the reply
+  box said "The requester will see this reply" - but a website visitor has no account, so a reply
+  reached nobody. The ticket now keeps their name and email; they get a receipt with the ticket
+  number, each public reply (Reply-To the agent) and a resolved note. Internal notes never go.
+  The receipt echoes nothing they typed and is capped at three per address per day, because the
+  address was typed into a public form by anyone.
+- **No way back.** The ticket now points at its conversation and, when the email matches a CRM
+  contact, the client's record. The desk shows both links; alerts and the inbox open the ticket
+  itself.
+- **Defect found on the way (SUPP-005).** The Support and Projects pages listed the first hundred
+  users on the whole platform as assignees - other tenants' staff included. Assignment was
+  already membership-checked, so only names leaked. Both lists are now the workspace's members.
+
+Migration `2026_09_24_120000_link_tickets_to_chat` adds four nullable columns and two foreign
+keys, each only when missing, so a MySQL run that stops halfway can finish on the next attempt;
+rolled back and re-run locally.
+
+**Automated testing:** `ChatTicketFollowUpTest` (11), `ticket-reply.test.ts` (3); the existing
+`ChatSupportTicketTest` unchanged and green.
+
+**Still open on this path:** a client's answer by email goes to the agent's mailbox, not back
+into the ticket (there is no inbound mail); a second request from the same client opens a second
+ticket rather than joining the first; routing by topic (billing to one person, technical to
+another) needs an "assign to" on the End step.
