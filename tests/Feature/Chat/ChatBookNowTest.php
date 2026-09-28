@@ -12,7 +12,10 @@ declare(strict_types=1);
  * the one outcome that must never happen.
  */
 
+use App\Models\Booking;
 use App\Models\BookingPage;
+use App\Models\ChatConversation;
+use App\Models\ChatEvent;
 use App\Models\ChatWidget;
 use App\Services\Chat\ChatFlowTemplates;
 use App\Services\Chat\ChatFlowValidator;
@@ -87,7 +90,9 @@ it('tells the visitor what happens instead when no booking page is live', functi
     // No link to give, so the visitor is told what will happen rather than
     // being left with an instruction they cannot follow.
     expect($final['booking_url'] ?? null)->toBeNull();
-    expect(collect($final['messages'])->pluck('body')->implode(' '))->toContain('email you shortly to arrange a time');
+    $said = collect($final['messages'])->pluck('body')->implode(' ');
+    expect($said)->toContain('email you shortly to arrange a time')
+        ->and($said)->not->toContain('pick a time');
 });
 
 it('warns the owner while they build that a meeting has nowhere to go', function () {
@@ -134,4 +139,83 @@ it('asks for a time once, never twice, in the flow that already booked in chat',
     expect($bookingSteps)->toHaveCount(1);
     // Its fallback is still the ending that hands over the booking page.
     expect($flow['nodes'][$bookingSteps->keys()->first()]['fallback'])->toBe('end_meeting');
+});
+
+/**
+ * What the builder makes when an owner adds "End: Book a Meeting": a time-picker
+ * whose "booked" and "no time works" paths both lead to that one ending.
+ */
+function builtWithPicker(): array
+{
+    return [
+        'start' => 'welcome',
+        'nodes' => [
+            'welcome' => ['type' => 'message', 'text' => 'Hi there!', 'next' => 'in_name'],
+            'in_name' => ['type' => 'input', 'input' => 'text', 'field' => 'first_name', 'text' => 'Your first name?', 'next' => 'in_email'],
+            'in_email' => ['type' => 'input', 'input' => 'email', 'field' => 'email', 'text' => 'Your email?', 'next' => 'pick'],
+            'pick' => ['type' => 'booking', 'text' => 'Pick a time that suits you:', 'next' => 'end_meeting', 'fallback' => 'end_meeting'],
+            'end_meeting' => ['type' => 'end', 'outcome' => 'meeting', 'text' => 'Great, pick a time that suits you.'],
+        ],
+    ];
+}
+
+/** Answer up to the time-picker; returns the token and the reply that offered the times. */
+function talkToBooking($test): array
+{
+    app(CurrentOrganization::class)->set($test->org);
+    $test->widget->forceFill(['flow' => builtWithPicker()])->save();
+    app(CurrentOrganization::class)->forget();
+
+    $token = $test->postJson("/wc/{$test->key}/conversations", ['page' => 'https://piomanage.test/'])->assertOk()->json('token');
+    $test->postJson("/wc/{$test->key}/conversations/{$token}/messages", ['value' => 'Ram'])->assertOk();
+    $offer = $test->postJson("/wc/{$test->key}/conversations/{$token}/messages", ['value' => 'ram@client.test'])->assertOk()->json();
+
+    return [$token, $offer];
+}
+
+it('ends on the confirmation once a time is booked, without asking for a time again', function () {
+    app(CurrentOrganization::class)->set($this->org);
+    BookingPage::create(['name' => 'Discovery call', 'slug' => 'discovery-call', 'duration_minutes' => 30, 'is_active' => true]);
+    app(CurrentOrganization::class)->forget();
+
+    [$token, $offer] = talkToBooking($this);
+    $slot = collect($offer['node']['options'])->first()['id'];
+    $final = $this->postJson("/wc/{$this->key}/conversations/{$token}/messages", ['option' => $slot])->assertOk()->json();
+
+    // It used to confirm the booking and then say "Great, pick a time that
+    // suits you." with the booking page under it - so the visitor who had just
+    // booked was asked to book, and the chat looked stuck at that step.
+    $said = collect($final['messages'])->pluck('body');
+    expect($final['done'])->toBeTrue()
+        ->and($final['booking_url'] ?? null)->toBeNull()
+        ->and($said)->toHaveCount(1)
+        ->and($said->first())->toStartWith("You're booked for")
+        ->and($said->implode(' '))->not->toContain('pick a time');
+
+    // One meeting, counted once.
+    $conversation = ChatConversation::withoutGlobalScope('tenant')->firstWhere('token', $token);
+    expect(ChatEvent::withoutGlobalScope('tenant')->where('chat_conversation_id', $conversation->id)->where('type', 'meeting')->count())->toBe(1)
+        ->and(Booking::withoutGlobalScope('tenant')->count())->toBe(1);
+});
+
+it('still hands over the booking page when none of the offered times work', function () {
+    app(CurrentOrganization::class)->set($this->org);
+    BookingPage::create(['name' => 'Discovery call', 'slug' => 'discovery-call', 'duration_minutes' => 30, 'is_active' => true]);
+    app(CurrentOrganization::class)->forget();
+
+    [$token] = talkToBooking($this);
+    $final = $this->postJson("/wc/{$this->key}/conversations/{$token}/messages", ['option' => 'none'])->assertOk()->json();
+
+    expect($final['booking_url'])->toContain('/b/discovery-call')
+        ->and(collect($final['messages'])->pluck('body')->implode(' '))->toContain('pick a time that suits you');
+});
+
+it('does not tell the visitor to pick a time when there is nothing to pick from', function () {
+    [, $final] = talkToBooking($this);
+
+    // No live booking page: the picker steps aside and the ending says what
+    // will happen, instead of an instruction nobody can follow.
+    expect($final['done'])->toBeTrue()
+        ->and($final['booking_url'] ?? null)->toBeNull()
+        ->and(collect($final['messages'])->pluck('body')->all())->toBe(['One of the team will email you shortly to arrange a time.']);
 });

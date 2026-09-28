@@ -685,3 +685,29 @@ rolled back and re-run locally.
 into the ticket (there is no inbound mail); a second request from the same client opens a second
 ticket rather than joining the first; routing by topic (billing to one person, technical to
 another) needs an "assign to" on the End step.
+
+## Follow-up (2026-09-28): the chat "stops at the booking step" (CHAT-084)
+
+Reported by the owner after setting the chat up on a live site with a new flow: everything worked
+until the appointment step, where the conversation stopped.
+
+Reproduced locally with the flow the builder makes when "End: Book a Meeting" is added - a
+time-picker whose "booked" and "no time works" paths both lead to that one ending. The ending's
+words are written for someone who has not booked yet, and it was used for both:
+
+- **After booking a time**, the visitor saw "You're booked for Mon 28 Sep 14:30…", then "Great,
+  pick a time that suits you." and a "Choose a time" link. Having just booked, they were asked to
+  book - the chat looked stuck at that step. The meeting was also recorded twice.
+- **With no live booking page**, the picker steps aside and the ending said "Great, pick a time
+  that suits you." with nothing to pick, then that the team would email.
+
+Now: after an in-chat booking the ending closes on the confirmation alone (outcome `booked`, no
+link, one meeting); with no booking page it says only that the team will email to arrange a time;
+when none of the offered times work it still hands over the booking page.
+
+Checked while diagnosing: every step of the reproduction answered in under a quarter of a second,
+and the booking confirmation email is sent through a provider that catches its own failures, so a
+mail problem cannot break the chat.
+
+**Automated testing:** `ChatBookNowTest` +3 (and the no-page test now also asserts the "pick a
+time" line is gone).

@@ -222,22 +222,35 @@ class ChatFlowEngine
             }
 
             if ($node['type'] === 'end') {
-                $this->say($conversation, (string) ($node['text'] ?? 'Thanks for chatting with us!'), $nodeId);
+                $outcome = (string) ($node['outcome'] ?? 'lead');
+                $closing = (string) ($node['text'] ?? 'Thanks for chatting with us!');
+
+                // A meeting ending is written for someone who has yet to book:
+                // "pick a time", and a link to do it. In a conversation built in
+                // the builder the time-picker's "booked" and "no time works"
+                // paths both lead to it, and its words are wrong twice over.
+                if ($outcome === 'meeting' && (($conversation->answers ?? [])['_booking'] ?? null) !== null) {
+                    // Booked a moment ago, in this chat: the confirmation said
+                    // when and where, so asking them to pick a time and handing
+                    // over the booking page only makes them think it failed.
+                    $outcome = 'booked';
+                    $closing = null;
+                } elseif ($outcome === 'meeting' && ! $conversation->is_preview && ! BookingPage::query()->where('is_active', true)->exists()) {
+                    // Nothing to book with: say what happens instead of an
+                    // instruction nobody can follow. Details are captured either way.
+                    $closing = 'One of the team will email you shortly to arrange a time.';
+                }
+
+                if ($closing !== null) {
+                    $this->say($conversation, $closing, $nodeId);
+                }
                 $answers = $conversation->answers ?? [];
                 unset($answers[self::CURSOR]);
                 $conversation->answers = $answers;
                 $this->known = $answers;
                 $conversation->save();
 
-                $outcome = (string) ($node['outcome'] ?? 'lead');
                 $result = $this->capture->complete($widget, $conversation, $outcome);
-
-                // "Pick a time" with no booking page behind it would leave the
-                // visitor staring at an instruction they cannot follow. Say what
-                // will happen instead - their details are captured either way.
-                if ($outcome === 'meeting' && ($result['booking_url'] ?? null) === null && ! $conversation->is_preview) {
-                    $this->say($conversation, 'One of the team will email you shortly to arrange a time.', $nodeId);
-                }
 
                 return [
                     'messages' => $this->drain(),
