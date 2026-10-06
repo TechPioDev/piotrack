@@ -7,8 +7,8 @@ use App\Models\Subscription;
 
 /**
  * Where a workspace stands with its plan, in words a person can act on: still
- * active, trial about to end, trial ended, subscription ended, on hold, or
- * never had one.
+ * active, trial about to end, a payment that failed, trial ended, subscription
+ * ended, on hold, or never had one.
  *
  * Entitlements answers "may this workspace use X". This answers the question a
  * person asks next - "why not, and since when" - and is the one place that
@@ -18,12 +18,12 @@ use App\Models\Subscription;
 class PlanStanding
 {
     /** States in which the plan is running and nothing is switched off. */
-    public const RUNNING = ['active', 'trial_ending'];
+    public const RUNNING = ['active', 'trial_ending', 'payment_failed'];
 
     /**
      * @param  Subscription|null  $active  the workspace's active subscription when the caller
      *                                     has already looked it up; null means it has none
-     * @return array{state: 'active'|'trial_ending'|'trial_ended'|'ended'|'suspended'|'none', plan: string|null, ended_on: string|null, ends_at: string|null}
+     * @return array{state: 'active'|'trial_ending'|'payment_failed'|'trial_ended'|'ended'|'suspended'|'none', plan: string|null, ended_on: string|null, ends_at: string|null}
      */
     public function describe(Organization $organization, ?Subscription $active): array
     {
@@ -31,6 +31,8 @@ class PlanStanding
 
         $state = match (true) {
             $subscription === null => 'none',
+            // Everything still works, for the days of grace that are left.
+            $subscription->status === 'past_due' => 'payment_failed',
             in_array($subscription->status, Subscription::ACTIVE_STATES, true) => $this->aboutToLapse($subscription) ? 'trial_ending' : 'active',
             $subscription->status === 'expired' && $subscription->trial_ends_at !== null => 'trial_ended',
             $subscription->status === 'suspended' => 'suspended',
@@ -42,12 +44,23 @@ class PlanStanding
             ? ($subscription->ends_at ?? $subscription->trial_ends_at)
             : null;
 
+        // When a plan that is still running will stop unless something is
+        // done: the end of the trial, or of the grace a failed payment gets.
+        $stops = null;
+        if ($subscription !== null) {
+            $stops = match ($state) {
+                'trial_ending' => $subscription->trial_ends_at,
+                'payment_failed' => $subscription->ends_at,
+                default => null,
+            };
+        }
+
         return [
             'state' => $state,
             'plan' => $subscription?->plan?->name,
             'ended_on' => $ended?->toDateString(),
             // The moment itself, so "today" and "tomorrow" are the reader's own.
-            'ends_at' => $state === 'trial_ending' ? $subscription->trial_ends_at?->toIso8601String() : null,
+            'ends_at' => $stops?->toIso8601String(),
         ];
     }
 

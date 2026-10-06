@@ -167,7 +167,33 @@ Asked for by the owner once ENTL-009 was live: say it before it happens.
 - A page outside the trial's plan is still reported as "not included in your plan" during those
   days, not as a trial ending.
 
-Still not included: the same line for a payment that has failed but not yet suspended anything.
+(The same line for a payment that has failed but not yet suspended anything followed - ENTL-011.)
 
 **Automated testing:** `PlanNoticeTest` +6 (12), `plan-notice.test.tsx` +4 (10),
 `access-denied.test.ts` +2 (7).
+
+## Follow-up (2026-10-06, evening): a failed payment says how long is left (ENTL-011)
+
+The last of the three: asked for by the owner once the trial warning was live.
+
+A failed payment marks the subscription `past_due` and gives it `billing.grace_days` (7) before
+`subscriptions:enforce-grace` suspends it. Everything keeps working in between, which is exactly
+why nobody noticed: the first sign was the day most of the product switched off.
+
+- Every signed-in page now says "A payment for PioManage did not go through. Most of Piotrack
+  will be switched off in 5 days, on 13 October 2026, unless it is settled." - or "tomorrow", or
+  "today". It does not say anything is off, because nothing is.
+- An owner gets **Open billing** (a payment is put right there, not by choosing a plan); a
+  teammate is told to ask an owner; a portal client is told nothing.
+- Put away, it returns the next day. It goes quiet the moment the invoice is paid, and becomes the
+  "on hold" notice if the grace runs out unpaid - at which point the plan's pages really are
+  refused, for the reason given.
+- A page the plan never included is still "not included in your plan" while a payment is owed.
+- The shared props now consult the plan's standing for any subscription that is not simply
+  `active`; an active one still costs nothing extra.
+
+**Known limit, stated rather than hidden:** the billing page shows the plan as "past due" and its
+invoices, and hands off to the payment provider's own portal for the card. With offline billing
+there is no card to fix in the app, so "Open billing" leads to the invoice, not to a pay button.
+
+**Automated testing:** `PlanNoticeTest` +5 (17), `plan-notice.test.tsx` +4 (14).

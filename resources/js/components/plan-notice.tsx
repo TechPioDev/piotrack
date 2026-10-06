@@ -16,8 +16,9 @@ function dismissedFor(): string | null {
 }
 
 /**
- * Says, on every page, that the workspace has no plan running (ENTL-009) or
- * that its trial is in its last few days (ENTL-010).
+ * Says, on every page, that the workspace has no plan running (ENTL-009), that
+ * its trial is in its last few days (ENTL-010), or that a payment did not go
+ * through and the days of grace are running out (ENTL-011).
  *
  * When a trial ran out or a subscription ended, most of the product switched
  * off at once and the first anyone knew of it was a refused page. This is the
@@ -26,13 +27,14 @@ function dismissedFor(): string | null {
  *
  * It can be put away for the rest of the visit, since somebody who cannot
  * change the plan has no use for a line they cannot act on. It comes back in
- * a new session, at once if the plan's situation changes, and each day while a
- * trial counts down - "three days left" put away is not "ends today" seen.
+ * a new session, at once if the plan's situation changes, and each day while
+ * something counts down - "three days left" put away is not "today" seen.
  */
 export function PlanNotice() {
     const { planNotice } = usePage<SharedData>().props;
     const path = usePage().url.split('?')[0];
-    const countdown = planNotice?.state === 'trial_ending' && planNotice.ends_at ? daysUntil(planNotice.ends_at) : '';
+    // Only a plan that is about to stop carries the moment it stops.
+    const countdown = planNotice?.ends_at ? daysUntil(planNotice.ends_at) : '';
     const signature = planNotice ? `${planNotice.workspace}|${planNotice.state}|${planNotice.ended_on ?? planNotice.ends_at ?? ''}|${countdown}` : '';
     const [dismissed, setDismissed] = useState<string | null>(dismissedFor);
 

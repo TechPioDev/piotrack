@@ -193,3 +193,92 @@ it('turns from a warning into the ended notice when the trial runs out', functio
     $this->actingAs($this->owner)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('planNotice.state', 'trial_ended')->where('planNotice.ends_at', null));
 });
+
+/*
+ * A payment that failed (ENTL-011): everything still works for the days of
+ * grace, and the workspace is told how many are left.
+ */
+
+it('says a payment failed, and when the grace runs out, while everything still works', function () {
+    subscribeOrganization($this->org, 'growth');
+    app(SubscriptionService::class)->markPastDue($this->org->activeSubscription());
+    $suspendsAt = $this->org->activeSubscription()->ends_at;
+
+    expect($suspendsAt->toDateString())->toBe(now()->addDays((int) config('billing.grace_days'))->toDateString());
+
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('planNotice.state', 'payment_failed')
+            ->where('planNotice.workspace', 'PioManage')
+            ->where('planNotice.plan', 'Growth')
+            ->where('planNotice.ends_at', $suspendsAt->toIso8601String())
+            ->where('planNotice.ended_on', null)
+            ->where('planNotice.can_manage_billing', true));
+
+    // Nothing is switched off during the grace: the plan's pages still open.
+    $this->actingAs($this->owner)->get(route('chat.widgets.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('planNotice.state', 'payment_failed'));
+});
+
+it('tells a teammate about a failed payment, and never an agency\'s client', function () {
+    $viewer = addMember($this->org, Role::Viewer);
+    $client = addMember($this->org, Role::Client);
+    subscribeOrganization($this->org, 'growth');
+    app(SubscriptionService::class)->markPastDue($this->org->activeSubscription());
+
+    $this->actingAs($viewer)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('planNotice.state', 'payment_failed')
+            ->where('planNotice.can_manage_billing', false));
+
+    $this->actingAs($client)->get(route('portal.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+});
+
+it('goes quiet once the payment is settled', function () {
+    subscribeOrganization($this->org, 'growth');
+    $subscriptions = app(SubscriptionService::class);
+    $invoice = $this->org->invoices()->latest('id')->firstOrFail();
+    $invoice->forceFill(['status' => 'open', 'paid_at' => null])->save();
+    $subscriptions->markPastDue($this->org->activeSubscription());
+
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice.state', 'payment_failed'));
+
+    expect($subscriptions->retryInvoice($invoice))->toBeTrue();
+
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+});
+
+it('becomes the on-hold notice when the grace runs out unpaid', function () {
+    subscribeOrganization($this->org, 'growth');
+    app(SubscriptionService::class)->markPastDue($this->org->activeSubscription());
+
+    $this->travel((int) config('billing.grace_days') + 1)->days();
+    $this->artisan('subscriptions:enforce-grace')->assertSuccessful();
+    app(Entitlements::class)->forget($this->org);
+
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('planNotice.state', 'suspended')
+            ->where('planNotice.ends_at', null));
+
+    // And now the plan's pages really are refused, for the reason given.
+    $this->actingAs($this->owner)->get(route('chat.widgets.index'))
+        ->assertForbidden()
+        ->assertInertia(fn ($page) => $page->where('denied.state', 'suspended'));
+});
+
+it('still calls a page outside the plan "not in your plan" while a payment is owed', function () {
+    subscribeOrganization($this->org, 'starter'); // no teams
+    app(SubscriptionService::class)->markPastDue($this->org->activeSubscription());
+
+    $this->actingAs($this->owner)->get(route('teams.index'))
+        ->assertForbidden()
+        ->assertInertia(fn ($page) => $page
+            ->where('denied.reason', 'plan')
+            ->where('denied.state', 'not_included')
+            ->where('denied.plan', 'Starter'));
+});

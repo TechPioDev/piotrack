@@ -14,15 +14,16 @@ export type Denied =
     | { reason: 'role'; workspace: string; role: string | null };
 
 /**
- * The workspace has no plan running, or its trial is in its last few days;
- * shared with every signed-in page.
+ * The workspace has no plan running, or is about to lose it - a trial in its
+ * last few days, a payment that did not go through; shared with every
+ * signed-in page.
  */
 export type PlanNotice = {
     workspace: string;
-    state: LapsedState | 'trial_ending';
+    state: LapsedState | 'trial_ending' | 'payment_failed';
     plan: string | null;
     ended_on: string | null;
-    /** When a trial in its last days runs out (ISO 8601); null otherwise. */
+    /** When a plan that is still running will stop unless something is done (ISO 8601); null otherwise. */
     ends_at?: string | null;
     can_manage_billing: boolean;
 };
@@ -93,14 +94,28 @@ export function daysUntil(iso: string, now: Date = new Date()): number {
 
 /**
  * The same news, before any page has been refused: one line across the app
- * for a workspace whose plan is no longer running, or whose trial is about to
- * run out. A subscription on hold is put right on the billing page rather than
- * by picking a plan.
+ * for a workspace whose plan is no longer running, or is about to stop - a
+ * trial running out, a payment that failed. A payment problem is put right on
+ * the billing page rather than by picking a plan.
  */
 export function planNoticeCopy(notice: PlanNotice, now: Date = new Date()): { text: string; action: { label: string; href: string } | null } {
+    const left = notice.ends_at ? daysUntil(notice.ends_at, now) : null;
+    const on = notice.ends_at ? new Date(notice.ends_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+
+    if (notice.state === 'payment_failed') {
+        // Everything still works, so say how long for rather than what is off.
+        const deadline =
+            left === null
+                ? 'Most of Piotrack will be switched off soon unless it is settled.'
+                : `Most of Piotrack will be switched off ${left === 0 ? 'today' : left === 1 ? `tomorrow, ${on},` : `in ${left} days, on ${on},`} unless it is settled.`;
+        const text = `A payment for ${notice.workspace} did not go through. ${deadline}`;
+
+        return notice.can_manage_billing
+            ? { text, action: { label: 'Open billing', href: '/billing' } }
+            : { text: `${text} Ask an owner of the workspace to check billing.`, action: null };
+    }
+
     if (notice.state === 'trial_ending') {
-        const left = notice.ends_at ? daysUntil(notice.ends_at, now) : null;
-        const on = notice.ends_at ? new Date(notice.ends_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
         const when = left === null ? 'ends soon' : left === 0 ? 'ends today' : left === 1 ? `ends tomorrow, ${on}` : `ends in ${left} days, on ${on}`;
         const text = `The free trial for ${notice.workspace} ${when}.`;
 

@@ -59,8 +59,8 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * What to tell someone whose workspace has no plan running - a trial that
-     * ran out, a subscription that ended or is on hold - or whose trial is in
-     * its last few days.
+     * ran out, a subscription that ended or is on hold - or is about to lose
+     * it: a trial in its last few days, a payment that did not go through.
      *
      * Without it the first sign was a refused page: most of the product is
      * switched off the moment a plan lapses, and nothing said so. A client
@@ -136,10 +136,11 @@ class HandleInertiaRequests extends Middleware
                 'features' => app(Entitlements::class)->features($currentOrganization),
                 'plan' => $subscription?->plan->code,
             ] : ['features' => [], 'plan' => null],
-            // The workspace has no plan running, or a trial in its last days:
-            // said on every page, so nobody has to be refused one to find out
-            // (ENTL-009, ENTL-010). A paid plan is never even looked at.
-            'planNotice' => $inWorkspace && ($subscription === null || $subscription->status === 'trialing')
+            // The workspace has no plan running, a trial in its last days, or a
+            // payment that failed: said on every page, so nobody has to be
+            // refused one to find out (ENTL-009..011). A plan that is simply
+            // active is never even looked at.
+            'planNotice' => $inWorkspace && ($subscription === null || $subscription->status !== 'active')
                 ? $this->planNotice($user, $currentOrganization, $role, $subscription)
                 : null,
             'notifications' => [

@@ -158,3 +158,76 @@ describe('PlanNotice, while a trial counts down', () => {
         expect(screen.getByRole('status')).toHaveTextContent('ends in 2 days');
     });
 });
+
+describe('PlanNotice, after a payment failed', () => {
+    /** Suspension comes at 09:00, `days` days after "now" (10:00 on 6 October, the reader's time). */
+    const failed = (days: number | null, over: Partial<Notice> = {}): Notice =>
+        ended({
+            state: 'payment_failed',
+            ended_on: null,
+            ends_at: days === null ? null : new Date(2026, 9, 6 + days, 9, 0).toISOString(),
+            ...over,
+        });
+
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 9, 6, 10, 0));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('says the payment failed, how long everything stays on, and sends an owner to billing', () => {
+        page.props.planNotice = failed(5);
+        render(<PlanNotice />);
+
+        const notice = screen.getByRole('status');
+        expect(notice).toHaveTextContent('A payment for PioManage did not go through.');
+        expect(notice).toHaveTextContent('Most of Piotrack will be switched off in 5 days, on');
+        expect(notice).toHaveTextContent('unless it is settled.');
+        // It is still running: nothing is off yet, and nothing was deleted to reassure about.
+        expect(notice).not.toHaveTextContent('is switched off');
+        // A payment is put right on the billing page, not by choosing a plan.
+        expect(screen.getByRole('link', { name: 'Open billing' })).toHaveAttribute('href', '/billing');
+    });
+
+    it('says tomorrow and today in plain words, and copes without a date', () => {
+        page.props.planNotice = failed(1);
+        const first = render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('will be switched off tomorrow,');
+        first.unmount();
+
+        page.props.planNotice = failed(0, { ends_at: new Date(2026, 9, 6, 23, 0).toISOString() });
+        const second = render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('Most of Piotrack will be switched off today unless it is settled.');
+        second.unmount();
+
+        page.props.planNotice = failed(null);
+        render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('Most of Piotrack will be switched off soon unless it is settled.');
+    });
+
+    it('asks a teammate to get an owner to look at billing, with nothing to click', () => {
+        page.props.planNotice = failed(5, { can_manage_billing: false });
+        render(<PlanNotice />);
+
+        expect(screen.getByRole('status')).toHaveTextContent('Ask an owner of the workspace to check billing.');
+        expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('put away, it is back the next day while the days run down', () => {
+        page.props.planNotice = failed(5);
+        const first = render(<PlanNotice />);
+        fireEvent.click(screen.getByRole('button', { name: 'Hide this notice for now' }));
+        first.unmount();
+
+        const sameDay = render(<PlanNotice />);
+        expect(screen.queryByRole('status')).toBeNull();
+        sameDay.unmount();
+
+        vi.setSystemTime(new Date(2026, 9, 7, 8, 0));
+        render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('in 4 days');
+    });
+});
