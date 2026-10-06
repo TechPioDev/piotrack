@@ -660,7 +660,10 @@ nowhere:
   Now the teammate already in the conversation keeps it (else the widget's routing assignee, if
   still an active member), and owners plus the workspace's Slack/Teams/webhook channels are told
   once. The alert names the ticket and the button the visitor picked, never their typed words:
-  those go straight into Slack, where `<!channel>` pages everyone.
+  those go straight into Slack, where `<!channel>` pages everyone. (The same day, the org
+  channels themselves started escaping Slack and Teams markup, because the hot-lead alert
+  *does* carry the visitor's name: see NOTIF-011 in
+  `module-51-notifications-entitlements-completion.md`.)
 - **The client never heard back.** The chat says "our team will follow up by email", and the reply
   box said "The requester will see this reply" - but a website visitor has no account, so a reply
   reached nobody. The ticket now keeps their name and email; they get a receipt with the ticket

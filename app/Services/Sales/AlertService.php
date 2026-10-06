@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\SalesAlert;
 use App\Notifications\SalesAlertNotification;
 use App\Services\Integrations\WebhookDispatcher;
+use App\Services\Notifications\OrgChannelNotifier;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
 use App\Support\NotificationDispatcher;
@@ -121,8 +122,9 @@ class AlertService
         if ($webhook !== '') {
             try {
                 // {text: …} is the payload both Slack and Teams incoming
-                // webhooks accept.
-                Http::timeout(5)->post($webhook, ['text' => $message]);
+                // webhooks accept. The message can hold a visitor's own name,
+                // so it is escaped for whichever of the two will render it.
+                Http::timeout(5)->post($webhook, ['text' => OrgChannelNotifier::escape(OrgChannelNotifier::kindForUrl($webhook), $message)]);
             } catch (\Throwable $e) {
                 Log::warning('Sales alert webhook delivery failed', ['error' => $e->getMessage()]);
             }
