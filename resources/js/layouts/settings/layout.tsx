@@ -2,16 +2,20 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { usePermissions } from '@/hooks/use-permissions';
+import { usePlanLocks } from '@/hooks/use-plan-locks';
 import { settingsItems } from '@/lib/navigation';
+import { NOT_IN_PLAN } from '@/lib/plan-areas';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
+import { Lock } from 'lucide-react';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     const { can } = usePermissions();
 
     // Organization settings are permission-gated (RBAC-005); the list is shared
     // with the command palette so every settings page is findable by name.
-    const sidebarNavItems = settingsItems(can);
+    // A page the plan leaves out (Teams, the audit log) is marked, not hidden.
+    const sidebarNavItems = settingsItems(can, usePlanLocks());
 
     const currentPath = window.location.pathname;
 
@@ -32,8 +36,14 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                                     'bg-muted': currentPath === item.url,
                                 })}
                             >
-                                <Link href={item.url} prefetch>
+                                <Link href={item.url} prefetch={!item.locked} title={item.locked ? `${item.title} — ${NOT_IN_PLAN}` : undefined}>
                                     {item.title}
+                                    {item.locked && (
+                                        <>
+                                            <Lock data-plan-lock className="text-muted-foreground ml-auto size-3" aria-hidden="true" />{' '}
+                                            <span className="sr-only">({NOT_IN_PLAN})</span>
+                                        </>
+                                    )}
                                 </Link>
                             </Button>
                         ))}

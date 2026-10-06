@@ -3,13 +3,15 @@ import { NavUser } from '@/components/nav-user';
 import { OrganizationSwitcher } from '@/components/organization-switcher';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { usePermissions } from '@/hooks/use-permissions';
+import { usePlanLocks } from '@/hooks/use-plan-locks';
 import { DASHBOARD, navigationSections } from '@/lib/navigation';
 import { usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 export function AppSidebar() {
     const { can } = usePermissions();
-    const sections = navigationSections(can);
+    // Pages the plan leaves out stay in the menu, marked with a lock (ENTL-012).
+    const sections = navigationSections(can, usePlanLocks());
 
     // A header exists to group things. A section holding a single item is not a
     // group, so it joins Dashboard as a plain link rather than costing a click

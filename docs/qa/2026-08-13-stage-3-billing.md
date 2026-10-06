@@ -117,9 +117,8 @@ Reproduced as a test: a new workspace's trial runs its 14 days, the hourly `expi
 runs, and both pages from the report return 403 with `state: trial_ended`; choosing a plan
 brings them back.
 
-**Not changed, and worth a decision:** the menus still list modules the plan does not include.
-(The other half of this note - nothing saying a trial has ended until a page refuses - is closed
-by ENTL-009 below.)
+(Both halves of the note that stood here are now closed: nothing saying a trial had ended until a
+page refused - ENTL-009 - and menus listing modules the plan does not include - ENTL-012.)
 
 **Automated testing:** `AccessDeniedPageTest` (6), `access-denied.test.ts` (5).
 
@@ -197,3 +196,27 @@ invoices, and hands off to the payment provider's own portal for the card. With 
 there is no card to fix in the app, so "Open billing" leads to the invoice, not to a pay button.
 
 **Automated testing:** `PlanNoticeTest` +5 (17), `plan-notice.test.tsx` +4 (14).
+
+## Follow-up (2026-10-06, night): menus mark what the plan does not include (ENTL-012)
+
+The last open note from the 403 investigation, asked for by the owner.
+
+- **Marked, not hidden.** A page the plan leaves out stays in the menu with a small lock. Hiding
+  it would hide what an upgrade buys; leaving it unmarked sent people into a refusal.
+- **Everywhere the menu is read:** the sidebar, the settings menu (Teams, Audit log) and the
+  command palette ("Advertising · not in your plan"). They share one navigation definition, so
+  one change marks all three.
+- **A whole section left out wears the lock on its header**, so it does not have to be opened
+  to find out. A section with one page out of several marks just that page.
+- **Said, not only shown:** a screen reader hears "Automation (not in your plan)" - two words,
+  after a test caught them running together - and the icon rail's tooltip carries it too.
+- **Still a link.** It leads to the page, which explains what the plan lacks and offers the
+  plans (ENTL-008). A marked page is no longer prefetched on hover, which was fetching a refusal.
+- **One map, held to the routes.** `App\Billing\PlanAreas` lists where each feature lives
+  (`/chat`, `/seo`, `/settings/teams`…), most specific path deciding: `/ai/visibility` needs only
+  AI visibility though it sits under `/ai`; `/seo/llmo` needs SEO and AI visibility both. It is a
+  plain list, not worked out per request - and `PlanAreasTest` walks every GET route and fails if
+  the list and the `entitlement:` middleware disagree in either direction. That test doubles as a
+  guard: a page added to a gated area without the gate fails the build.
+
+**Automated testing:** `PlanAreasTest` (5), `plan-areas.test.ts` (10), `nav-plan-locks.test.tsx` (4).

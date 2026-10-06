@@ -33,11 +33,15 @@ export interface NavItem {
     isActive?: boolean;
     /** Other words people use for the page, matched by the command palette. */
     keywords?: string;
+    /** The workspace's plan does not include this page; it is shown, and marked. */
+    locked?: boolean;
 }
 
 export interface Entitlements {
     features: Record<string, boolean>;
     plan: string | null;
+    /** Where each plan feature lives, and whether the plan includes it: `{ '/chat': true, '/ads': false }`. */
+    areas?: Record<string, boolean>;
 }
 
 export interface SharedData {

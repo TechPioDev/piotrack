@@ -1,7 +1,9 @@
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/use-permissions';
+import { usePlanLocks } from '@/hooks/use-plan-locks';
 import { navigablePages, searchPages } from '@/lib/navigation';
+import { NOT_IN_PLAN } from '@/lib/plan-areas';
 import { cn } from '@/lib/utils';
 import { router } from '@inertiajs/react';
 import { CornerDownLeft, Search } from 'lucide-react';
@@ -41,11 +43,18 @@ export function CommandPalette() {
     const [active, setActive] = useState(0);
     const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const pages = searchPages(query, navigablePages(can));
+    const locked = usePlanLocks();
+    const pages = searchPages(query, navigablePages(can, locked));
 
     // One flat list in display order, so the keyboard walks exactly what is shown.
     const results = [
-        ...pages.map(({ section, item }) => ({ key: `page:${item.url}`, title: item.title, subtitle: section as string | null, url: item.url })),
+        ...pages.map(({ section, item }) => ({
+            key: `page:${item.url}`,
+            title: item.title,
+            // A page the plan leaves out says so here too, before Enter is pressed.
+            subtitle: (item.locked ? `${section} · ${NOT_IN_PLAN}` : section) as string | null,
+            url: item.url,
+        })),
         ...groups.flatMap((group) => group.items.map((item, i) => ({ key: `${group.type}:${i}`, ...item }))),
     ];
 

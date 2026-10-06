@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Authorization\Role;
 use App\Billing\Entitlements;
+use App\Billing\PlanAreas;
 use App\Billing\PlanStanding;
 use App\Models\Organization;
 use App\Models\Subscription;
@@ -135,7 +136,10 @@ class HandleInertiaRequests extends Middleware
             'entitlements' => $inWorkspace ? [
                 'features' => app(Entitlements::class)->features($currentOrganization),
                 'plan' => $subscription?->plan->code,
-            ] : ['features' => [], 'plan' => null],
+                // Where each feature lives, so a menu can mark what the plan
+                // leaves out before anyone clicks into a refusal (ENTL-012).
+                'areas' => app(PlanAreas::class)->included($currentOrganization),
+            ] : ['features' => [], 'plan' => null, 'areas' => []],
             // The workspace has no plan running, a trial in its last days, or a
             // payment that failed: said on every page, so nobody has to be
             // refused one to find out (ENTL-009..011). A plan that is simply

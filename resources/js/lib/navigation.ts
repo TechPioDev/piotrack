@@ -84,6 +84,11 @@ export type NavSection = { id: string; label: string; items: NavItem[] };
 
 type Can = (permission: string) => boolean;
 
+/** Whether the workspace's plan leaves a page out (see lib/plan-areas). */
+type Locked = (url: string) => boolean;
+
+const nothingLocked: Locked = () => false;
+
 type Entry = NavItem & { permission?: string };
 
 const SECTIONS: { id: string; label: string; items: Entry[] }[] = [
@@ -305,28 +310,36 @@ const SETTINGS: Entry[] = [
 ];
 
 const allowed = (can: Can) => (entry: Entry) => entry.permission === undefined || can(entry.permission);
-const strip = ({ title, url, icon, keywords }: Entry): NavItem => ({ title, url, icon, keywords });
+/**
+ * A page the plan leaves out stays in the menu, marked: hiding it would hide
+ * what an upgrade buys, and leaving it unmarked sends people into a refusal.
+ */
+const strip =
+    (locked: Locked) =>
+    ({ title, url, icon, keywords }: Entry): NavItem => ({ title, url, icon, keywords, ...(locked(url) ? { locked: true } : {}) });
 
 export const DASHBOARD: NavItem = { title: 'Dashboard', url: '/dashboard', icon: LayoutGrid, keywords: 'home command center' };
 
 /** Sidebar sections the user may see, in sidebar order; empty sections are dropped. */
-export function navigationSections(can: Can): NavSection[] {
-    return SECTIONS.map((section) => ({ id: section.id, label: section.label, items: section.items.filter(allowed(can)).map(strip) })).filter(
-        (section) => section.items.length > 0,
-    );
+export function navigationSections(can: Can, locked: Locked = nothingLocked): NavSection[] {
+    return SECTIONS.map((section) => ({
+        id: section.id,
+        label: section.label,
+        items: section.items.filter(allowed(can)).map(strip(locked)),
+    })).filter((section) => section.items.length > 0);
 }
 
 /** The settings menu: organization settings first, then the user's own account. */
-export function settingsItems(can: Can): NavItem[] {
-    return SETTINGS.filter(allowed(can)).map(strip);
+export function settingsItems(can: Can, locked: Locked = nothingLocked): NavItem[] {
+    return SETTINGS.filter(allowed(can)).map(strip(locked));
 }
 
 /** Everything a person can navigate to, each with the section it belongs to. */
-export function navigablePages(can: Can): { section: string; item: NavItem }[] {
+export function navigablePages(can: Can, locked: Locked = nothingLocked): { section: string; item: NavItem }[] {
     return [
         { section: 'Dashboard', item: DASHBOARD },
-        ...navigationSections(can).flatMap((section) => section.items.map((item) => ({ section: section.label, item }))),
-        ...settingsItems(can).map((item) => ({ section: 'Settings', item })),
+        ...navigationSections(can, locked).flatMap((section) => section.items.map((item) => ({ section: section.label, item }))),
+        ...settingsItems(can, locked).map((item) => ({ section: 'Settings', item })),
     ];
 }
 
