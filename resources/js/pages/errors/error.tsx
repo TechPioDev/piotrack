@@ -1,3 +1,4 @@
+import { deniedCopy, type Denied } from '@/lib/access-denied';
 import { Head, Link } from '@inertiajs/react';
 
 /**
@@ -14,8 +15,12 @@ const COPY: Record<number, { title: string; body: string }> = {
     503: { title: 'Down for maintenance', body: 'The app is briefly unavailable while we make some changes. Please check back shortly.' },
 };
 
-export default function ErrorPage({ status }: { status: number }) {
-    const { title, body } = COPY[status] ?? { title: 'Something went wrong', body: 'An unexpected error occurred.' };
+export default function ErrorPage({ status, denied = null }: { status: number; denied?: Denied | null }) {
+    // A 403 that knows its cause says so: a plan and a role are put right by
+    // different people, and "contact your administrator" helps with neither.
+    const specific = status === 403 && denied ? deniedCopy(denied) : null;
+    const { title, body } = specific ?? COPY[status] ?? { title: 'Something went wrong', body: 'An unexpected error occurred.' };
+    const action = specific?.action ?? null;
 
     return (
         <>
@@ -24,7 +29,7 @@ export default function ErrorPage({ status }: { status: number }) {
                 <div className="text-brand-strong font-mono text-5xl font-bold tabular-nums">{status}</div>
                 <h1 className="text-foreground mt-3 text-2xl font-semibold tracking-tight">{title}</h1>
                 <p className="text-muted-foreground mt-2 max-w-md text-sm">{body}</p>
-                <div className="mt-6 flex gap-3">
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
                     {(status === 500 || status === 503) && (
                         <button
                             type="button"
@@ -41,12 +46,25 @@ export default function ErrorPage({ status }: { status: number }) {
                     >
                         Go back
                     </button>
+                    {/* When there is a way to put it right, that is the main button. */}
                     <Link
                         href="/dashboard"
-                        className="bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                        className={
+                            action
+                                ? 'border-border hover:border-brand hover:text-brand-strong rounded-lg border px-4 py-2 text-sm font-semibold transition-colors'
+                                : 'bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90'
+                        }
                     >
                         Back to dashboard
                     </Link>
+                    {action && (
+                        <Link
+                            href={action.href}
+                            className="bg-brand text-brand-foreground rounded-lg px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                        >
+                            {action.label}
+                        </Link>
+                    )}
                 </div>
             </div>
         </>

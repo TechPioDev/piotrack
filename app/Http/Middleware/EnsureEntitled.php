@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Billing\Entitlements;
+use App\Exceptions\FeatureNotInPlan;
 use App\Support\CurrentOrganization;
 use Closure;
 use Illuminate\Http\Request;
@@ -25,11 +26,9 @@ class EnsureEntitled
     {
         $organization = $this->currentOrganization->get();
 
-        abort_if(
-            $organization === null || ! $this->entitlements->feature($organization, $feature),
-            403,
-            __('Your plan does not include this feature.'),
-        );
+        if ($organization === null || ! $this->entitlements->feature($organization, $feature)) {
+            throw new FeatureNotInPlan($feature);
+        }
 
         return $next($request);
     }

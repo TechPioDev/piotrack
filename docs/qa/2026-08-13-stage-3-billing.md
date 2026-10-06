@@ -92,3 +92,33 @@ the **Stripe driver is real code but not exercised** (no keys here) and is never
 **APPROVED — Stage 3 gate passed.** Foundation stages (0–3) complete. Next: Stage 4 — Core Platform
 (navigation, dashboard framework, notifications, global search, settings, files, integrations
 framework, background jobs/queues, observability).
+
+## Follow-up (2026-10-06): a refused page says why (ENTL-008)
+
+Reported by the owner from a live workspace: `/chat/widgets`, `/seo/local` and `/settings/teams`
+all answered "403 Not authorized - contact your administrator".
+
+Their own screenshot ruled out the role: the settings menu lists Teams only for someone holding
+`teams.view`, and it was listed. What refused the page was `entitlement:teams` - the plan. A
+workspace with no active subscription (a trial that ran out, a subscription that ended or is on
+hold) falls back to the free tier, which is the CRM alone, so every other module is refused at
+once. The plan check and the permission check both produced the same sentence, so nothing on
+the page said the plan was the cause or that Billing was the way out.
+
+- `EnsureEntitled` now throws `FeatureNotInPlan` - still a 403, with the same message an API
+  client always got.
+- The error page is told which of the two refused it (`App\Support\AccessDenied`): for a plan,
+  whether the trial ended, the subscription ended, it is on hold, there is no plan, or the named
+  plan simply does not include the feature - with the date and the workspace name. Someone who can
+  manage billing gets a "See plans" button; anyone else is sent to an owner. A role refusal names
+  the role. Any other 403 keeps the old wording.
+
+Reproduced as a test: a new workspace's trial runs its 14 days, the hourly `expire-trials` job
+runs, and both pages from the report return 403 with `state: trial_ended`; choosing a plan
+brings them back.
+
+**Not changed, and worth a decision:** the menus still list modules the plan does not include,
+and nothing in the app says a trial has ended until a page refuses. A banner on the dashboard and
+upgrade marks in the menu would say it sooner.
+
+**Automated testing:** `AccessDeniedPageTest` (6), `access-denied.test.ts` (5).

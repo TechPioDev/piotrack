@@ -8,6 +8,7 @@ use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetApiOrganization;
 use App\Http\Middleware\SetCurrentOrganization;
+use App\Support\AccessDenied;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -113,7 +114,12 @@ return Application::configure(basePath: dirname(__DIR__))
                     return $response;
                 }
 
-                return Inertia::render('errors/error', ['status' => $status])
+                return Inertia::render('errors/error', [
+                    'status' => $status,
+                    // A 403 says which of the two things refused the page - the
+                    // plan or the role - because each is fixed somewhere else.
+                    'denied' => $status === 403 ? app(AccessDenied::class)->describe($e, $request) : null,
+                ])
                     ->toResponse($request)
                     ->setStatusCode($status);
             }
