@@ -13,12 +13,17 @@ export type Denied =
       }
     | { reason: 'role'; workspace: string; role: string | null };
 
-/** The workspace has no plan running; shared with every signed-in page. */
+/**
+ * The workspace has no plan running, or its trial is in its last few days;
+ * shared with every signed-in page.
+ */
 export type PlanNotice = {
     workspace: string;
-    state: LapsedState;
+    state: LapsedState | 'trial_ending';
     plan: string | null;
     ended_on: string | null;
+    /** When a trial in its last days runs out (ISO 8601); null otherwise. */
+    ends_at?: string | null;
     can_manage_billing: boolean;
 };
 
@@ -75,11 +80,35 @@ export function deniedCopy(denied: Denied): DeniedCopy {
 }
 
 /**
- * The same news, before any page has been refused: one line across the app
- * for a workspace whose plan is no longer running. A subscription on hold is
- * put right on the billing page rather than by picking a plan.
+ * How many of the reader's own calendar days until a moment: 0 is today, 1 is
+ * tomorrow. Counted where they are, because a trial that runs out at 02:00 UTC
+ * ends "tomorrow" for someone in London and "today" for someone in New York.
  */
-export function planNoticeCopy(notice: PlanNotice): { text: string; action: { label: string; href: string } | null } {
+export function daysUntil(iso: string, now: Date = new Date()): number {
+    const end = new Date(iso);
+    const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+    return Math.max(0, Math.round((midnight(end) - midnight(now)) / 86_400_000));
+}
+
+/**
+ * The same news, before any page has been refused: one line across the app
+ * for a workspace whose plan is no longer running, or whose trial is about to
+ * run out. A subscription on hold is put right on the billing page rather than
+ * by picking a plan.
+ */
+export function planNoticeCopy(notice: PlanNotice, now: Date = new Date()): { text: string; action: { label: string; href: string } | null } {
+    if (notice.state === 'trial_ending') {
+        const left = notice.ends_at ? daysUntil(notice.ends_at, now) : null;
+        const on = notice.ends_at ? new Date(notice.ends_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+        const when = left === null ? 'ends soon' : left === 0 ? 'ends today' : left === 1 ? `ends tomorrow, ${on}` : `ends in ${left} days, on ${on}`;
+        const text = `The free trial for ${notice.workspace} ${when}.`;
+
+        return notice.can_manage_billing
+            ? { text: `${text} Choose a plan to keep everything switched on.`, action: { label: 'See plans', href: '/billing/plans' } }
+            : { text: `${text} Ask an owner of the workspace to choose a plan, to keep everything switched on.`, action: null };
+    }
+
     const [, sentence] = lapse(notice.state, notice.workspace, notice.ended_on);
     const held = notice.state === 'suspended';
     const text = `${sentence}. Most of Piotrack is switched off until ${held ? 'that is sorted out' : 'a plan is chosen'} — nothing has been deleted.`;

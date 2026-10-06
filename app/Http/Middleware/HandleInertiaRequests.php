@@ -6,6 +6,7 @@ use App\Authorization\Role;
 use App\Billing\Entitlements;
 use App\Billing\PlanStanding;
 use App\Models\Organization;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Platform\ImpersonationService;
 use App\Support\CurrentOrganization;
@@ -58,22 +59,28 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * What to tell someone whose workspace has no plan running - a trial that
-     * ran out, a subscription that ended or is on hold.
+     * ran out, a subscription that ended or is on hold - or whose trial is in
+     * its last few days.
      *
      * Without it the first sign was a refused page: most of the product is
      * switched off the moment a plan lapses, and nothing said so. A client
      * using the portal is never told; the agency's billing is not their affair.
      *
-     * @return array{state: string, plan: string|null, ended_on: string|null, workspace: string, can_manage_billing: bool}|null
+     * @return array{state: string, plan: string|null, ended_on: string|null, ends_at: string|null, workspace: string, can_manage_billing: bool}|null
      */
-    private function planNotice(User $user, Organization $organization, ?Role $role): ?array
+    private function planNotice(User $user, Organization $organization, ?Role $role, ?Subscription $subscription): ?array
     {
         if ($role === null || $role === Role::Client) {
             return null;
         }
 
+        $standing = app(PlanStanding::class)->describe($organization, $subscription);
+        if ($standing['state'] === 'active') {
+            return null;
+        }
+
         return [
-            ...app(PlanStanding::class)->describe($organization, null),
+            ...$standing,
             'workspace' => $organization->name,
             // Only someone who can change the plan is sent to do it.
             'can_manage_billing' => $user->can('billing.manage'),
@@ -129,9 +136,12 @@ class HandleInertiaRequests extends Middleware
                 'features' => app(Entitlements::class)->features($currentOrganization),
                 'plan' => $subscription?->plan->code,
             ] : ['features' => [], 'plan' => null],
-            // The workspace has no plan running: said on every page, so nobody
-            // has to be refused one to find out (ENTL-009).
-            'planNotice' => $inWorkspace && $subscription === null ? $this->planNotice($user, $currentOrganization, $role) : null,
+            // The workspace has no plan running, or a trial in its last days:
+            // said on every page, so nobody has to be refused one to find out
+            // (ENTL-009, ENTL-010). A paid plan is never even looked at.
+            'planNotice' => $inWorkspace && ($subscription === null || $subscription->status === 'trialing')
+                ? $this->planNotice($user, $currentOrganization, $role, $subscription)
+                : null,
             'notifications' => [
                 'unread' => $user !== null ? $user->unreadNotifications()->count() : 0,
             ],

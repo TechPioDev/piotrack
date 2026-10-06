@@ -15,6 +15,7 @@ use App\Authorization\Role;
 use App\Billing\Entitlements;
 use App\Billing\PlanCatalog;
 use App\Services\SubscriptionService;
+use Illuminate\Support\Facades\Artisan;
 
 beforeEach(function () {
     [$this->org, $this->owner] = makeOrganization('PioManage');
@@ -104,4 +105,91 @@ it('goes quiet again as soon as a plan is chosen', function () {
 
     $this->actingAs($this->owner)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page->where('planNotice', null));
+});
+
+/*
+ * Before it ends (ENTL-010): the last few days of a trial say so, in time to do
+ * something about it.
+ */
+
+it('stays quiet for most of a trial, then warns in its last days', function () {
+    $endsAt = $this->org->activeSubscription()->trial_ends_at;
+
+    // One day too early: nothing yet.
+    $this->travelTo($endsAt->copy()->subDays(PlanCatalog::TRIAL_WARNING_DAYS + 1));
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+
+    // Inside the window: on the dashboard, and anywhere else.
+    $this->travelTo($endsAt->copy()->subDays(PlanCatalog::TRIAL_WARNING_DAYS)->addHour());
+    foreach (['dashboard', 'crm.contacts.index'] as $page) {
+        $this->actingAs($this->owner)->get(route($page))
+            ->assertOk()
+            ->assertInertia(fn ($inertia) => $inertia
+                ->where('planNotice.state', 'trial_ending')
+                ->where('planNotice.workspace', 'PioManage')
+                ->where('planNotice.ends_at', $endsAt->toIso8601String())
+                // Nothing has ended, so there is no "ended on".
+                ->where('planNotice.ended_on', null)
+                ->where('planNotice.can_manage_billing', true));
+    }
+});
+
+it('warns over the same days the trial-ending email goes out', function () {
+    // One number decides both, so the app and the inbox cannot disagree.
+    expect(Artisan::all()['subscriptions:notify-trial-ending']->getDefinition()->getOption('days')->getDefault())
+        ->toBe((string) PlanCatalog::TRIAL_WARNING_DAYS);
+});
+
+it('warns a teammate too, and never an agency\'s client', function () {
+    $viewer = addMember($this->org, Role::Viewer);
+    $client = addMember($this->org, Role::Client);
+    $this->travelTo($this->org->activeSubscription()->trial_ends_at->copy()->subDay());
+
+    $this->actingAs($viewer)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('planNotice.state', 'trial_ending')
+            ->where('planNotice.can_manage_billing', false));
+
+    $this->actingAs($client)->get(route('portal.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+});
+
+it('says nothing to a workspace that has already chosen a plan', function () {
+    $endsAt = $this->org->activeSubscription()->trial_ends_at->copy();
+
+    // A hosted checkout sits behind the trial: it is charged and carries on by itself.
+    $this->org->activeSubscription()->forceFill(['provider_id' => 'sub_hosted_checkout'])->save();
+    $this->travelTo($endsAt->copy()->subDay());
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+
+    // And a paid plan is never warned about a trial, even at the end of its month.
+    subscribeOrganization($this->org, 'growth');
+    $this->travelTo($this->org->activeSubscription()->current_period_end->copy()->subHour());
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice', null));
+});
+
+it('still calls a page outside the trial\'s plan "not in your plan", not "trial ended"', function () {
+    $this->travelTo($this->org->activeSubscription()->trial_ends_at->copy()->subDay());
+
+    // Advertising is not part of the Growth trial.
+    $this->actingAs($this->owner)->get(route('ads.dashboard'))
+        ->assertForbidden()
+        ->assertInertia(fn ($page) => $page
+            ->where('denied.reason', 'plan')
+            ->where('denied.state', 'not_included')
+            ->where('denied.plan', 'Growth'));
+});
+
+it('turns from a warning into the ended notice when the trial runs out', function () {
+    $this->travelTo($this->org->activeSubscription()->trial_ends_at->copy()->subDay());
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice.state', 'trial_ending'));
+
+    endThePlan($this, 'trial');
+
+    $this->actingAs($this->owner)->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('planNotice.state', 'trial_ended')->where('planNotice.ends_at', null));
 });

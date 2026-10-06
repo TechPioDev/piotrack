@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Billing\PlanCatalog;
 use App\Models\Subscription;
 use App\Notifications\TrialEndingNotification;
 use App\Support\NotificationDispatcher;
@@ -13,7 +14,7 @@ use Illuminate\Console\Command;
  */
 class NotifyTrialEnding extends Command
 {
-    protected $signature = 'subscriptions:notify-trial-ending {--days=3}';
+    protected $signature = 'subscriptions:notify-trial-ending {--days='.PlanCatalog::TRIAL_WARNING_DAYS.'}';
 
     protected $description = 'Notify organization owners whose trial ends within N days';
 

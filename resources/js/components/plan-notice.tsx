@@ -1,4 +1,4 @@
-import { planNoticeCopy } from '@/lib/access-denied';
+import { daysUntil, planNoticeCopy } from '@/lib/access-denied';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { CircleAlert, X } from 'lucide-react';
@@ -16,21 +16,24 @@ function dismissedFor(): string | null {
 }
 
 /**
- * Says, on every page, that the workspace has no plan running (ENTL-009).
+ * Says, on every page, that the workspace has no plan running (ENTL-009) or
+ * that its trial is in its last few days (ENTL-010).
  *
  * When a trial ran out or a subscription ended, most of the product switched
  * off at once and the first anyone knew of it was a refused page. This is the
- * same news told beforehand: what happened, when, that nothing was deleted,
- * and - for someone who can change the plan - the way to do it.
+ * same news told beforehand: what happened or is about to, when, and - for
+ * someone who can change the plan - the way to do it.
  *
  * It can be put away for the rest of the visit, since somebody who cannot
  * change the plan has no use for a line they cannot act on. It comes back in
- * a new session, and at once if the plan's situation changes.
+ * a new session, at once if the plan's situation changes, and each day while a
+ * trial counts down - "three days left" put away is not "ends today" seen.
  */
 export function PlanNotice() {
     const { planNotice } = usePage<SharedData>().props;
     const path = usePage().url.split('?')[0];
-    const signature = planNotice ? `${planNotice.workspace}|${planNotice.state}|${planNotice.ended_on ?? ''}` : '';
+    const countdown = planNotice?.state === 'trial_ending' && planNotice.ends_at ? daysUntil(planNotice.ends_at) : '';
+    const signature = planNotice ? `${planNotice.workspace}|${planNotice.state}|${planNotice.ended_on ?? planNotice.ends_at ?? ''}|${countdown}` : '';
     const [dismissed, setDismissed] = useState<string | null>(dismissedFor);
 
     if (!planNotice || dismissed === signature) {

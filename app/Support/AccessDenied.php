@@ -43,7 +43,7 @@ class AccessDenied
                 'reason' => 'plan',
                 'workspace' => $organization->name,
                 // A plan that is running fine simply does not include this.
-                'state' => $standing['state'] === 'active' ? 'not_included' : $standing['state'],
+                'state' => in_array($standing['state'], PlanStanding::RUNNING, true) ? 'not_included' : $standing['state'],
                 'plan' => $standing['plan'],
                 'ended_on' => $standing['ended_on'],
                 // Only someone who can change the plan is sent to do it.

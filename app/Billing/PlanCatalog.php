@@ -16,6 +16,9 @@ class PlanCatalog
 
     public const TRIAL_DAYS = 14;
 
+    /** How long before a trial ends its owners are warned - by email and in the app alike. */
+    public const TRIAL_WARNING_DAYS = 3;
+
     /**
      * @return array<int, array<string, mixed>>
      */

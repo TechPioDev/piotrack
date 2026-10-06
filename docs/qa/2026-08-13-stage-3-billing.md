@@ -142,7 +142,32 @@ page to refuse.
   words; the 403 page now uses it too. While a plan is active the shared props run no extra
   query - the subscription already looked up for the plan's name is reused.
 
-Deliberately not included: a warning *before* a trial ends, and one for a payment that has failed
-but not yet suspended anything. Both would be the same line with different words.
+Deliberately not included: a warning for a payment that has failed but not yet suspended
+anything (the warning *before* a trial ends followed the same day - ENTL-010 below).
 
 **Automated testing:** `PlanNoticeTest` (6), `plan-notice.test.tsx` (6).
+
+## Follow-up (2026-10-06, later still): warned before the trial ends (ENTL-010)
+
+Asked for by the owner once ENTL-009 was live: say it before it happens.
+
+- In the last three days of a trial, every signed-in page says the trial "ends in 3 days, on
+  9 October 2026", "ends tomorrow" or "ends today", and that choosing a plan keeps everything
+  switched on. It does not say anything is switched off, because nothing is yet.
+- **Three days is one number** - `PlanCatalog::TRIAL_WARNING_DAYS` - now also the default of the
+  `subscriptions:notify-trial-ending` email, so the app and the inbox cannot disagree. A test
+  reads the command's default to hold them together.
+- **Days are the reader's own.** The server sends the moment the trial runs out; the browser
+  counts calendar days from where the person is, so "tomorrow" is their tomorrow.
+- **Put away, it returns the next day**, not only in a new session: "three days left" dismissed
+  must not become "ends today" never seen.
+- **Not shown to a workspace that has already chosen**: a paid plan, or a trial with a hosted
+  checkout behind it (it carries the provider's own id), which is charged and carries on by
+  itself. Nor to a client using the portal.
+- A page outside the trial's plan is still reported as "not included in your plan" during those
+  days, not as a trial ending.
+
+Still not included: the same line for a payment that has failed but not yet suspended anything.
+
+**Automated testing:** `PlanNoticeTest` +6 (12), `plan-notice.test.tsx` +4 (10),
+`access-denied.test.ts` +2 (7).

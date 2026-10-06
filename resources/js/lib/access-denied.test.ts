@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deniedCopy, type Denied } from './access-denied';
+import { daysUntil, deniedCopy, type Denied } from './access-denied';
 
 const plan = (over: Partial<Extract<Denied, { reason: 'plan' }>> = {}): Denied => ({
     reason: 'plan',
@@ -48,5 +48,19 @@ describe('deniedCopy', () => {
             'Your role in PioManage (Viewer) does not include this page. If you need it, ask an owner of the workspace to change your role.',
         );
         expect(copy.action).toBeNull();
+    });
+});
+
+describe('daysUntil', () => {
+    it('counts calendar days where the reader is, not blocks of 24 hours', () => {
+        // Half past eleven at night; it ends an hour later - which is tomorrow.
+        expect(daysUntil(new Date(2026, 9, 7, 0, 30).toISOString(), new Date(2026, 9, 6, 23, 30))).toBe(1);
+        // Early morning; it ends late the same evening - which is today.
+        expect(daysUntil(new Date(2026, 9, 6, 23, 0).toISOString(), new Date(2026, 9, 6, 0, 30))).toBe(0);
+        expect(daysUntil(new Date(2026, 9, 9, 9, 0).toISOString(), new Date(2026, 9, 6, 10, 0))).toBe(3);
+    });
+
+    it('never goes below today', () => {
+        expect(daysUntil(new Date(2026, 9, 1, 9, 0).toISOString(), new Date(2026, 9, 6, 10, 0))).toBe(0);
     });
 });

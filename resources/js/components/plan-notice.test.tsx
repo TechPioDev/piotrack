@@ -1,7 +1,7 @@
 import { PlanNotice } from '@/components/plan-notice';
 import { type PlanNotice as Notice } from '@/lib/access-denied';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * The line that tells a workspace its plan is no longer running, before a page
@@ -93,5 +93,68 @@ describe('PlanNotice', () => {
         page.props.planNotice = ended({ state: 'suspended', ended_on: null });
         render(<PlanNotice />);
         expect(screen.getByRole('status')).toBeInTheDocument();
+    });
+});
+
+describe('PlanNotice, while a trial counts down', () => {
+    /** A trial that runs out at 09:00, `days` days after "now" (10:00 on 6 October, the reader's time). */
+    const ending = (days: number, over: Partial<Notice> = {}): Notice =>
+        ended({ state: 'trial_ending', ended_on: null, ends_at: new Date(2026, 9, 6 + days, 9, 0).toISOString(), ...over });
+
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 9, 6, 10, 0));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('says how many days are left, the date, and what to do about it', () => {
+        page.props.planNotice = ending(3);
+        render(<PlanNotice />);
+
+        const notice = screen.getByRole('status');
+        expect(notice).toHaveTextContent('The free trial for PioManage ends in 3 days, on');
+        expect(notice).toHaveTextContent('2026');
+        expect(notice).toHaveTextContent('Choose a plan to keep everything switched on.');
+        // Nothing is switched off yet, so it must not say so.
+        expect(notice).not.toHaveTextContent('switched off');
+        expect(screen.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/billing/plans');
+    });
+
+    it('says tomorrow and today in plain words', () => {
+        page.props.planNotice = ending(1);
+        const first = render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('ends tomorrow,');
+        first.unmount();
+
+        // It runs out at eleven tonight.
+        page.props.planNotice = ended({ state: 'trial_ending', ended_on: null, ends_at: new Date(2026, 9, 6, 23, 0).toISOString() });
+        render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('The free trial for PioManage ends today.');
+    });
+
+    it('asks a teammate to get an owner to choose, with nothing to click', () => {
+        page.props.planNotice = ending(2, { can_manage_billing: false });
+        render(<PlanNotice />);
+
+        expect(screen.getByRole('status')).toHaveTextContent('Ask an owner of the workspace to choose a plan, to keep everything switched on.');
+        expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('put away with three days left, it is back the next day', () => {
+        page.props.planNotice = ending(3);
+        const first = render(<PlanNotice />);
+        fireEvent.click(screen.getByRole('button', { name: 'Hide this notice for now' }));
+        first.unmount();
+
+        const sameDay = render(<PlanNotice />);
+        expect(screen.queryByRole('status')).toBeNull();
+        sameDay.unmount();
+
+        vi.setSystemTime(new Date(2026, 9, 7, 8, 0));
+        render(<PlanNotice />);
+        expect(screen.getByRole('status')).toHaveTextContent('ends in 2 days');
     });
 });
