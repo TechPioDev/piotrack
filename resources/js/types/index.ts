@@ -1,3 +1,4 @@
+import { type PlanNotice } from '@/lib/access-denied';
 import { LucideIcon } from 'lucide-react';
 
 export interface OrganizationSummary {
@@ -47,6 +48,8 @@ export interface SharedData {
     notifications: { unread: number };
     flash: Flash;
     impersonation: Impersonation;
+    /** Set while the workspace has no plan running (trial or subscription ended, or on hold). */
+    planNotice?: PlanNotice | null;
     /** Signed in, enforcement is on, and this account has not enrolled yet. */
     twoFactorRequired: boolean;
     [key: string]: unknown;

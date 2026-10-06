@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { FlashMessage } from '@/components/flash-message';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { PlanNotice } from '@/components/plan-notice';
 import { type BreadcrumbItem } from '@/types';
 
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: { children: React.ReactNode; breadcrumbs?: BreadcrumbItem[] }) {
@@ -21,6 +22,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: { child
                 {/* Above everything, including the header: a borrowed session must never scroll out of sight. */}
                 <ImpersonationBanner />
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                <PlanNotice />
                 <FlashMessage />
                 {children}
             </AppContent>

@@ -2,8 +2,8 @@
 
 namespace App\Support;
 
+use App\Billing\PlanStanding;
 use App\Exceptions\FeatureNotInPlan;
-use App\Models\Subscription;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Throwable;
@@ -19,7 +19,10 @@ use Throwable;
  */
 class AccessDenied
 {
-    public function __construct(private readonly CurrentOrganization $currentOrganization) {}
+    public function __construct(
+        private readonly CurrentOrganization $currentOrganization,
+        private readonly PlanStanding $standing,
+    ) {}
 
     /**
      * @return array<string, mixed>|null null when there is nothing more useful to say
@@ -34,21 +37,15 @@ class AccessDenied
         }
 
         if ($e instanceof FeatureNotInPlan) {
-            $subscription = $organization->activeSubscription()
-                ?? $organization->subscriptions()->latest('id')->first();
-
-            $state = $this->planState($subscription);
-            // A date only when something actually ended on it.
-            $ended = $subscription !== null && in_array($state, ['trial_ended', 'ended'], true)
-                ? ($subscription->ends_at ?? $subscription->trial_ends_at)
-                : null;
+            $standing = $this->standing->describe($organization, $organization->activeSubscription());
 
             return [
                 'reason' => 'plan',
                 'workspace' => $organization->name,
-                'state' => $state,
-                'plan' => $subscription?->plan?->name,
-                'ended_on' => $ended?->toDateString(),
+                // A plan that is running fine simply does not include this.
+                'state' => $standing['state'] === 'active' ? 'not_included' : $standing['state'],
+                'plan' => $standing['plan'],
+                'ended_on' => $standing['ended_on'],
                 // Only someone who can change the plan is sent to do it.
                 'can_manage_billing' => $user->can('billing.manage'),
             ];
@@ -64,16 +61,5 @@ class AccessDenied
         }
 
         return null;
-    }
-
-    private function planState(?Subscription $subscription): string
-    {
-        return match (true) {
-            $subscription === null => 'none',
-            in_array($subscription->status, Subscription::ACTIVE_STATES, true) => 'not_included',
-            $subscription->status === 'expired' && $subscription->trial_ends_at !== null => 'trial_ended',
-            $subscription->status === 'suspended' => 'suspended',
-            default => 'ended',
-        };
     }
 }

@@ -117,8 +117,32 @@ Reproduced as a test: a new workspace's trial runs its 14 days, the hourly `expi
 runs, and both pages from the report return 403 with `state: trial_ended`; choosing a plan
 brings them back.
 
-**Not changed, and worth a decision:** the menus still list modules the plan does not include,
-and nothing in the app says a trial has ended until a page refuses. A banner on the dashboard and
-upgrade marks in the menu would say it sooner.
+**Not changed, and worth a decision:** the menus still list modules the plan does not include.
+(The other half of this note - nothing saying a trial has ended until a page refuses - is closed
+by ENTL-009 below.)
 
 **Automated testing:** `AccessDeniedPageTest` (6), `access-denied.test.ts` (5).
+
+## Follow-up (2026-10-06, later): told before being refused (ENTL-009)
+
+Asked for by the owner after ENTL-008: say that a plan has stopped running without waiting for a
+page to refuse.
+
+- Every signed-in page carries one line while the workspace has no plan running - what happened
+  (trial ended, subscription ended, on hold, no plan yet), when, and that nothing was deleted. It
+  sits in the app frame rather than on the dashboard alone, because the free tier still opens the
+  CRM and an owner who lands there would otherwise never see it.
+- Someone who can manage billing gets a button: "See plans", or "Open billing" for a subscription
+  on hold, which is put right by paying rather than by picking a plan. Anyone else is told to ask
+  an owner. On the page the button points at, the button is left out.
+- A client using the portal is never told: the agency's billing is not their affair.
+- It can be put away for the visit (browser session) and returns in a new one, or at once if the
+  situation changes.
+- `App\Billing\PlanStanding` is the one place that turns a subscription's status into those
+  words; the 403 page now uses it too. While a plan is active the shared props run no extra
+  query - the subscription already looked up for the plan's name is reused.
+
+Deliberately not included: a warning *before* a trial ends, and one for a payment that has failed
+but not yet suspended anything. Both would be the same line with different words.
+
+**Automated testing:** `PlanNoticeTest` (6), `plan-notice.test.tsx` (6).

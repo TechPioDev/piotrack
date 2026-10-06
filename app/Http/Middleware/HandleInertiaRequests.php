@@ -2,7 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Authorization\Role;
 use App\Billing\Entitlements;
+use App\Billing\PlanStanding;
+use App\Models\Organization;
+use App\Models\User;
 use App\Services\Platform\ImpersonationService;
 use App\Support\CurrentOrganization;
 use Illuminate\Foundation\Inspiring;
@@ -53,6 +57,30 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * What to tell someone whose workspace has no plan running - a trial that
+     * ran out, a subscription that ended or is on hold.
+     *
+     * Without it the first sign was a refused page: most of the product is
+     * switched off the moment a plan lapses, and nothing said so. A client
+     * using the portal is never told; the agency's billing is not their affair.
+     *
+     * @return array{state: string, plan: string|null, ended_on: string|null, workspace: string, can_manage_billing: bool}|null
+     */
+    private function planNotice(User $user, Organization $organization, ?Role $role): ?array
+    {
+        if ($role === null || $role === Role::Client) {
+            return null;
+        }
+
+        return [
+            ...app(PlanStanding::class)->describe($organization, null),
+            'workspace' => $organization->name,
+            // Only someone who can change the plan is sent to do it.
+            'can_manage_billing' => $user->can('billing.manage'),
+        ];
+    }
+
+    /**
      * Define the props that are shared by default.
      *
      * @see https://inertiajs.com/shared-data
@@ -65,6 +93,10 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user();
         $currentOrganization = app(CurrentOrganization::class)->get();
+        $inWorkspace = $user !== null && $currentOrganization !== null;
+        // Looked up once: it names the plan and decides whether a notice is due.
+        $subscription = $inWorkspace ? $currentOrganization->activeSubscription() : null;
+        $role = $inWorkspace ? $user->roleIn($currentOrganization) : null;
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
@@ -88,19 +120,18 @@ class HandleInertiaRequests extends Middleware
                     : [],
                 // Permission keys the user holds in the current org — for UX
                 // gating only; the backend Gate is the security boundary (RBAC-005).
-                'permissions' => ($user !== null && $currentOrganization !== null)
-                    ? $user->permissionsIn($currentOrganization)
-                    : [],
-                'role' => ($user !== null && $currentOrganization !== null)
-                    ? $user->roleIn($currentOrganization)?->value
-                    : null,
+                'permissions' => $inWorkspace ? $user->permissionsIn($currentOrganization) : [],
+                'role' => $role?->value,
             ],
             // Plan feature entitlements for UX gating / upgrade prompts (the
             // backend `entitlement:` middleware is the security boundary).
-            'entitlements' => ($user !== null && $currentOrganization !== null) ? [
+            'entitlements' => $inWorkspace ? [
                 'features' => app(Entitlements::class)->features($currentOrganization),
-                'plan' => $currentOrganization->activeSubscription()?->plan->code,
+                'plan' => $subscription?->plan->code,
             ] : ['features' => [], 'plan' => null],
+            // The workspace has no plan running: said on every page, so nobody
+            // has to be refused one to find out (ENTL-009).
+            'planNotice' => $inWorkspace && $subscription === null ? $this->planNotice($user, $currentOrganization, $role) : null,
             'notifications' => [
                 'unread' => $user !== null ? $user->unreadNotifications()->count() : 0,
             ],
