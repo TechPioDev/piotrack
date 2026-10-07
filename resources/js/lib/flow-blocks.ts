@@ -51,6 +51,15 @@ export const BLOCKS: Block[] = [
         make: () => ({ type: 'message', text: 'Thanks for stopping by!' }),
     },
     {
+        key: 'link',
+        group: 'Message & Interaction',
+        label: 'Link Button',
+        short: 'Link',
+        keywords: 'button url link map google maps teams meeting website page open',
+        hint: 'A button that opens a map, a Teams link or any page',
+        make: () => ({ type: 'message', text: 'Here is the link:', button: 'Open', url: '' }),
+    },
+    {
         key: 'question',
         group: 'Message & Interaction',
         label: 'Ask a Question',
@@ -183,7 +192,7 @@ export const BLOCKS: Block[] = [
         label: 'Book a Meeting',
         short: 'Book',
         keywords: 'meeting calendar appointment schedule time slot',
-        hint: 'Offers your free times as buttons',
+        hint: 'Free times in the chat, or a button to your booking page',
         make: () => ({ type: 'booking', text: 'Pick a time that suits you:' }),
     },
     {
@@ -244,7 +253,7 @@ export function stepKind(node: FlowNode): string {
         case 'webhook':
             return 'Send to Your System';
         case 'message':
-            return 'Send Message';
+            return node.url !== undefined || node.button !== undefined ? 'Link Button' : 'Send Message';
         case 'choice':
             return 'Ask a Question';
         case 'input':
@@ -283,6 +292,24 @@ export function stepKind(node: FlowNode): string {
  */
 export function stepTitle(node: FlowNode): string {
     return node.name?.trim() || stepKind(node);
+}
+
+/**
+ * The button a step shows a visitor, for its card: the words on it, and whether
+ * it has somewhere to go yet. Null when the step has no button.
+ */
+export function stepButton(node: FlowNode): { label: string; ready: boolean } | null {
+    const own = (node.url ?? '').trim();
+    const usable = /^https:\/\/\S+$/i.test(own);
+
+    if (node.type === 'message' && (node.url !== undefined || node.button !== undefined)) {
+        return { label: node.button?.trim() || 'Open', ready: usable };
+    }
+    const meeting = node.type === 'end' && node.outcome === 'meeting';
+    if ((node.type === 'booking' && node.mode === 'link') || meeting) {
+        return { label: node.button?.trim() || 'Choose a time', ready: node.link_to === 'custom' ? usable : true };
+    }
+    return null;
 }
 
 /** What an End step does, in words, for its card. */

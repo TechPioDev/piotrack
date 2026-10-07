@@ -2,6 +2,7 @@ import type { FlowNode } from '@/lib/flow-tree';
 import {
     Building2,
     CalendarClock,
+    ExternalLink,
     Flag,
     GitBranch,
     Hash,
@@ -123,6 +124,7 @@ export type Visual = { icon: LucideIcon; tone: Tone };
 const BY_BLOCK: Record<string, Visual> = {
     start: { icon: Play, tone: TONES.emerald },
     message: { icon: MessageSquareText, tone: TONES.violet },
+    link: { icon: ExternalLink, tone: TONES.violet },
     question: { icon: ListChecks, tone: TONES.blue },
     open: { icon: TextCursorInput, tone: TONES.rose },
     number: { icon: Hash, tone: TONES.rose },
@@ -170,6 +172,8 @@ export function stepVisual(node: FlowNode): Visual {
         }
         case 'end':
             return BY_BLOCK.end_lead;
+        case 'message':
+            return node.url !== undefined || node.button !== undefined ? BY_BLOCK.link : BY_BLOCK.message;
         default:
             return BY_BLOCK[node.type] ?? BY_BLOCK.message;
     }

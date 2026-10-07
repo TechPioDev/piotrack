@@ -438,6 +438,7 @@ export function ConversationBuilder({
             onMove={(direction) => move(selected, direction)}
             canMove={canMove(selected)}
             focusName={naming}
+            onSelect={openSettings}
             onClose={() => {
                 setSelected(null);
                 setSheetOpen(false);

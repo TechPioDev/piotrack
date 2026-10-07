@@ -788,3 +788,45 @@ the chat engine, not to the builder.
 **Automated testing:** `flow-tree.test.ts` +7 (35), `builder.test.tsx` +9 (31),
 `ChatFlowStepNameTest` (3). Two builder tests changed with the Required switch: they now read
 its state rather than the old badge's wording.
+
+## Follow-up (2026-10-07, evening): "condition is still not working; a custom map or Teams link; our own booking form" (CHAT-091..094)
+
+Reported by the owner from the live builder with an empty conversation: Start, a Condition that
+said "not set", an End. The Condition's settings offered "Choose a question…" and nothing else.
+They also asked for a button to a Google map or a Teams link, and for "Book a meeting" to open
+their own booking form. Reproduced locally with the same three steps.
+
+- **A condition could not be used from an empty conversation (CHAT-091).** A condition checks an
+  earlier answer, and there was none - but nothing said so, and nothing offered one. It now says
+  "First, ask a question" and adds it: a question with replies, or a text field, placed just above
+  the condition and already the one being checked. The check reads as a sentence, offers only the
+  tests that suit the answer (nobody needs "is at least" for a reply button), links to the
+  question so it and its replies can be reworded, and shows both ways out beside it - with a
+  warning, and a one-click fix, while both lead the same way. On its card a condition is said in
+  the visitor's words: `If "What can we help you with?" is "Support"`, not
+  `If "question_1" equals answer_1`.
+- **A button that opens a link (CHAT-092).** A message can carry one - a map, a Teams meeting, a
+  form, any page - as the new Link Button step or a switch in a message's settings. Only a full
+  https address ever reaches a visitor (`App\Support\SafeLink`): the validator refuses to publish
+  anything else, the engine drops one already stored, and the widget checks again before making
+  the link. The button is stored with its line, so a reopened chat still shows it.
+- **Booking by a booking page (CHAT-093).** Book a Meeting offers times in the chat, as before,
+  or gives a button that opens a booking page - the booking form here, or the owner's own link
+  (Microsoft Bookings, a Teams or Google page, Calendly). A meeting ending takes the same choice
+  and its own button text. The link is handed over once: an ending reached after it does not
+  repeat the button. A meeting counted from an own link is counted as offered, not booked - we
+  cannot see what happens on someone else's page.
+- **Settings named for what they hold (CHAT-094).** The tabs were Content, Advanced and
+  "Condition", which held where each reply leads on steps that are not conditions: now Content,
+  Paths, Advanced. What a text field accepts moved to Content. A step's button shows on its card,
+  amber until it has a link.
+- **Defect found on the way.** Turning quick replies on or off dropped the step's own name.
+
+**Not done, and said so:** an own booking link is opened in a new tab, not embedded in the chat
+window - most booking pages refuse to be framed, and a form that silently fails to load is worse
+than a tab. A booking made on someone else's page does not come back into the CRM as a booking;
+the lead and the conversation still do.
+
+**Automated testing:** `ChatLinkButtonTest` (9), `builder.test.tsx` +12 (43). Checked by hand in
+the local builder: the empty-conversation condition, its split into two paths, the link button
+and the booking-page choices.

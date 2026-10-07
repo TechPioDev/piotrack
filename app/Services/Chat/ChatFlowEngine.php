@@ -10,6 +10,7 @@ use App\Models\ChatWidget;
 use App\Models\ServiceLine;
 use App\Services\Ai\AiGateway;
 use App\Services\Sales\BookingService;
+use App\Support\SafeLink;
 use App\Support\UrlGuard;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -176,7 +177,9 @@ class ChatFlowEngine
             }
 
             if ($node['type'] === 'message') {
-                $this->say($conversation, (string) $node['text'], $nodeId, $node['delay'] ?? null);
+                // A message can carry a button that opens a link - a map, a
+                // Teams meeting, a page on the owner's site.
+                $this->say($conversation, (string) $node['text'], $nodeId, $node['delay'] ?? null, $this->buttonOf($node));
                 $nodeId = $node['next'] ?? null;
 
                 continue;
@@ -229,12 +232,25 @@ class ChatFlowEngine
                 // "pick a time", and a link to do it. In a conversation built in
                 // the builder the time-picker's "booked" and "no time works"
                 // paths both lead to it, and its words are wrong twice over.
-                if ($outcome === 'meeting' && (($conversation->answers ?? [])['_booking'] ?? null) !== null) {
+                $said = $conversation->answers ?? [];
+                // Their own booking page - Microsoft Bookings, a Teams or Google
+                // link, Calendly - set on this ending instead of ours.
+                $own = $outcome === 'meeting' && ($node['link_to'] ?? 'page') === 'custom' ? $this->bookingLink($node) : null;
+
+                if ($outcome === 'meeting' && ($said['_booking'] ?? null) !== null) {
                     // Booked a moment ago, in this chat: the confirmation said
                     // when and where, so asking them to pick a time and handing
                     // over the booking page only makes them think it failed.
                     $outcome = 'booked';
                     $closing = null;
+                } elseif ($outcome === 'meeting' && ($said['_booking_link'] ?? false) === true) {
+                    // The way to book was handed over a step ago, with its own
+                    // words: not the same button a second time.
+                    $outcome = 'meeting_offered';
+                    $closing = null;
+                } elseif ($own !== null) {
+                    // Handed over below, with the owner's closing words above it.
+                    $outcome = 'meeting_offered';
                 } elseif ($outcome === 'meeting' && ! $conversation->is_preview && ! BookingPage::query()->where('is_active', true)->exists()) {
                     // Nothing to book with: say what happens instead of an
                     // instruction nobody can follow. Details are captured either way.
@@ -253,6 +269,17 @@ class ChatFlowEngine
                 // An ending can name who gets the support ticket it opens.
                 $result = $this->capture->complete($widget, $conversation, $outcome, ! empty($node['assignee_id']) ? (int) $node['assignee_id'] : null);
 
+                if ($own !== null) {
+                    $result['booking_url'] = $own['url'];
+                    $result['booking_label'] = $own['label'];
+                    if (! $conversation->is_preview) {
+                        $this->event($widget, 'meeting', $conversation, $nodeId);
+                    }
+                } elseif (isset($result['booking_url']) && trim((string) ($node['button'] ?? '')) !== '') {
+                    // Our booking page, under the owner's own words for the button.
+                    $result['booking_label'] = trim((string) $node['button']);
+                }
+
                 return [
                     'messages' => $this->drain(),
                     'node' => null,
@@ -268,6 +295,33 @@ class ChatFlowEngine
             // the fallback path, which hands over the booking-page link instead.
             if ($node['type'] === 'booking') {
                 if (($answers['_booking'] ?? null) !== null) {
+                    $nodeId = $node['next'] ?? null;
+
+                    continue;
+                }
+
+                // "Open a booking page" rather than times in the chat: the
+                // owner's own page (Microsoft Bookings, Teams, Google, Calendly)
+                // or ours, as a button under the step's words. The conversation
+                // carries straight on - there is nothing to wait for here.
+                if (($node['mode'] ?? 'slots') === 'link') {
+                    $link = $this->bookingLink($node);
+                    if ($link === null) {
+                        $nodeId = $node['fallback'] ?? $node['next'] ?? null;
+
+                        continue;
+                    }
+
+                    $this->say($conversation, (string) ($node['text'] ?? 'Pick a time that suits you:'), $nodeId, null, $link);
+                    $answers = $conversation->answers ?? [];
+                    // So a meeting ending after this does not hand it over again.
+                    $answers['_booking_link'] = true;
+                    $conversation->answers = $answers;
+                    $this->known = $answers;
+                    $conversation->save();
+                    if (! $conversation->is_preview) {
+                        $this->event($widget, 'meeting', $conversation, $nodeId);
+                    }
                     $nodeId = $node['next'] ?? null;
 
                     continue;
@@ -955,19 +1009,74 @@ class ChatFlowEngine
         return trim((string) preg_replace('/ {2,}/', ' ', (string) $filled));
     }
 
-    private function say(ChatConversation $conversation, string $text, ?string $nodeId = null, int|float|string|null $delay = null): void
+    /**
+     * @param  array{label: string, url: string}|null  $link  a button under the line that opens a link
+     */
+    private function say(ChatConversation $conversation, string $text, ?string $nodeId = null, int|float|string|null $delay = null, ?array $link = null): void
     {
         $text = $this->fill($text, $conversation);
         // A pause before a line, so a run of messages reads like someone typing
         // rather than a wall arriving at once. Capped: nobody waits ten seconds.
         $pause = max(0.0, min(10.0, (float) ($delay ?? 0)));
-        $message = $this->record($conversation, $nodeId, 'bot', $text, $pause > 0 ? ['delay' => $pause] : []);
+        // Kept with the line, so a chat reopened later still shows its button.
+        $message = $this->record($conversation, $nodeId, 'bot', $text, array_filter([
+            'delay' => $pause > 0 ? $pause : null,
+            'link' => $link,
+        ]));
         $this->pending[] = array_filter([
             'id' => $message->id,
             'role' => 'bot',
             'body' => $text,
             'delay' => $pause > 0 ? $pause : null,
+            'link' => $link,
         ], fn ($value) => $value !== null);
+    }
+
+    /**
+     * The button a message carries, if it has one that leads somewhere real.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array{label: string, url: string}|null
+     */
+    private function buttonOf(array $node): ?array
+    {
+        $url = SafeLink::https($node['url'] ?? null);
+        if ($url === null) {
+            return null;
+        }
+
+        return ['label' => $this->buttonLabel($node, 'Open'), 'url' => $url];
+    }
+
+    /**
+     * Where a booking step or a meeting ending sends someone to book: the
+     * owner's own link when they chose one, otherwise our live booking page.
+     * Null when there is nowhere to send them.
+     *
+     * @param  array<string, mixed>  $node
+     * @return array{label: string, url: string}|null
+     */
+    private function bookingLink(array $node): ?array
+    {
+        $label = $this->buttonLabel($node, 'Choose a time');
+
+        if (($node['link_to'] ?? 'page') === 'custom') {
+            $url = SafeLink::https($node['url'] ?? null);
+
+            return $url !== null ? ['label' => $label, 'url' => $url] : null;
+        }
+
+        $page = BookingPage::query()->where('is_active', true)->first();
+
+        return $page !== null ? ['label' => $label, 'url' => url('/b/'.$page->slug)] : null;
+    }
+
+    /** @param  array<string, mixed>  $node */
+    private function buttonLabel(array $node, string $default): string
+    {
+        $label = trim((string) ($node['button'] ?? ''));
+
+        return $label !== '' ? mb_substr($label, 0, 40) : $default;
     }
 
     /** @return list<array<string, mixed>> */

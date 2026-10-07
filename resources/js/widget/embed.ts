@@ -30,8 +30,19 @@ type ChatNode = {
     suggestions?: string[];
 };
 type Attachment = { name: string; image: boolean; url: string };
-type Message = { id?: number; role: string; body: string; attachment?: Attachment | null; delay?: number };
-type Reply = { messages?: Message[]; node?: ChatNode | null; done?: boolean; booking_url?: string; live?: boolean; agent?: string | null };
+/** A button under a line that opens a link: a booking page, a map, a Teams meeting. */
+type MessageLink = { label: string; url: string };
+type Message = { id?: number; role: string; body: string; attachment?: Attachment | null; delay?: number; link?: MessageLink | null };
+type Reply = {
+    messages?: Message[];
+    node?: ChatNode | null;
+    done?: boolean;
+    booking_url?: string;
+    /** The owner's own words for the booking button. */
+    booking_label?: string;
+    live?: boolean;
+    agent?: string | null;
+};
 type Targeting = {
     include: string[];
     exclude: string[];
@@ -736,6 +747,24 @@ class ChatWidget {
         if (file?.image) this.picture(role, file.url, file.name, file.url);
         else if (file) this.fileLink(role, message.body, file.url);
         else this.bubble(role, message.body);
+        if (role === 'bot' && message.link) this.button(message.link.label, message.link.url);
+    }
+
+    /**
+     * A button that opens a link in a new tab, under the line that offers it.
+     * Only ever a web address: the server sends nothing else, and this does not
+     * take its word for it.
+     */
+    private button(label: string, url: string) {
+        if (!/^https?:\/\//i.test(url)) return;
+        const link = document.createElement('a');
+        link.className = 'cta';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = label || 'Open';
+        this.botStack().appendChild(link);
+        this.log.scrollTop = this.log.scrollHeight;
     }
 
     /**
@@ -1012,15 +1041,7 @@ class ChatWidget {
             this.incoming({ ...message, role: 'bot' });
         }
 
-        if (reply.booking_url) {
-            const link = document.createElement('a');
-            link.className = 'cta';
-            link.href = reply.booking_url;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.textContent = 'Choose a time';
-            this.botStack().appendChild(link);
-        }
+        if (reply.booking_url) this.button(reply.booking_label || 'Choose a time', reply.booking_url);
 
         if (reply.live) {
             this.live = true;

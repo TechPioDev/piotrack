@@ -36,9 +36,20 @@ export type FlowNode = {
     fallback?: string | null;
     /** message steps: seconds of typing dots before the line appears (0-10). */
     delay?: number;
-    /** webhook steps: where to post the answers, what to read back, and what to call it. */
+    /**
+     * webhook steps: where to post the answers. Message, booking and meeting
+     * ending steps: the link their button opens - a map, a Teams meeting, the
+     * owner's own booking page.
+     */
     url?: string;
+    /** webhook steps: what to read back from the reply. */
     path?: string;
+    /** The words on a step's link button. */
+    button?: string;
+    /** booking steps: offer times in the chat ("slots", the default) or hand over a link ("link"). */
+    mode?: string;
+    /** booking steps and meeting endings: our booking form ("page", the default) or the owner's own link ("custom"). */
+    link_to?: string;
     /** The owner's own name for the step, shown in the builder only: "Ask budget", not "Ask a Question". */
     name?: string;
 };
@@ -216,11 +227,16 @@ function pathsOf(id: string, node: FlowNode): Path[] {
         // No fallback means "carry on as normal" to the engine: one path.
         if (fallback === null) return [{ slot: { kind: 'exit', from: id, exit: 'next' }, label: null, target: next }];
         if (fallback === next) return [{ slot: { kind: 'join', region: [id], target: next }, label: null, target: next }];
+        const byLink = node.type === 'booking' && node.mode === 'link';
         return [
-            { slot: { kind: 'exit', from: id, exit: 'next' }, label: node.type === 'booking' ? 'After booking' : 'After answering', target: next },
+            {
+                slot: { kind: 'exit', from: id, exit: 'next' },
+                label: byLink ? 'After the button' : node.type === 'booking' ? 'After booking' : 'After answering',
+                target: next,
+            },
             {
                 slot: { kind: 'exit', from: id, exit: 'fallback' },
-                label: node.type === 'booking' ? 'If no time works' : 'If the AI cannot answer',
+                label: byLink ? 'If there is no booking page' : node.type === 'booking' ? 'If no time works' : 'If the AI cannot answer',
                 target: fallback,
             },
         ];
@@ -623,6 +639,8 @@ export function withQuickReplies(flow: Flow, id: string): Flow {
             ...flow.nodes,
             [id]: {
                 type: 'choice',
+                // The owner's own name for the step stays with it.
+                ...(node.name ? { name: node.name } : {}),
                 text: node.text,
                 field: node.field || id,
                 options: [
@@ -674,8 +692,29 @@ function hostOf(url: string): string {
     }
 }
 
-/** A short, readable line for a step: what the visitor sees, or what it does. */
-export function describe(node: FlowNode): string {
+/** The question whose answer is saved under `field`, if the conversation asks one. */
+export function questionFor(flow: Flow, field: string | undefined): { id: string; node: FlowNode } | null {
+    if (!field) return null;
+    for (const [id, node] of Object.entries(flow.nodes)) {
+        if ((node.type === 'choice' || node.type === 'input') && node.field === field) return { id, node };
+    }
+    return null;
+}
+
+const OPERATOR_WORDS: Record<string, string> = {
+    equals: 'is',
+    not_equals: 'is not',
+    contains: 'contains',
+    gte: 'is at least',
+    lte: 'is at most',
+};
+
+/**
+ * A short, readable line for a step: what the visitor sees, or what it does.
+ * Given the conversation, a condition is said in the words the visitor saw -
+ * the question and the reply - rather than the names they are stored under.
+ */
+export function describe(node: FlowNode, flow?: Flow): string {
     switch (node.type) {
         case 'score':
             return `${(node.points ?? 0) >= 0 ? '+' : ''}${node.points ?? 0} lead score`;
@@ -685,10 +724,14 @@ export function describe(node: FlowNode): string {
             return node.url ? `Send the answers to ${hostOf(node.url)}` : 'Send the answers (no address set)';
         case 'assign':
             return node.assignee_id ? 'Hand to a chosen teammate' : 'Route automatically';
-        case 'condition':
-            return node.field
-                ? `If “${node.field}” ${node.operator === 'is_set' ? 'is answered' : `${node.operator ?? 'is'} ${node.value ?? ''}`.trim()}`
-                : 'If … (not set)';
+        case 'condition': {
+            if (!node.field) return 'If … (not set)';
+            const asked = flow ? questionFor(flow, node.field)?.node : undefined;
+            const what = (asked?.text?.trim() || node.field).slice(0, 40);
+            if (node.operator === 'is_set') return `If “${what}” was answered`;
+            const answer = asked?.options?.find((o) => o.id === node.value)?.label ?? node.value ?? '';
+            return `If “${what}” ${OPERATOR_WORDS[node.operator ?? 'equals'] ?? 'is'} “${answer}”`;
+        }
         case 'handoff':
             return 'Connects the visitor to your team';
         default:

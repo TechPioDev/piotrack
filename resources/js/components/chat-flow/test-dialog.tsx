@@ -6,7 +6,7 @@ import { ArrowDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type TestNode = { id: string; type: string; text: string; options?: { id: string; label: string }[]; input?: string; optional?: boolean };
-type TestMessage = { role: string; body: string };
+type TestMessage = { role: string; body: string; link?: { label: string; url: string } | null };
 
 /**
  * POST JSON to the app. The project has no axios; Laravel accepts the
@@ -76,15 +76,27 @@ export function TestDialog({
         setError(null);
         if (echo !== undefined) setMessages((m) => [...m, { role: 'visitor', body: echo }]);
         try {
-            const data = await postJson<{ token?: string; messages?: TestMessage[]; node?: TestNode | null; done?: boolean }>(
-                route('chat.flow.test', widgetId),
-                {
-                    flow,
-                    ...payload,
-                },
-            );
+            const data = await postJson<{
+                token?: string;
+                messages?: TestMessage[];
+                node?: TestNode | null;
+                done?: boolean;
+                booking_url?: string | null;
+                booking_label?: string;
+                preview_outcome?: string;
+            }>(route('chat.flow.test', widgetId), {
+                flow,
+                ...payload,
+            });
             setToken(data.token ?? payload.token ?? null);
-            setMessages((m) => [...m, ...(data.messages ?? [])]);
+            // The booking button a visitor gets at the end. A test never books,
+            // so where the real link is ours it is shown as a stand-in.
+            const closing: TestMessage[] = data.booking_url
+                ? [{ role: 'bot', body: '', link: { label: data.booking_label || 'Choose a time', url: data.booking_url } }]
+                : data.preview_outcome === 'meeting'
+                  ? [{ role: 'bot', body: '', link: { label: data.booking_label || 'Choose a time', url: '' } }]
+                  : [];
+            setMessages((m) => [...m, ...(data.messages ?? []), ...closing]);
             setNode(data.node ?? null);
             setDone(Boolean(data.done));
         } catch (e) {
@@ -147,16 +159,37 @@ export function TestDialog({
                         className="bg-muted/40 max-h-[45vh] min-h-[220px] space-y-2 overflow-y-auto rounded-lg p-3"
                     >
                         {messages.map((m, i) => (
-                            <div key={i} className={`flex ${m.role === 'visitor' ? 'justify-end' : 'justify-start'}`}>
-                                <div
-                                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                                        m.role === 'visitor'
-                                            ? 'bg-brand text-brand-foreground rounded-br-sm'
-                                            : 'bg-card border-border rounded-bl-sm border'
-                                    }`}
-                                >
-                                    {m.body}
-                                </div>
+                            <div key={i} className={`flex flex-col gap-1.5 ${m.role === 'visitor' ? 'items-end' : 'items-start'}`}>
+                                {m.body !== '' && (
+                                    <div
+                                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                                            m.role === 'visitor'
+                                                ? 'bg-brand text-brand-foreground rounded-br-sm'
+                                                : 'bg-card border-border rounded-bl-sm border'
+                                        }`}
+                                    >
+                                        {m.body}
+                                    </div>
+                                )}
+                                {/* The button a visitor gets under the line: a booking page, a map, a Teams link. */}
+                                {m.link &&
+                                    (m.link.url ? (
+                                        <a
+                                            href={m.link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="bg-brand text-brand-foreground rounded-xl px-4 py-2 text-sm font-semibold hover:opacity-90"
+                                        >
+                                            {m.link.label}
+                                        </a>
+                                    ) : (
+                                        <span
+                                            className="bg-brand/60 text-brand-foreground rounded-xl px-4 py-2 text-sm font-semibold"
+                                            title="Visitors get a button here that opens your booking page."
+                                        >
+                                            {m.link.label}
+                                        </span>
+                                    ))}
                             </div>
                         ))}
                         {done && <p className="text-muted-foreground pt-1 text-center text-xs">Conversation finished.</p>}

@@ -580,4 +580,225 @@ describe('conversation builder', () => {
         openStep('done');
         expect(screen.getByRole('combobox', { name: 'What happens at the end' })).toHaveTextContent('Save the lead (a time was just booked)');
     });
+
+    /*
+     * A condition, a link button and booking by the owner's own link (CHAT-091..094).
+     * Reported from a live workspace: a Condition dropped into an empty
+     * conversation offered "Choose a question…" and nothing else.
+     */
+
+    /** A conversation with a condition and nothing for it to check. */
+    const bare: Flow = {
+        start: 'check',
+        nodes: {
+            check: { type: 'condition', field: '', operator: 'equals', value: '', next: 'done', otherwise: 'done' },
+            done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+        },
+    };
+
+    it('offers to add the question a condition needs, and points the condition at it', async () => {
+        const user = userEvent.setup();
+        renderBuilder(bare);
+
+        openStep('check');
+        expect(screen.getByText('First, ask a question')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Question with replies' }));
+
+        // The question goes just above the condition, which now checks its first reply.
+        expect(stepIds()).toEqual(['question_1', 'check', 'done']);
+        expect(screen.queryByText('First, ask a question')).not.toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'Question to check' })).toHaveTextContent('What can we help you with?');
+        expect(screen.getByRole('combobox', { name: 'Reply to compare with' })).toHaveTextContent('First answer');
+        // Said on the card in the words a visitor saw, not the names they are stored under.
+        expect(within(card('check')).getByText('If “What can we help you with?” is “First answer”')).toBeInTheDocument();
+
+        const flow = publishedFlow();
+        expect(flow.nodes.check).toMatchObject({ field: 'question_1', operator: 'equals', value: 'answer_1' });
+        expect(flow.nodes.question_1.options?.every((o) => o.next === 'check')).toBe(true);
+    });
+
+    it('checks whether a text field was answered when that is the question added', async () => {
+        const user = userEvent.setup();
+        renderBuilder(bare);
+
+        openStep('check');
+        await user.click(screen.getByRole('button', { name: 'Text field' }));
+
+        expect(within(card('check')).getByText('If “Tell us a little about what you need.” was answered')).toBeInTheDocument();
+        const flow = publishedFlow();
+        const asked = Object.entries(flow.nodes).find(([, node]) => node.type === 'input');
+        expect(flow.nodes.check).toMatchObject({ field: asked?.[1].field, operator: 'is_set' });
+        expect(asked?.[1].next).toBe('check');
+    });
+
+    it('shows both ways out of a condition beside the check, and says when they lead the same way', async () => {
+        const user = userEvent.setup();
+        renderBuilder(bare);
+
+        openStep('check');
+        await user.click(screen.getByRole('button', { name: 'Question with replies' }));
+
+        expect(screen.getByRole('combobox', { name: 'When it matches' })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'Otherwise' })).toBeInTheDocument();
+        expect(screen.getByText(/Both lead the same way/)).toBeInTheDocument();
+    });
+
+    it('leads from a condition to the question it checks, to reword it', async () => {
+        const user = userEvent.setup();
+        renderBuilder(bare);
+
+        openStep('check');
+        await user.click(screen.getByRole('button', { name: 'Question with replies' }));
+        await user.click(screen.getByRole('button', { name: /Edit this question and its replies/ }));
+
+        expect(screen.getByLabelText('Question Text')).toHaveValue('What can we help you with?');
+        expect(screen.getByRole('textbox', { name: 'Reply 1' })).toHaveValue('First answer');
+    });
+
+    it('names the settings tabs for what they hold', () => {
+        renderBuilder();
+
+        openStep('welcome');
+        expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(expect.arrayContaining(['Content', 'Paths', 'Advanced']));
+    });
+
+    it('puts a link button on a message, and says so on its card until it has somewhere to go', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        openStep('welcome');
+        await user.click(screen.getByRole('switch', { name: 'Link button' }));
+
+        expect(within(card('welcome')).getByText('· no link yet')).toBeInTheDocument();
+        // A message has a link button or quick replies, not both.
+        expect(screen.queryByRole('switch', { name: 'Quick replies' })).not.toBeInTheDocument();
+
+        const link = screen.getByLabelText('Link it opens');
+        await user.type(link, 'maps.google.com');
+        expect(screen.getByText('A link must be a full address starting with https://')).toBeInTheDocument();
+
+        await user.clear(link);
+        await user.type(link, 'https://maps.google.com/?q=PioManage');
+        await user.clear(screen.getByLabelText('Button text'));
+        await user.type(screen.getByLabelText('Button text'), 'Open the map');
+
+        expect(within(card('welcome')).getByText('Open the map')).toBeInTheDocument();
+        expect(within(card('welcome')).queryByText('· no link yet')).not.toBeInTheDocument();
+        expect(within(card('welcome')).getByText('Link Button')).toBeInTheDocument();
+        expect(publishedFlow().nodes.welcome).toMatchObject({ type: 'message', button: 'Open the map', url: 'https://maps.google.com/?q=PioManage' });
+    });
+
+    it('takes the link button off again, leaving a plain message', async () => {
+        const user = userEvent.setup();
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: {
+                    type: 'message',
+                    text: 'Find us here.',
+                    button: 'Open the map',
+                    url: 'https://maps.google.com/?q=PioManage',
+                    next: 'done',
+                },
+                done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+            },
+        });
+
+        openStep('welcome');
+        await user.click(screen.getByRole('switch', { name: 'Link button' }));
+
+        const welcome = publishedFlow().nodes.welcome;
+        expect(welcome.button).toBeUndefined();
+        expect(welcome.url).toBeUndefined();
+        expect(within(card('welcome')).getByText('Send Message')).toBeInTheDocument();
+    });
+
+    it('has a Link Button step in the library, found by what it is for', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        const search = screen.getByRole('textbox', { name: 'Search steps' });
+        const library = within(search.closest('[role="tabpanel"]') as HTMLElement);
+        await user.type(search, 'google maps');
+
+        expect(library.getByRole('button', { name: /Link Button/ })).toBeInTheDocument();
+    });
+
+    it('lets a booking step open a booking page instead of offering times', async () => {
+        const user = userEvent.setup();
+        renderBuilder({
+            start: 'book',
+            nodes: {
+                book: { type: 'booking', text: 'Pick a time that suits you:', next: 'done', fallback: null },
+                done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+            },
+        });
+
+        openStep('book');
+        expect(screen.getByRole('radio', { name: /Pick a time in the chat/ })).toHaveAttribute('aria-checked', 'true');
+
+        await user.click(screen.getByRole('radio', { name: /Open a booking page/ }));
+
+        expect(screen.getByRole('combobox', { name: 'Booking page the button opens' })).toHaveTextContent('Your booking form here');
+        expect(screen.getByLabelText('Text Above the Button')).toBeInTheDocument();
+        expect(within(card('book')).getByText('Choose a time')).toBeInTheDocument();
+        expect(publishedFlow().nodes.book).toMatchObject({ type: 'booking', mode: 'link' });
+    });
+
+    it('shows the owner’s own booking link on a booking step, with the button in their words', () => {
+        renderBuilder({
+            start: 'book',
+            nodes: {
+                book: {
+                    type: 'booking',
+                    mode: 'link',
+                    link_to: 'custom',
+                    url: 'https://outlook.office.com/book/PioManage@piomanage.test/',
+                    button: 'Book on Teams',
+                    text: 'Book a call with us:',
+                    next: 'done',
+                    fallback: null,
+                },
+                done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+            },
+        });
+
+        expect(within(card('book')).getByText('Book on Teams')).toBeInTheDocument();
+        openStep('book');
+        expect(screen.getByRole('combobox', { name: 'Booking page the button opens' })).toHaveTextContent('Your own booking link');
+        expect(screen.getByLabelText('Your booking link')).toHaveValue('https://outlook.office.com/book/PioManage@piomanage.test/');
+        expect(screen.getByLabelText('Button text')).toHaveValue('Book on Teams');
+    });
+
+    it('asks a meeting ending which booking page its button opens, and flags an own link that is missing', () => {
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: { type: 'message', text: 'Hi there!', next: 'done' },
+                done: { type: 'end', outcome: 'meeting', link_to: 'custom', url: '', text: 'Pick a time below.' },
+            },
+        });
+
+        expect(within(card('done')).getByText('· no link yet')).toBeInTheDocument();
+        openStep('done');
+        expect(screen.getByRole('combobox', { name: 'Booking page the button opens' })).toHaveTextContent('Your own booking link');
+        expect(screen.getByLabelText('Your booking link')).toHaveValue('');
+    });
+
+    it('keeps a step’s own name when quick replies are turned on', async () => {
+        const user = userEvent.setup();
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: { type: 'message', name: 'Greeting', text: 'Hi there!', next: 'done' },
+                done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+            },
+        });
+
+        openStep('welcome');
+        await user.click(screen.getByRole('switch', { name: 'Quick replies' }));
+
+        expect(publishedFlow().nodes.welcome).toMatchObject({ type: 'choice', name: 'Greeting' });
+    });
 });

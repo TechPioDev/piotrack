@@ -404,6 +404,9 @@ class PublicChatController extends Controller
                 'role' => $m->role,
                 'body' => $m->body,
                 'attachment' => $this->publicAttachment($widget, $conversation, $m),
+                // The button a line carried (a booking page, a map): kept with
+                // the line, so a chat reopened later still has it.
+                'link' => $m->role === 'bot' ? ($m->meta['link'] ?? null) : null,
             ], fn ($value) => $value !== null))->all(),
             'live' => (bool) $conversation->is_live,
             'closed' => in_array($conversation->status, ['closed', 'spam'], true),

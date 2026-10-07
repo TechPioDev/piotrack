@@ -8,7 +8,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BLOCK_GROUPS, blockByKey, BLOCKS, outcomeLabel, stepKind, stepTitle } from '@/lib/flow-blocks';
+import { BLOCK_GROUPS, blockByKey, BLOCKS, outcomeLabel, stepButton, stepKind, stepTitle } from '@/lib/flow-blocks';
 import {
     buildTree,
     canInsert,
@@ -32,6 +32,7 @@ import {
     Circle,
     Copy,
     CornerDownRight,
+    ExternalLink,
     Map as MapIcon,
     MessageSquarePlus,
     MoreHorizontal,
@@ -555,8 +556,9 @@ function textLabel(type: string): { label: string; placeholder: string } {
  * too. Steps that simply lead on can be dragged by the card.
  */
 function NodeCard({ step }: { step: TreeStep }) {
-    const { selected, select, openSettings, setDragging, issues, setText, renameReply, addReply, removeReply, addQuickReplies } = useEditor();
+    const { flow, selected, select, openSettings, setDragging, issues, setText, renameReply, addReply, removeReply, addQuickReplies } = useEditor();
     const node = step.node;
+    const button = stepButton(node);
     const visual = stepVisual(node);
     const movable = isMovable(node);
     const problems = issues[step.id] ?? [];
@@ -605,7 +607,11 @@ function NodeCard({ step }: { step: TreeStep }) {
                         ) : node.type === 'end' ? (
                             <span className="text-muted-foreground block truncate text-[11px]">{outcomeLabel(node.outcome)}</span>
                         ) : (
-                            !TEXT_TYPES.includes(node.type) && <span className="text-muted-foreground block truncate text-xs">{describe(node)}</span>
+                            !TEXT_TYPES.includes(node.type) && (
+                                <span className="text-muted-foreground block truncate text-xs" title={describe(node, flow)}>
+                                    {describe(node, flow)}
+                                </span>
+                            )
                         )}
                     </span>
                 </button>
@@ -623,6 +629,26 @@ function NodeCard({ step }: { step: TreeStep }) {
                         onEditing={setEditing}
                         className="text-[13px]"
                     />
+                </div>
+            )}
+
+            {/* The button a visitor taps to open a link: a booking page, a map, a Teams meeting. */}
+            {button && (
+                <div className="px-3 pb-2">
+                    <button
+                        type="button"
+                        onClick={() => openSettings(step.id)}
+                        title={button.ready ? 'The button visitors tap. Click to change it.' : 'This button has no link yet. Click to add one.'}
+                        className={`flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${
+                            button.ready
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300'
+                                : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300'
+                        }`}
+                    >
+                        <ExternalLink className="size-3 shrink-0" aria-hidden />
+                        <span className="truncate">{button.label}</span>
+                        {!button.ready && <span className="shrink-0 font-normal">· no link yet</span>}
+                    </button>
                 </div>
             )}
 
@@ -677,7 +703,7 @@ function NodeCard({ step }: { step: TreeStep }) {
                 </div>
             )}
 
-            {node.type === 'message' && (
+            {node.type === 'message' && !button && (
                 <div className="px-3 pb-2">
                     <button
                         type="button"
@@ -1043,7 +1069,7 @@ function Unreachable({ ids }: { ids: string[] }) {
                             <button type="button" onClick={() => openSettings(id)} className="flex max-w-64 min-w-0 items-center gap-2 text-left">
                                 <StepIcon visual={stepVisual(node)} className="size-6" />
                                 <span className="min-w-0 truncate text-xs">
-                                    <span className="font-semibold">{stepKind(node)}:</span> {describe(node)}
+                                    <span className="font-semibold">{stepKind(node)}:</span> {describe(node, flow)}
                                 </span>
                             </button>
                             <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => remove(id)} aria-label={`Remove ${stepKind(node)}`}>

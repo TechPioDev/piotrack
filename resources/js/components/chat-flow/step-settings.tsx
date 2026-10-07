@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CONTACT_FIELDS, stepKind, stepTitle } from '@/lib/flow-blocks';
+import { blockByKey, CONTACT_FIELDS, stepKind, stepTitle } from '@/lib/flow-blocks';
 import {
     addOption,
     describe,
@@ -11,6 +11,7 @@ import {
     type FlowOption,
     insertStep,
     isMovable,
+    locate,
     mainExit,
     reachable,
     removeOption,
@@ -20,21 +21,40 @@ import {
     withQuickReplies,
     withTarget,
 } from '@/lib/flow-tree';
-import { ArrowDown, ArrowUp, Flame, GripVertical, PanelRightClose, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Flame, GripVertical, PanelRightClose, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { StepIcon, stepVisual } from './step-visuals';
 
 type Assignee = { id: number; name: string };
-type Tab = 'content' | 'advanced' | 'condition';
+type Tab = 'content' | 'paths' | 'advanced';
+
+/** Content is what the visitor sees, Paths is where it leads, Advanced is the rest. */
+const TABS: { id: Tab; label: string }[] = [
+    { id: 'content', label: 'Content' },
+    { id: 'paths', label: 'Paths' },
+    { id: 'advanced', label: 'Advanced' },
+];
 
 const OPERATORS = [
     { id: 'equals', label: 'is' },
     { id: 'not_equals', label: 'is not' },
     { id: 'contains', label: 'contains' },
-    { id: 'is_set', label: 'was answered' },
     { id: 'gte', label: 'is at least' },
     { id: 'lte', label: 'is at most' },
+    { id: 'is_set', label: 'was answered' },
 ];
+
+/** The tests that make sense for each kind of answer: nobody needs "is at least" for a reply button. */
+const OPERATORS_FOR: Record<AnswerKind, string[]> = {
+    reply: ['equals', 'not_equals', 'is_set'],
+    number: ['equals', 'not_equals', 'gte', 'lte', 'is_set'],
+    text: ['contains', 'equals', 'not_equals', 'is_set'],
+};
+
+type AnswerKind = 'reply' | 'number' | 'text';
+
+/** A link a visitor can be sent to: a full https address, nothing else. */
+const isLink = (url: string | undefined): boolean => /^https:\/\/\S+$/i.test((url ?? '').trim());
 
 const MAIN = '__main';
 const OWN = '__own';
@@ -44,7 +64,9 @@ const MAX_TEXT = 500;
 function purpose(node: FlowNode): string {
     switch (node.type) {
         case 'message':
-            return 'Sends a text message to the visitor.';
+            return node.url !== undefined || node.button !== undefined
+                ? 'Sends a message with a button that opens a link.'
+                : 'Sends a text message to the visitor.';
         case 'choice':
             return 'Asks a question with replies to tap.';
         case 'input':
@@ -52,7 +74,7 @@ function purpose(node: FlowNode): string {
                 return `Asks for their ${CONTACT_FIELDS[node.field].toLowerCase()} and saves it to the lead.`;
             return node.input === 'number' ? 'Asks for a number.' : 'Asks a question they answer in their own words.';
         case 'booking':
-            return 'Offers free times from your booking page.';
+            return node.mode === 'link' ? 'Gives visitors a button that opens your booking page.' : 'Offers free times from your booking page.';
         case 'handoff':
             return 'Connects the visitor to someone from your team.';
         case 'ai':
@@ -156,6 +178,7 @@ export function StepSettings({
     onMove,
     canMove,
     focusName = 0,
+    onSelect,
     onClose,
     onHide,
 }: {
@@ -171,6 +194,8 @@ export function StepSettings({
     canMove: { up: boolean; down: boolean };
     /** Changes each time "Rename" is chosen for this step: the cursor goes to its name. */
     focusName?: number;
+    /** Open another step's settings: a condition leads to the question it checks. */
+    onSelect?: (id: string) => void;
     onClose: () => void;
     /** Hide the whole panel, where it sits beside the canvas. */
     onHide?: () => void;
@@ -203,6 +228,8 @@ export function StepSettings({
     const answerPaths = new Set(options.map((o) => o.next ?? null));
     const fields = collectFields(flow, id);
     const hasText = ['message', 'choice', 'input', 'end', 'booking', 'ai'].includes(node.type);
+    const hasButton = node.type === 'message' && (node.url !== undefined || node.button !== undefined);
+    const byLink = node.type === 'booking' && node.mode === 'link';
 
     /** Quick replies on: the message becomes a question, and every reply carries on where it went. */
     const quickRepliesOn = () => onApply(withQuickReplies(flow, id));
@@ -210,7 +237,10 @@ export function StepSettings({
     /** Quick replies off: back to a plain message, carrying on where the replies met. */
     const quickRepliesOff = () => {
         setConfirmPlain(false);
-        onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { type: 'message', text: node.text, next: main } } }));
+        const plain: FlowNode = { type: 'message', text: node.text, next: main };
+        // The owner's own name for the step stays with it.
+        if (node.name) plain.name = node.name;
+        onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: plain } }));
     };
 
     const reorder = (from: number, to: number) => {
@@ -269,20 +299,20 @@ export function StepSettings({
             </div>
 
             <div role="tablist" aria-label="Step settings" className="mt-4 grid grid-cols-3 border-b px-4">
-                {(['content', 'advanced', 'condition'] as const).map((t) => (
+                {TABS.map((t) => (
                     <button
-                        key={t}
+                        key={t.id}
                         type="button"
                         role="tab"
-                        aria-selected={tab === t}
-                        onClick={() => setTab(t)}
-                        className={`-mb-px border-b-2 py-2 text-sm capitalize transition-colors ${
-                            tab === t
+                        aria-selected={tab === t.id}
+                        onClick={() => setTab(t.id)}
+                        className={`-mb-px border-b-2 py-2 text-sm transition-colors ${
+                            tab === t.id
                                 ? 'border-indigo-500 font-medium text-indigo-700 dark:text-indigo-300'
                                 : 'text-muted-foreground hover:text-foreground border-transparent'
                         }`}
                     >
-                        {t}
+                        {t.label}
                     </button>
                 ))}
             </div>
@@ -298,7 +328,9 @@ export function StepSettings({
                                         : node.type === 'message'
                                           ? 'Message Text'
                                           : node.type === 'booking'
-                                            ? 'Text Above the Times'
+                                            ? byLink
+                                                ? 'Text Above the Button'
+                                                : 'Text Above the Times'
                                             : 'Question Text'}
                                 </Label>
                                 <textarea
@@ -341,7 +373,37 @@ export function StepSettings({
                             </div>
                         )}
 
-                        {(node.type === 'message' || node.type === 'choice') && (
+                        {node.type === 'message' && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <span>
+                                        <Label>Link Button</Label>
+                                        <span className="text-muted-foreground block text-xs">
+                                            A button under the message that opens a page: a map, a Teams meeting, a form.
+                                        </span>
+                                    </span>
+                                    <Switch
+                                        label="Link button"
+                                        checked={hasButton}
+                                        onChange={(on) => onPatch(on ? { button: 'Open', url: '' } : { button: undefined, url: undefined })}
+                                    />
+                                </div>
+                                {hasButton && (
+                                    <div className="space-y-3 rounded-lg border p-3">
+                                        <ButtonText node={node} id={id} fallback="Open" onPatch={onPatch} />
+                                        <LinkField
+                                            node={node}
+                                            id={id}
+                                            label="Link it opens"
+                                            hint="Paste the full address: a Google Maps location, a Teams meeting, a form or any page. It opens in a new tab."
+                                            onPatch={onPatch}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {((node.type === 'message' && !hasButton) || node.type === 'choice') && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between gap-3">
                                     <Label>Quick Replies</Label>
@@ -473,6 +535,26 @@ export function StepSettings({
                             </div>
                         )}
 
+                        {node.type === 'input' && !(node.field && CONTACT_FIELDS[node.field]) && (
+                            <div className="grid gap-1.5">
+                                <Label>What they type</Label>
+                                <Select value={node.input ?? 'text'} onValueChange={(v) => onPatch({ input: v })}>
+                                    <SelectTrigger aria-label="What they type">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="text">Text - anything they like</SelectItem>
+                                        <SelectItem value="number">A number</SelectItem>
+                                        <SelectItem value="email">An email address</SelectItem>
+                                        <SelectItem value="phone">A phone number</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-muted-foreground text-xs">
+                                    Numbers, email addresses and phone numbers are checked before the chat moves on.
+                                </p>
+                            </div>
+                        )}
+
                         {node.type === 'input' && (
                             <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
                                 <span>
@@ -496,13 +578,32 @@ export function StepSettings({
                             </p>
                         )}
 
-                        {(node.type === 'booking' || node.type === 'ai' || node.type === 'handoff') && (
+                        {node.type === 'booking' && (
+                            <div className="space-y-2">
+                                <Label id="booking-mode">How visitors book</Label>
+                                <div role="radiogroup" aria-labelledby="booking-mode" className="grid gap-2">
+                                    <Choice
+                                        checked={!byLink}
+                                        title="Pick a time in the chat"
+                                        hint="Your free times appear as buttons, and the one they tap is booked. Put this after the Email step, so the confirmation has somewhere to go."
+                                        onChoose={() => onPatch({ mode: 'slots' })}
+                                    />
+                                    <Choice
+                                        checked={byLink}
+                                        title="Open a booking page"
+                                        hint="A button opens a booking form in a new tab - yours here, or your own on Microsoft Bookings, Teams, Google or Calendly."
+                                        onChoose={() => onPatch({ mode: 'link' })}
+                                    />
+                                </div>
+                                {byLink && <BookingLink node={node} id={id} onPatch={onPatch} />}
+                            </div>
+                        )}
+
+                        {(node.type === 'ai' || node.type === 'handoff') && (
                             <p className="text-muted-foreground text-sm">
-                                {node.type === 'booking'
-                                    ? 'Shows the next free times from your booking page as buttons and books the one they pick. Put it after the Email step, so the confirmation has somewhere to go.'
-                                    : node.type === 'ai'
-                                      ? 'Visitors type a question and the AI answers from your company details, never inventing prices or promises. Uses your plan’s AI credits.'
-                                      : 'If someone from your team is online and it is within business hours, the visitor is connected to them. Otherwise they are told when to expect a reply, and the next steps carry on collecting their details.'}
+                                {node.type === 'ai'
+                                    ? 'Visitors type a question and the AI answers from your company details, never inventing prices or promises. Uses your plan’s AI credits.'
+                                    : 'If someone from your team is online and it is within business hours, the visitor is connected to them. Otherwise they are told when to expect a reply, and the next steps carry on collecting their details.'}
                             </p>
                         )}
 
@@ -559,7 +660,21 @@ export function StepSettings({
                             </div>
                         )}
 
-                        {node.type === 'condition' && <ConditionFields node={node} id={id} fields={fields} onPatch={onPatch} />}
+                        {node.type === 'condition' && (
+                            <>
+                                <ConditionFields
+                                    flow={flow}
+                                    root={root}
+                                    node={node}
+                                    id={id}
+                                    fields={fields}
+                                    onPatch={onPatch}
+                                    onApply={onApply}
+                                    onSelect={onSelect}
+                                />
+                                {node.field && <ConditionPaths flow={flow} id={id} node={node} main={main} mainLabel={mainLabel} onApply={onApply} />}
+                            </>
+                        )}
 
                         {node.type === 'end' && (
                             <div className="grid gap-1.5">
@@ -578,6 +693,8 @@ export function StepSettings({
                                 </Select>
                             </div>
                         )}
+
+                        {node.type === 'end' && node.outcome === 'meeting' && <BookingLink node={node} id={id} onPatch={onPatch} />}
 
                         {node.type === 'end' && node.outcome === 'support' && (
                             <div className="grid gap-1.5">
@@ -610,9 +727,9 @@ export function StepSettings({
                                 <Label>Next Step</Label>
                                 <div className="bg-muted/40 text-muted-foreground rounded-lg border px-3 py-2 text-xs">
                                     {node.type === 'choice'
-                                        ? 'Follows the visitor’s reply. Choose where each reply leads under Condition.'
+                                        ? 'Follows the visitor’s reply. Choose where each reply leads under Paths.'
                                         : node.type === 'condition'
-                                          ? 'Follows the check. Choose where each outcome leads under Condition.'
+                                          ? 'Follows the check: one way when it matches, another when it does not.'
                                           : node.next && flow.nodes[node.next]
                                             ? `Continues to “${describe(flow.nodes[node.next]).slice(0, 48)}”.`
                                             : 'Nothing follows yet: add a step below it on the canvas.'}
@@ -664,23 +781,6 @@ export function StepSettings({
                             </div>
                         )}
 
-                        {node.type === 'input' && !(node.field && CONTACT_FIELDS[node.field]) && (
-                            <div className="grid gap-1.5">
-                                <Label>Answer type</Label>
-                                <Select value={node.input ?? 'text'} onValueChange={(v) => onPatch({ input: v })}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="text">Text</SelectItem>
-                                        <SelectItem value="number">Number</SelectItem>
-                                        <SelectItem value="email">Email address</SelectItem>
-                                        <SelectItem value="phone">Phone number</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-
                         {(node.type === 'choice' || node.type === 'input') && (
                             <div className="grid gap-1.5">
                                 <Label htmlFor="saved-as">Save the answer as</Label>
@@ -714,7 +814,7 @@ export function StepSettings({
                     </>
                 )}
 
-                {tab === 'condition' && (
+                {tab === 'paths' && (
                     <>
                         {node.type === 'choice' && (
                             <div className="space-y-3">
@@ -749,40 +849,19 @@ export function StepSettings({
                         )}
 
                         {node.type === 'condition' && (
-                            <div className="grid gap-1.5">
-                                <Label>When it does not match</Label>
-                                <PathSelect
-                                    flow={flow}
-                                    self={id}
-                                    value={node.otherwise ?? null}
-                                    main={node.next ?? null}
-                                    mainLabel="Carry on the same way"
-                                    label="When it does not match"
-                                    onChoose={(choice) =>
-                                        onApply(
-                                            choosePath(
-                                                flow,
-                                                { kind: 'exit', from: id, exit: 'otherwise' },
-                                                choice,
-                                                node.next ?? null,
-                                                'Say something for this case.',
-                                            ),
-                                        )
-                                    }
-                                />
-                            </div>
+                            <ConditionPaths flow={flow} id={id} node={node} main={main} mainLabel={mainLabel} onApply={onApply} />
                         )}
 
                         {(node.type === 'booking' || node.type === 'ai') && (
                             <div className="grid gap-1.5">
-                                <Label>{node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}</Label>
+                                <Label>{fallbackLabel(node)}</Label>
                                 <PathSelect
                                     flow={flow}
                                     self={id}
                                     value={node.fallback ?? node.next ?? null}
                                     main={node.next ?? null}
                                     mainLabel="Carry on as normal"
-                                    label={node.type === 'booking' ? 'If no time works for them' : 'If the AI cannot answer'}
+                                    label={fallbackLabel(node)}
                                     onChoose={(choice) => {
                                         if (choice === MAIN) {
                                             onApply(withoutStranded(flow, { ...flow, nodes: { ...flow.nodes, [id]: { ...node, fallback: null } } }));
@@ -806,8 +885,8 @@ export function StepSettings({
 
                         {!['choice', 'condition', 'booking', 'ai'].includes(node.type) && (
                             <p className="text-muted-foreground text-sm">
-                                This step always continues to the next one. To send visitors different ways, turn on Quick Replies on a message, or
-                                add a Condition step.
+                                This step always continues to the next one. To send visitors different ways, add an “Ask a Question” step - each reply
+                                can lead its own way - or a Condition step that checks an earlier answer.
                             </p>
                         )}
                     </>
@@ -851,26 +930,219 @@ function ScoreRow({ option, onChange }: { option: FlowOption; onChange: (patch: 
     );
 }
 
-type FieldChoice = { field: string; label: string; answers?: { id: string; label: string }[] };
+function fallbackLabel(node: FlowNode): string {
+    if (node.type === 'ai') return 'If the AI cannot answer';
+    return node.mode === 'link' ? 'If there is no booking page to open' : 'If no time works for them';
+}
 
+/** One of a few ways a step can work, with a line saying what choosing it means. */
+function Choice({ checked, title, hint, onChoose }: { checked: boolean; title: string; hint: string; onChoose: () => void }) {
+    return (
+        <button
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            onClick={onChoose}
+            className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none ${
+                checked ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10' : 'hover:border-indigo-300'
+            }`}
+        >
+            <span
+                className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                    checked ? 'border-indigo-600' : 'border-slate-400'
+                }`}
+                aria-hidden
+            >
+                {checked && <span className="size-2 rounded-full bg-indigo-600" />}
+            </span>
+            <span>
+                <span className="text-foreground block text-sm font-medium">{title}</span>
+                <span className="text-muted-foreground block text-xs">{hint}</span>
+            </span>
+        </button>
+    );
+}
+
+type Patch = (patch: Partial<FlowNode>, mergeKey?: string) => void;
+
+/** The words on a step's button. */
+function ButtonText({ node, id, fallback, onPatch }: { node: FlowNode; id: string; fallback: string; onPatch: Patch }) {
+    return (
+        <div className="grid gap-1.5">
+            <Label htmlFor="step-button">Button text</Label>
+            <Input
+                id="step-button"
+                value={node.button ?? ''}
+                maxLength={40}
+                placeholder={fallback}
+                onChange={(e) => onPatch({ button: e.target.value }, `${id}:button`)}
+                className="h-9"
+            />
+        </div>
+    );
+}
+
+/** The address a button opens, said to be wrong while it is being typed rather than at publish. */
+function LinkField({ node, id, label, hint, onPatch }: { node: FlowNode; id: string; label: string; hint: string; onPatch: Patch }) {
+    const typed = (node.url ?? '').trim();
+    const wrong = typed !== '' && !isLink(typed);
+    return (
+        <div className="grid gap-1.5">
+            <Label htmlFor="step-link">{label}</Label>
+            <Input
+                id="step-link"
+                type="url"
+                inputMode="url"
+                value={node.url ?? ''}
+                maxLength={500}
+                placeholder="https://"
+                aria-invalid={wrong}
+                aria-describedby="step-link-hint"
+                onChange={(e) => onPatch({ url: e.target.value.trim() }, `${id}:url`)}
+                className="h-9"
+            />
+            <p id="step-link-hint" className={`text-xs ${wrong ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                {wrong ? 'A link must be a full address starting with https://' : typed === '' ? hint : 'Visitors open this in a new tab.'}
+            </p>
+        </div>
+    );
+}
+
+/**
+ * Where a "book a meeting" button sends someone: the booking form here, or the
+ * owner's own booking page - Microsoft Bookings, a Teams or Google page, Calendly.
+ */
+function BookingLink({ node, id, onPatch }: { node: FlowNode; id: string; onPatch: Patch }) {
+    const own = node.link_to === 'custom';
+    return (
+        <div className="space-y-3 rounded-lg border p-3">
+            <div className="grid gap-1.5">
+                <Label>Booking page the button opens</Label>
+                <Select value={own ? 'custom' : 'page'} onValueChange={(v) => onPatch({ link_to: v })}>
+                    <SelectTrigger aria-label="Booking page the button opens">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="page">Your booking form here</SelectItem>
+                        <SelectItem value="custom">Your own booking link</SelectItem>
+                    </SelectContent>
+                </Select>
+                {!own && (
+                    <p className="text-muted-foreground text-xs">
+                        The booking form you set up under Sales → Booking: visitors pick a free time and leave their details, and it lands in your
+                        calendar.
+                    </p>
+                )}
+            </div>
+            {own && (
+                <LinkField
+                    node={node}
+                    id={id}
+                    label="Your booking link"
+                    hint="Paste the link to your own booking page: Microsoft Bookings, a Teams or Google Calendar booking page, Calendly, or a form on your site."
+                    onPatch={onPatch}
+                />
+            )}
+            <ButtonText node={node} id={id} fallback="Choose a time" onPatch={onPatch} />
+        </div>
+    );
+}
+
+type FieldChoice = { id: string; field: string; label: string; kind: AnswerKind; answers?: { id: string; label: string }[] };
+
+/**
+ * What a condition checks. A condition is nothing without a question to check,
+ * and an owner starting from an empty conversation has none - so it offers to
+ * add one, just above itself, and points itself at the answer.
+ */
 function ConditionFields({
+    flow,
+    root,
     node,
     id,
     fields,
     onPatch,
+    onApply,
+    onSelect,
 }: {
+    flow: Flow;
+    root: TreeBranch;
     node: FlowNode;
     id: string;
     fields: FieldChoice[];
-    onPatch: (patch: Partial<FlowNode>, mergeKey?: string) => void;
+    onPatch: Patch;
+    onApply: (next: Flow) => void;
+    onSelect?: (id: string) => void;
 }) {
     const chosen = fields.find((f) => f.field === node.field);
+    const kind: AnswerKind = chosen?.kind ?? 'text';
+    const operator = node.operator ?? 'equals';
+    // A test chosen before the question changed is still shown, so nothing is silently rewritten.
+    const tests = OPERATORS.filter((o) => OPERATORS_FOR[kind].includes(o.id) || o.id === operator);
+
+    /** Point the condition at a question, with a test that suits its kind of answer. */
+    const aim = (field: FieldChoice): Partial<FlowNode> =>
+        field.kind === 'reply'
+            ? { field: field.field, operator: 'equals', value: field.answers?.[0]?.id ?? '' }
+            : field.kind === 'number'
+              ? { field: field.field, operator: 'gte', value: '' }
+              : { field: field.field, operator: 'is_set', value: '' };
+
+    /** A new question just above this step, already the one being checked. */
+    const addQuestion = (key: 'question' | 'open') => {
+        const place = locate(root, id);
+        const block = blockByKey(key);
+        if (!place || !block) return;
+        const { flow: next, id: question } = insertStep(flow, place.branch.steps[place.index].via, block.make());
+        const asked = next.nodes[question];
+        const target: FieldChoice = {
+            id: question,
+            field: asked.field ?? question,
+            label: '',
+            kind: asked.type === 'choice' ? 'reply' : 'text',
+            answers: asked.options?.map((o) => ({ id: o.id, label: o.label })),
+        };
+        onApply({ ...next, nodes: { ...next.nodes, [id]: { ...next.nodes[id], ...aim(target) } } });
+    };
+
+    const adders = (
+        <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => addQuestion('question')}>
+                <Plus className="size-3.5" aria-hidden /> Question with replies
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => addQuestion('open')}>
+                <Plus className="size-3.5" aria-hidden /> Text field
+            </Button>
+        </div>
+    );
+
+    if (fields.length === 0) {
+        return (
+            <div className="space-y-3 rounded-lg border border-dashed border-indigo-300 bg-indigo-50/50 p-3 dark:border-indigo-500/40 dark:bg-indigo-500/5">
+                <div>
+                    <p className="text-foreground text-sm font-semibold">First, ask a question</p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                        A condition sends visitors one way or another by an answer they gave. This conversation does not ask anything yet. Add the
+                        question to check - it goes just above this step, and you can reword it and its replies there.
+                    </p>
+                </div>
+                {adders}
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-3">
             <div className="grid gap-1.5">
-                <Label>Check the answer to</Label>
-                <Select value={node.field || '__none'} onValueChange={(v) => onPatch({ field: v === '__none' ? '' : v, value: '' })}>
-                    <SelectTrigger>
+                <Label>If the answer to</Label>
+                <Select
+                    value={node.field || '__none'}
+                    onValueChange={(v) => {
+                        const next = fields.find((f) => f.field === v);
+                        onPatch(next ? aim(next) : { field: '', value: '' });
+                    }}
+                >
+                    <SelectTrigger aria-label="Question to check">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -882,46 +1154,127 @@ function ConditionFields({
                         ))}
                     </SelectContent>
                 </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1.5">
-                    <Label>Test</Label>
-                    <Select value={node.operator ?? 'equals'} onValueChange={(v) => onPatch({ operator: v })}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {OPERATORS.map((o) => (
-                                <SelectItem key={o.id} value={o.id}>
-                                    {o.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                {node.operator !== 'is_set' && (
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="cond-value">Value</Label>
-                        {chosen?.answers ? (
-                            <Select value={node.value || '__none'} onValueChange={(v) => onPatch({ value: v === '__none' ? '' : v })}>
-                                <SelectTrigger id="cond-value">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none">Choose an answer…</SelectItem>
-                                    {chosen.answers.map((a) => (
-                                        <SelectItem key={a.id} value={a.id}>
-                                            {a.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        ) : (
-                            <Input id="cond-value" value={node.value ?? ''} onChange={(e) => onPatch({ value: e.target.value }, `${id}:value`)} />
-                        )}
-                    </div>
+                {chosen && onSelect && (
+                    <button
+                        type="button"
+                        onClick={() => onSelect(chosen.id)}
+                        className="flex items-center gap-1 justify-self-start text-xs font-medium text-indigo-700 hover:underline dark:text-indigo-300"
+                    >
+                        <Pencil className="size-3" aria-hidden /> Edit this question{chosen.answers ? ' and its replies' : ''}
+                    </button>
                 )}
             </div>
+
+            {chosen && (
+                <div className={`grid gap-2 ${operator === 'is_set' ? '' : 'grid-cols-2'}`}>
+                    <div className="grid gap-1.5">
+                        <Select value={operator} onValueChange={(v) => onPatch({ operator: v })}>
+                            <SelectTrigger aria-label="How to compare the answer">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {tests.map((o) => (
+                                    <SelectItem key={o.id} value={o.id}>
+                                        {o.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {operator !== 'is_set' && (
+                        <div className="grid gap-1.5">
+                            {chosen.answers ? (
+                                <Select value={node.value || '__none'} onValueChange={(v) => onPatch({ value: v === '__none' ? '' : v })}>
+                                    <SelectTrigger id="cond-value" aria-label="Reply to compare with">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none">Choose a reply…</SelectItem>
+                                        {chosen.answers.map((a) => (
+                                            <SelectItem key={a.id} value={a.id}>
+                                                {a.label || 'Untitled answer'}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Input
+                                    id="cond-value"
+                                    type={kind === 'number' ? 'number' : 'text'}
+                                    aria-label={kind === 'number' ? 'Number to compare with' : 'Words to compare with'}
+                                    placeholder={kind === 'number' ? 'a number' : 'a word or phrase'}
+                                    value={node.value ?? ''}
+                                    onChange={(e) => onPatch({ value: e.target.value }, `${id}:value`)}
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <details className="text-xs">
+                <summary className="text-muted-foreground hover:text-foreground cursor-pointer">Check a question that is not asked yet</summary>
+                <div className="mt-2 space-y-2">
+                    <p className="text-muted-foreground">It is added just above this step.</p>
+                    {adders}
+                </div>
+            </details>
+        </div>
+    );
+}
+
+/** Where each outcome of a condition leads: the two ways out, side by side with the check. */
+function ConditionPaths({
+    flow,
+    id,
+    node,
+    main,
+    mainLabel,
+    onApply,
+}: {
+    flow: Flow;
+    id: string;
+    node: FlowNode;
+    main: string | null;
+    mainLabel: string;
+    onApply: (next: Flow) => void;
+}) {
+    const same = (node.next ?? null) === (node.otherwise ?? null);
+    const way = (exit: 'next' | 'otherwise', label: string, placeholder: string) => (
+        <div className="grid gap-1.5">
+            <Label className="text-xs">{label}</Label>
+            <PathSelect
+                flow={flow}
+                self={id}
+                value={(exit === 'next' ? node.next : node.otherwise) ?? null}
+                main={main}
+                mainLabel={mainLabel}
+                label={label}
+                onChoose={(choice) => onApply(choosePath(flow, { kind: 'exit', from: id, exit }, choice, main, placeholder))}
+            />
+        </div>
+    );
+
+    return (
+        <div className="space-y-3 rounded-lg border p-3">
+            {way('next', 'When it matches', 'Say something to people this matches.')}
+            {way('otherwise', 'Otherwise', 'Say something to everyone else.')}
+            {same && (
+                <div className="space-y-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Both lead the same way, so the check changes nothing yet. Give one of them “A new path of its own”.
+                    </p>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            onApply(choosePath(flow, { kind: 'exit', from: id, exit: 'next' }, OWN, main, 'Say something to people this matches.'))
+                        }
+                    >
+                        <Plus className="size-3.5" aria-hidden /> Start a path for when it matches
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
@@ -935,8 +1288,10 @@ function collectFields(flow: Flow, self: string): FieldChoice[] {
         if (node.type !== 'choice' && node.type !== 'input') continue;
         seen.add(node.field);
         out.push({
+            id,
             field: node.field,
-            label: CONTACT_FIELDS[node.field] ?? (node.text?.trim() || node.field).slice(0, 48),
+            label: (CONTACT_FIELDS[node.field] ?? (node.name?.trim() || node.text?.trim() || node.field)).slice(0, 48),
+            kind: node.type === 'choice' ? 'reply' : node.input === 'number' ? 'number' : 'text',
             answers: node.type === 'choice' ? (node.options ?? []).map((o) => ({ id: o.id, label: o.label })) : undefined,
         });
     }

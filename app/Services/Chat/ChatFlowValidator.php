@@ -4,6 +4,7 @@ namespace App\Services\Chat;
 
 use App\Models\BookingPage;
 use App\Support\CurrentOrganization;
+use App\Support\SafeLink;
 
 /**
  * Validates a conversation graph before it can be published.
@@ -138,12 +139,39 @@ class ChatFlowValidator
 
             // A conversation that offers a meeting needs somewhere to send
             // people. Without a live booking page the visitor is told to pick a
-            // time and handed nothing, which is worse than not offering.
-            if (($type === 'booking' || ($type === 'end' && ($node['outcome'] ?? '') === 'meeting')) && ! $this->canBook()) {
+            // time and handed nothing, which is worse than not offering - unless
+            // the step sends them to the owner's own booking link instead.
+            $offersMeeting = $type === 'booking' || ($type === 'end' && ($node['outcome'] ?? '') === 'meeting');
+            $ownLink = $offersMeeting && ($node['link_to'] ?? 'page') === 'custom'
+                // A time-picker only uses a link when it is set to open one.
+                && ($type === 'end' || ($node['mode'] ?? 'slots') === 'link');
+
+            if ($ownLink && SafeLink::https($node['url'] ?? null) === null) {
+                $errors[] = [
+                    'node' => (string) $id,
+                    'message' => 'This sends visitors to your own booking link, but the link is missing or does not start with https://.',
+                ];
+            } elseif ($offersMeeting && ! $ownLink && ! $this->canBook()) {
                 $warnings[] = [
                     'node' => (string) $id,
                     'message' => 'This offers a meeting, but no booking page is live — turn one on under Appointments, or visitors will have nothing to book.',
                 ];
+            }
+
+            // A message's button has to open something, and only ever a real
+            // https address: it is put in front of every visitor.
+            if ($type === 'message') {
+                $address = trim((string) ($node['url'] ?? ''));
+                $label = trim((string) ($node['button'] ?? ''));
+                if ($address === '' && $label !== '') {
+                    $errors[] = ['node' => (string) $id, 'message' => 'This message has a button with no link to open. Add the link, or remove the button.'];
+                } elseif ($address !== '' && SafeLink::https($address) === null) {
+                    $errors[] = ['node' => (string) $id, 'message' => 'The button’s link must be a full web address starting with https://.'];
+                }
+            }
+
+            if (isset($node['button']) && (! is_string($node['button']) || mb_strlen($node['button']) > 40)) {
+                $errors[] = ['node' => (string) $id, 'message' => 'The button’s text is too long. Keep it to 40 characters.'];
             }
 
             if ($type === 'webhook') {
