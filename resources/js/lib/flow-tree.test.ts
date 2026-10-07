@@ -14,6 +14,7 @@ import {
     reachable,
     removeOption,
     removeStep,
+    type Slot,
     stepsInside,
     targetOf,
     type TreeBranch,
@@ -273,8 +274,93 @@ describe('moveStep', () => {
         expect(moveStep(msp, 'ask_name', { kind: 'exit', from: 'ask_name', exit: 'next' })).toBe(msp);
     });
 
-    it('leaves questions where they are, since their answers carry paths', () => {
-        expect(moveStep(msp, 'q_size', { kind: 'start' })).toBe(msp);
+    it('moves a question whose answers all lead the same way, like any other step', () => {
+        // "How many staff?" first of all, before the welcome.
+        const flow = moveStep(msp, 'q_size', { kind: 'start' });
+
+        expect(flow.start).toBe('q_size');
+        expect(flow.nodes.q_size.options?.map((o) => o.next)).toEqual(['welcome', 'welcome']);
+        // Where it came from is joined up: the paths that met at it now meet at what followed it.
+        expect(flow.nodes.q_service.options?.map((o) => o.next)).toEqual(['ask_name', 'ask_name', 'q_security', 'support_email']);
+        expect(flow.nodes.q_security.options?.map((o) => o.next)).toEqual(['ask_name', 'ask_name']);
+        expect(reachable(flow).size).toBe(Object.keys(flow.nodes).length);
+    });
+
+    it('moves a question that splits together with everything inside its paths', () => {
+        // The whole "what can we help with" split goes after the name is asked.
+        const flow = moveStep(msp, 'q_service', { kind: 'exit', from: 'ask_name', exit: 'next' });
+
+        // Lifted out: the welcome now leads straight to where the split's paths used to meet.
+        expect(flow.nodes.welcome.next).toBe('q_size');
+        // Put down: the name leads into the split, and its paths meet at what the name used to lead to.
+        expect(flow.nodes.ask_name.next).toBe('q_service');
+        expect(flow.nodes.q_service.options?.map((o) => o.next)).toEqual(['ask_email', 'ask_email', 'q_security', 'support_email']);
+        expect(flow.nodes.q_security.options?.map((o) => o.next)).toEqual(['ask_email', 'ask_email']);
+        // The path that ends on its own went with it, untouched.
+        expect(flow.nodes.support_email.next).toBe('end_support');
+        expect(reachable(flow).size).toBe(Object.keys(flow.nodes).length);
+
+        // And it still draws as one split that re-joins.
+        const tree = buildTree(flow);
+        expect(ids(tree.root)).toEqual(['welcome', 'q_size', 'ask_name', 'q_service', 'ask_email', 'done']);
+    });
+
+    it('will not put a step inside its own paths, or straight after itself', () => {
+        // Into one of its own branches.
+        expect(moveStep(msp, 'q_service', { kind: 'exit', from: 'support_email', exit: 'next' })).toBe(msp);
+        expect(moveStep(msp, 'q_service', { kind: 'answers', from: 'q_security', answers: ['audit', 'mdr'] })).toBe(msp);
+        // Where its own paths meet again is where it already is.
+        const after = buildTree(msp).root.steps.find((s) => s.id === 'q_size')?.via;
+        expect(after?.kind).toBe('join');
+        expect(moveStep(msp, 'q_service', after as Slot)).toBe(msp);
+    });
+
+    it('moves a step out of a path to below where the paths meet', () => {
+        // "What do you need?" sits on the security path; move it to after the split re-joins.
+        const join = buildTree(msp).root.steps.find((s) => s.id === 'q_size')?.via as Slot;
+        const flow = moveStep(msp, 'q_security', join);
+
+        // The security answer now goes straight to it with everyone else...
+        expect(flow.nodes.q_service.options?.map((o) => o.next)).toEqual(['q_security', 'q_security', 'q_security', 'support_email']);
+        // ...and it leads on to what the paths used to meet at.
+        expect(flow.nodes.q_security.options?.map((o) => o.next)).toEqual(['q_size', 'q_size']);
+        expect(reachable(flow).size).toBe(Object.keys(flow.nodes).length);
+    });
+
+    it('only puts a step nothing can follow where nothing follows', () => {
+        const flow: Flow = {
+            start: 'hello',
+            nodes: {
+                hello: message('Hi!', 'pick'),
+                pick: question('Which?', [
+                    ['sales', 'end_sales'],
+                    ['help', 'end_help'],
+                ]),
+                end_sales: finish('Sales will call.'),
+                end_help: { type: 'end', outcome: 'support', text: 'Ticket opened.' },
+            },
+        };
+
+        // Its two paths never meet again, so it cannot go in front of the greeting.
+        expect(moveStep(flow, 'pick', { kind: 'start' })).toBe(flow);
+    });
+
+    it('keeps a booking step without a "no time works" path that way when it moves', () => {
+        const flow: Flow = {
+            start: 'hello',
+            nodes: {
+                hello: message('Hi!', 'ask'),
+                ask: ask('email', 'book', 'email'),
+                book: { type: 'booking', text: 'Pick a time:', next: 'done', fallback: null },
+                done: finish(),
+            },
+        };
+
+        const moved = moveStep(flow, 'book', { kind: 'exit', from: 'hello', exit: 'next' });
+
+        expect(moved.nodes.hello.next).toBe('book');
+        expect(moved.nodes.book).toMatchObject({ next: 'ask', fallback: null });
+        expect(moved.nodes.ask.next).toBe('done');
     });
 
     it('keeps every step reachable after a move', () => {
@@ -330,13 +416,32 @@ describe('editing on the card', () => {
         expect(reachable(result.flow).has(result.id)).toBe(true);
     });
 
-    it('gives a copied question its own answer name, and does not copy steps that split', () => {
+    it('gives a copied question its own answer name, and never copies an ending', () => {
         const flow: Flow = { start: 'a', nodes: { a: { type: 'input', input: 'text', text: 'Why?', field: 'a', next: 'b' }, b: finish() } };
         const result = duplicateStep(flow, buildTree(flow).root, 'a');
 
         expect(result?.flow.nodes[result.id].field).toBe(result?.id);
-        expect(duplicateStep(msp, root, 'q_service')).toBeNull();
         expect(duplicateStep(msp, root, 'done')).toBeNull();
+    });
+
+    it('copies a question with its replies but not its paths, below where they meet again', () => {
+        const result = duplicateStep(msp, root, 'q_service');
+        if (!result) throw new Error('not duplicated');
+
+        const copy = result.flow.nodes[result.id];
+        // Same replies, every one of them carrying on to what the paths met at.
+        expect(copy.options?.map((o) => o.id)).toEqual(['managed', 'cloud', 'security', 'support']);
+        expect(copy.options?.map((o) => o.next)).toEqual(['q_size', 'q_size', 'q_size', 'q_size']);
+        // The original's paths now meet at the copy.
+        expect(result.flow.nodes.q_service.options?.map((o) => o.next)).toEqual([result.id, result.id, 'q_security', 'support_email']);
+        expect(reachable(result.flow).size).toBe(Object.keys(result.flow.nodes).length);
+    });
+
+    it('names a copy of a named step so the two can be told apart', () => {
+        const flow: Flow = { start: 'a', nodes: { a: { ...message('Hi!', 'b'), name: 'Greeting' }, b: finish() } };
+        const result = duplicateStep(flow, buildTree(flow).root, 'a');
+
+        expect(result?.flow.nodes[result.id].name).toBe('Greeting (copy)');
     });
 
     it('counts the steps inside a question’s paths, however deep', () => {

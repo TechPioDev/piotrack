@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CONTACT_FIELDS, stepKind } from '@/lib/flow-blocks';
+import { CONTACT_FIELDS, stepKind, stepTitle } from '@/lib/flow-blocks';
 import {
     addOption,
     describe,
@@ -11,7 +11,6 @@ import {
     type FlowOption,
     insertStep,
     isMovable,
-    locate,
     mainExit,
     reachable,
     removeOption,
@@ -22,7 +21,7 @@ import {
     withTarget,
 } from '@/lib/flow-tree';
 import { ArrowDown, ArrowUp, Flame, GripVertical, PanelRightClose, Plus, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StepIcon, stepVisual } from './step-visuals';
 
 type Assignee = { id: number; name: string };
@@ -155,6 +154,8 @@ export function StepSettings({
     onApply,
     onDelete,
     onMove,
+    canMove,
+    focusName = 0,
     onClose,
     onHide,
 }: {
@@ -166,6 +167,10 @@ export function StepSettings({
     onApply: (next: Flow) => void;
     onDelete: () => void;
     onMove: (direction: 'up' | 'down') => void;
+    /** Whether the step has anywhere to go in each direction. */
+    canMove: { up: boolean; down: boolean };
+    /** Changes each time "Rename" is chosen for this step: the cursor goes to its name. */
+    focusName?: number;
     onClose: () => void;
     /** Hide the whole panel, where it sits beside the canvas. */
     onHide?: () => void;
@@ -173,13 +178,23 @@ export function StepSettings({
     const [tab, setTab] = useState<Tab>('content');
     const [confirmPlain, setConfirmPlain] = useState(false);
     const [dragFrom, setDragFrom] = useState<number | null>(null);
+    const nameInput = useRef<HTMLInputElement>(null);
+    // "Rename" was chosen on the card: put the cursor in the name, whatever tab is showing.
+    useEffect(() => {
+        if (focusName <= 0) return;
+        // After the menu that asked for it has finished closing.
+        const timer = window.setTimeout(() => {
+            nameInput.current?.focus();
+            nameInput.current?.select();
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [focusName]);
+
     const node = flow.nodes[id];
     if (!node) return null;
 
-    const place = locate(root, id);
-    const canMoveUp = isMovable(node) && place !== null && place.index > 0 && isMovable(place.branch.steps[place.index - 1].node);
-    const canMoveDown =
-        isMovable(node) && place !== null && place.index < place.branch.steps.length - 1 && isMovable(place.branch.steps[place.index + 1].node);
+    const canMoveUp = canMove.up;
+    const canMoveDown = canMove.down;
 
     // Where this step's answers carry on when they do not go their own way.
     const main = mainExit(root, flow, id);
@@ -232,9 +247,25 @@ export function StepSettings({
             <div className="flex items-start gap-3 px-4 pt-4">
                 <StepIcon visual={stepVisual(node)} className="size-10" />
                 <div className="min-w-0">
-                    <p className="text-foreground text-sm font-semibold">{stepKind(node)}</p>
-                    <p className="text-muted-foreground text-xs">{purpose(node)}</p>
+                    <p className="text-foreground truncate text-sm font-semibold">{stepTitle(node)}</p>
+                    <p className="text-muted-foreground text-xs">{node.name?.trim() ? `${stepKind(node)} — ${purpose(node)}` : purpose(node)}</p>
                 </div>
+            </div>
+
+            <div className="grid gap-1 px-4 pt-3">
+                <Label htmlFor="step-name" className="text-xs">
+                    Step name
+                </Label>
+                <Input
+                    id="step-name"
+                    ref={nameInput}
+                    value={node.name ?? ''}
+                    maxLength={60}
+                    placeholder={stepKind(node)}
+                    onChange={(e) => onPatch({ name: e.target.value }, `${id}:name`)}
+                    className="h-8"
+                />
+                <p className="text-muted-foreground text-[11px]">Only you see this. It tells this step apart from others like it.</p>
             </div>
 
             <div role="tablist" aria-label="Step settings" className="mt-4 grid grid-cols-3 border-b px-4">
@@ -262,7 +293,13 @@ export function StepSettings({
                         {hasText && (
                             <div className="grid gap-1.5">
                                 <Label htmlFor="step-text">
-                                    {node.type === 'end' ? 'Closing Message' : node.type === 'message' ? 'Message Text' : 'Question Text'}
+                                    {node.type === 'end'
+                                        ? 'Closing Message'
+                                        : node.type === 'message'
+                                          ? 'Message Text'
+                                          : node.type === 'booking'
+                                            ? 'Text Above the Times'
+                                            : 'Question Text'}
                                 </Label>
                                 <textarea
                                     id="step-text"
@@ -528,12 +565,14 @@ export function StepSettings({
                             <div className="grid gap-1.5">
                                 <Label>What happens at the end</Label>
                                 <Select value={node.outcome ?? 'lead'} onValueChange={(v) => onPatch({ outcome: v })}>
-                                    <SelectTrigger>
+                                    <SelectTrigger aria-label="What happens at the end">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="lead">Save them as a new lead</SelectItem>
                                         <SelectItem value="meeting">Save the lead and offer a meeting</SelectItem>
+                                        {/* Reached after a time was booked in the chat: without it listed, this box showed blank. */}
+                                        <SelectItem value="booked">Save the lead (a time was just booked)</SelectItem>
                                         <SelectItem value="support">Open a support ticket (existing customer)</SelectItem>
                                     </SelectContent>
                                 </Select>

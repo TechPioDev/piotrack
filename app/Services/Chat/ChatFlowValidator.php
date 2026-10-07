@@ -118,6 +118,13 @@ class ChatFlowValidator
                 }
             }
 
+            // A step's own name is the owner's label for it in the builder -
+            // "Company size" rather than a fourth "Ask a Question" - and is
+            // never sent to a visitor. Short text only.
+            if (isset($node['name']) && (! is_string($node['name']) || mb_strlen($node['name']) > 60)) {
+                $errors[] = ['node' => (string) $id, 'message' => 'This step’s name is too long. Keep it to 60 characters.'];
+            }
+
             // A step that hands the conversation, or the ticket it ends in, to a
             // named person may only name a teammate. The id arrives from the
             // browser, so "a number that happens to be a user" is not enough:

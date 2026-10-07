@@ -748,3 +748,43 @@ emails - is asserted both ways.
 
 **Still open on this path:** a client's answer by email goes to the agent's mailbox, not back
 into the ticket - that needs inbound mail, which this deployment does not have.
+
+## Follow-up (2026-10-07, later): "we cannot edit, rename or swap steps" (CHAT-088..090)
+
+Reported by the owner from the live builder with the Cybersecurity / MSSP template loaded: they
+could not find how to edit, could not rename or swap steps, could not find a text field to add,
+and found the screen hard to understand. Reproduced locally at their window size with the same
+template. Most of it was true, for three different reasons:
+
+- **Truly missing - moving and copying a question (CHAT-088).** Only steps that simply lead on
+  could move; a question's menu had Edit, Fold and Delete. Templates are mostly questions, so in
+  practice nothing could be swapped. Now every step but an ending moves - by menu (up, down, to
+  another place), by drag or by click-to-place - and a question whose answers lead different ways
+  takes everything inside its paths with it (`blockOf` in `flow-tree.ts`). Refused where it would
+  make no sense: into its own paths; a step nothing can follow, anywhere something follows; and
+  never a move that cuts off a step a visitor could reach. Duplicate copies a question with its
+  replies, not its paths.
+- **Truly missing - names (CHAT-089).** Four cards titled "Ask a Question". A step now takes a
+  name (Rename in the menu, or the Step name box); the card shows it with the kind beneath. Saved
+  with the conversation, 60 characters at most, and never sent to a visitor - `publicNode` builds
+  what the widget gets from a fixed list of keys, and a test holds it there.
+- **There all along, but not findable (CHAT-090).**
+  - Text was already edited by clicking it, and Required was already switched on the card - but
+    nothing said so, and "REQUIRED" was drawn as a badge, which reads as a fact. There is now a
+    line above the conversation that says how to edit, and Required is a switch.
+  - The owner had the Steps panel folded, which left fifteen unlabelled icons in five colours:
+    "the text field option is missing". Each icon now has its name under it, and "Collect User
+    Input" is called "Text Field" (found by "text field", "input", "box").
+  - The Steps / Settings / Focus buttons floated over the canvas and sat on top of whichever
+    card was under them. They have a strip of their own.
+  - Every step's menu now carries the same complete list.
+- **Defect found on the way.** An ending reached after a time is booked has the outcome `booked`,
+  which the "What happens at the end" box did not list - so it showed empty. It is listed now.
+
+**Not done, and said so:** a question the visitor may skip. Required/optional applies to steps a
+visitor types into; a question with replies always needs one tapped. Skipping one is a change to
+the chat engine, not to the builder.
+
+**Automated testing:** `flow-tree.test.ts` +7 (35), `builder.test.tsx` +9 (31),
+`ChatFlowStepNameTest` (3). Two builder tests changed with the Required switch: they now read
+its state rather than the old badge's wording.

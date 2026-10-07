@@ -134,6 +134,8 @@ export function ConversationBuilder({
     const flow = history.flow;
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<Dragging>(null);
+    // Bumped each time "Rename" is chosen, so the settings put the cursor in the name.
+    const [naming, setNaming] = useState(0);
     const [validation, setValidation] = useState<Validation>(initialValidation);
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -296,9 +298,17 @@ export function ConversationBuilder({
         return { ...place, prev: place.branch.steps[place.index - 1], next: place.branch.steps[place.index + 1] };
     };
 
+    // Any step can swap places with its neighbour - a question takes its paths
+    // along - so the real question is only whether the move would change
+    // anything: a step nothing can follow has nowhere further down to go.
     const canMove = (id: string) => {
         const n = neighbours(id);
-        return { up: Boolean(n?.prev && isMovable(n.prev.node)), down: Boolean(n?.next && isMovable(n.next.node)) };
+        if (!n) return { up: false, down: false };
+        const below = n.next ? afterSlot(tree.root, n.next.id) : null;
+        return {
+            up: Boolean(n.prev) && moveStep(flow, id, n.prev.via) !== flow,
+            down: below !== null && moveStep(flow, id, below) !== flow,
+        };
     };
 
     const move = (id: string, direction: 'up' | 'down') => {
@@ -383,6 +393,11 @@ export function ConversationBuilder({
             apply(copy.flow);
             setSelected(copy.id);
         },
+        canDuplicate: (id: string) => isMovable(flow.nodes[id]) && afterSlot(tree.root, id) !== null,
+        rename: (id: string) => {
+            openSettings(id);
+            setNaming((n) => n + 1);
+        },
         toggleRequired: (id: string) => patchNode(id, { optional: !flow.nodes[id]?.optional }),
         setText: (id: string, text: string) => patchNode(id, { text }),
         renameReply: (id: string, optionId: string, label: string) =>
@@ -421,6 +436,8 @@ export function ConversationBuilder({
             onApply={apply}
             onDelete={() => remove(selected)}
             onMove={(direction) => move(selected, direction)}
+            canMove={canMove(selected)}
+            focusName={naming}
             onClose={() => {
                 setSelected(null);
                 setSheetOpen(false);
@@ -431,10 +448,10 @@ export function ConversationBuilder({
 
     const pickedKey = dragging?.kind === 'block' && dragging.pick ? dragging.key : null;
     const height = focus ? 'h-full min-h-0' : 'h-[calc(100vh-16rem)] min-h-[560px]';
-    const columns = `${panels.steps ? '240px' : '60px'} minmax(0,1fr)${panels.settings ? ' 320px' : ''}`;
+    const columns = `${panels.steps ? '240px' : '80px'} minmax(0,1fr)${panels.settings ? ' 320px' : ''}`;
 
     const toolbar = (
-        <div className="bg-card/95 flex items-center gap-0.5 rounded-lg border p-1 shadow-sm">
+        <div className="ml-auto flex items-center gap-0.5">
             <Button
                 variant="ghost"
                 size="sm"
@@ -878,7 +895,11 @@ function GettingStarted({ flow, onHide }: { flow: Flow; onHide: () => void }) {
                         <li>Drag a step from the left onto a line - or click it, then click the place it goes.</li>
                         <li>Or point at a line and click its +.</li>
                         <li>Click any text on a card to change it there. Add replies to a question right on its card.</li>
-                        <li>Mark contact details Required or Optional on their cards.</li>
+                        <li>
+                            Use <strong className="text-foreground font-medium">⋯</strong> on a step to rename it, move it up or down, copy it or
+                            delete it. A question moves with everything in its paths.
+                        </li>
+                        <li>Switch Required on or off on any step a visitor types into.</li>
                         <li>Hide the side panels, or use Focus mode, for more room.</li>
                         <li>Test it, then publish.</li>
                     </ol>

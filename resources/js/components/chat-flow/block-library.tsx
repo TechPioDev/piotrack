@@ -42,7 +42,7 @@ export function StepLibrary({ picking, onPick, setDragging, templates, onOpenTem
     const [tab, setTab] = useState<'steps' | 'templates'>('steps');
     const [query, setQuery] = useState('');
     const q = query.trim().toLowerCase();
-    const shown = useMemo(() => BLOCKS.filter((b) => !q || `${b.label} ${b.hint} ${b.group}`.toLowerCase().includes(q)), [q]);
+    const shown = useMemo(() => BLOCKS.filter((b) => !q || `${b.label} ${b.hint} ${b.group} ${b.keywords ?? ''}`.toLowerCase().includes(q)), [q]);
     const categories = useMemo(() => [...new Set(templates.map((t) => t.category))], [templates]);
 
     return (
@@ -153,8 +153,11 @@ export function StepLibrary({ picking, onPick, setDragging, templates, onOpenTem
 }
 
 /**
- * The steps panel folded to a narrow strip: every step as an icon, still
- * draggable and pickable, so the canvas gets the room without losing them.
+ * The steps panel folded to a narrow strip: every step as an icon with its
+ * name under it, still draggable and pickable, so the canvas gets the room
+ * without losing them. The names matter: fifteen icons in five colours are
+ * not something anyone can read, and a strip of them looked like the steps had
+ * gone missing.
  */
 export function StepRail({ picking, onPick, setDragging, onToggle }: Pick<Props, 'picking' | 'onPick' | 'setDragging' | 'onToggle'>) {
     return (
@@ -171,7 +174,7 @@ export function StepRail({ picking, onPick, setDragging, onToggle }: Pick<Props,
                     <PanelLeftOpen className="size-4" aria-hidden />
                 </Button>
             </div>
-            <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto py-2">
+            <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto px-1 py-2">
                 {BLOCK_GROUPS.map((group, i) => (
                     <Fragment key={group}>
                         {i > 0 && <span className="bg-border my-1 h-px w-6 shrink-0" aria-hidden />}
@@ -183,11 +186,14 @@ export function StepRail({ picking, onPick, setDragging, onToggle }: Pick<Props,
                                 aria-label={block.label}
                                 aria-pressed={picking === block.key}
                                 title={`${block.label}: ${block.hint}`}
-                                className={`shrink-0 cursor-grab rounded-lg p-0.5 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:cursor-grabbing ${
-                                    picking === block.key ? 'ring-2 ring-indigo-500' : 'hover:ring-1 hover:ring-indigo-300'
+                                className={`flex w-full shrink-0 cursor-grab flex-col items-center gap-0.5 rounded-lg px-0.5 py-1 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:cursor-grabbing ${
+                                    picking === block.key ? 'bg-indigo-50 ring-2 ring-indigo-500 dark:bg-indigo-500/15' : 'hover:bg-muted'
                                 }`}
                             >
-                                <StepIcon visual={blockVisual(block.key)} className="size-8" />
+                                <StepIcon visual={blockVisual(block.key)} className="size-7" />
+                                <span className="text-muted-foreground w-full truncate text-center text-[10px] leading-tight" aria-hidden>
+                                    {block.short}
+                                </span>
                             </button>
                         ))}
                     </Fragment>

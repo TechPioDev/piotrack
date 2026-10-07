@@ -1,6 +1,6 @@
 import type { Flow } from '@/lib/flow-tree';
 import FlowBuilder from '@/pages/chat/flow/edit';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -166,10 +166,14 @@ describe('conversation builder', () => {
         const card = document.getElementById('flow-step-ask_name') as HTMLElement;
         const toggle = within(card).getByRole('switch', { name: 'Required' });
 
+        // A switch that says what it is, and is on.
         expect(toggle).toHaveTextContent('Required');
+        expect(toggle).toHaveAttribute('aria-checked', 'true');
+        expect(card).toHaveTextContent('Visitors must answer');
         fireEvent.click(toggle);
 
-        expect(within(card).getByRole('switch', { name: 'Required' })).toHaveTextContent('Optional');
+        expect(within(card).getByRole('switch', { name: 'Required' })).toHaveAttribute('aria-checked', 'false');
+        expect(card).toHaveTextContent('Visitors may skip');
         expect(publishedFlow().nodes.ask_name.optional).toBe(true);
     });
 
@@ -206,10 +210,10 @@ describe('conversation builder', () => {
         fireEvent.click(within(document.getElementById('flow-step-ask_name') as HTMLElement).getByRole('switch', { name: 'Required' }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-        expect(within(document.getElementById('flow-step-ask_name') as HTMLElement).getByRole('switch')).toHaveTextContent('Required');
+        expect(within(document.getElementById('flow-step-ask_name') as HTMLElement).getByRole('switch')).toHaveAttribute('aria-checked', 'true');
 
         fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
-        expect(within(document.getElementById('flow-step-ask_name') as HTMLElement).getByRole('switch')).toHaveTextContent('Optional');
+        expect(within(document.getElementById('flow-step-ask_name') as HTMLElement).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
     });
 
     it('loads a template into the editor without publishing it, and undo brings the old one back', async () => {
@@ -417,5 +421,163 @@ describe('conversation builder', () => {
         openStep('route');
         expect(screen.getByText('Hand the conversation to')).toBeInTheDocument();
         expect(screen.getByText(/billing questions to one person and technical ones to another/)).toBeInTheDocument();
+    });
+
+    /*
+     * Reported from a live workspace: "we cannot edit, rename or swap steps".
+     * A question's menu offered only Edit, Fold and Delete - and a template is
+     * mostly questions.
+     */
+
+    /** Two questions and a name, in a row: the shape of the top of every template. */
+    const questions: Flow = {
+        start: 'q_need',
+        nodes: {
+            q_need: {
+                type: 'choice',
+                text: 'What are you looking for?',
+                field: 'need',
+                options: [
+                    { id: 'audit', label: 'An audit', next: 'q_size' },
+                    { id: 'help', label: 'General help', next: 'q_size' },
+                ],
+            },
+            q_size: {
+                type: 'choice',
+                text: 'How many employees?',
+                field: 'size',
+                options: [
+                    { id: 'small', label: '1-10', next: 'ask_name' },
+                    { id: 'large', label: '11+', next: 'ask_name' },
+                ],
+            },
+            ask_name: { type: 'input', input: 'text', field: 'first_name', text: 'Your first name?', next: 'done' },
+            done: { type: 'end', outcome: 'lead', text: 'Thanks!' },
+        },
+    };
+
+    const openMenu = async (user: ReturnType<typeof userEvent.setup>, id: string) =>
+        user.click(within(card(id)).getByRole('button', { name: /actions$/ }));
+
+    it('gives a question the whole menu: edit, rename, move, copy, delete', async () => {
+        const user = userEvent.setup();
+        renderBuilder(questions);
+
+        await openMenu(user, 'q_need');
+
+        for (const name of ['Edit', 'Rename', 'Move up', 'Move down', 'Move to another place…', 'Duplicate', 'Delete']) {
+            expect(await screen.findByRole('menuitem', { name })).toBeInTheDocument();
+        }
+        // First in the conversation: nowhere further up to go, but it can go down.
+        expect(screen.getByRole('menuitem', { name: 'Move up' })).toHaveAttribute('aria-disabled', 'true');
+        expect(screen.getByRole('menuitem', { name: 'Move down' })).not.toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('swaps two questions from the menu', async () => {
+        const user = userEvent.setup();
+        renderBuilder(questions);
+        expect(stepIds()).toEqual(['q_need', 'q_size', 'ask_name', 'done']);
+
+        await openMenu(user, 'q_need');
+        await user.click(await screen.findByRole('menuitem', { name: 'Move down' }));
+
+        expect(stepIds()).toEqual(['q_size', 'q_need', 'ask_name', 'done']);
+        const flow = publishedFlow();
+        expect(flow.start).toBe('q_size');
+        expect(flow.nodes.q_size.options?.every((o) => o.next === 'q_need')).toBe(true);
+        expect(flow.nodes.q_need.options?.every((o) => o.next === 'ask_name')).toBe(true);
+    });
+
+    it('copies a question with its replies', async () => {
+        const user = userEvent.setup();
+        renderBuilder(questions);
+
+        await openMenu(user, 'q_size');
+        await user.click(await screen.findByRole('menuitem', { name: 'Duplicate' }));
+
+        const ids = stepIds();
+        expect(ids).toHaveLength(5);
+        const copy = publishedFlow().nodes[ids[2]];
+        expect(copy.type).toBe('choice');
+        expect(copy.options?.map((o) => o.label)).toEqual(['1-10', '11+']);
+    });
+
+    it('renames a step from its menu, and still says what kind of step it is', async () => {
+        const user = userEvent.setup();
+        renderBuilder(questions);
+
+        await openMenu(user, 'q_size');
+        await user.click(await screen.findByRole('menuitem', { name: 'Rename' }));
+
+        // The settings open with the cursor already in the name.
+        const name = screen.getByRole('textbox', { name: 'Step name' });
+        await waitFor(() => expect(name).toHaveFocus());
+        await user.type(name, 'Company size');
+
+        const title = within(card('q_size'));
+        expect(title.getByText('Company size')).toBeInTheDocument();
+        expect(title.getByText('Ask a Question')).toBeInTheDocument();
+        // The other question keeps its plain title.
+        expect(within(card('q_need')).queryByText('Company size')).toBeNull();
+        expect(publishedFlow().nodes.q_size.name).toBe('Company size');
+    });
+
+    it('lets a typed answer be made optional from its menu as well as its switch', async () => {
+        const user = userEvent.setup();
+        renderBuilder(questions);
+
+        await openMenu(user, 'ask_name');
+        await user.click(await screen.findByRole('menuitem', { name: 'Make it optional' }));
+
+        expect(within(card('ask_name')).getByRole('switch', { name: 'Required' })).toHaveAttribute('aria-checked', 'false');
+        expect(publishedFlow().nodes.ask_name.optional).toBe(true);
+    });
+
+    it('says how to edit, in words, above the conversation', () => {
+        renderBuilder();
+
+        const hint = screen.getByText((_, el) => el?.tagName === 'P' && (el.textContent ?? '').startsWith('Click any text to change it'));
+        expect(hint).toHaveTextContent('Click any text to change it · drag a step to move it · ⋯ to rename, copy or delete');
+    });
+
+    it('names every step under its icon when the steps panel is folded away', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        await user.click(screen.getAllByRole('button', { name: 'Hide steps panel' })[0]);
+
+        // Fifteen unlabelled icons were not something anyone could read.
+        const strip = screen.getByRole('button', { name: 'Text Field' });
+        expect(strip).toHaveTextContent('Text');
+        expect(screen.getByRole('button', { name: 'Ask a Question' })).toHaveTextContent('Question');
+        expect(screen.getByRole('button', { name: 'Email' })).toHaveTextContent('Email');
+    });
+
+    it('finds the text field by the words people use for it', async () => {
+        const user = userEvent.setup();
+        renderBuilder();
+
+        const search = screen.getByRole('textbox', { name: 'Search steps' });
+        const library = within(search.closest('[role="tabpanel"]') as HTMLElement);
+        expect(library.getByRole('button', { name: /Send Message/ })).toBeInTheDocument();
+
+        await user.type(search, 'input box');
+
+        expect(library.getByRole('button', { name: /Text Field/ })).toBeInTheDocument();
+        expect(library.queryByRole('button', { name: /Send Message/ })).toBeNull();
+    });
+
+    it('shows what an ending reached after booking does, instead of an empty box', () => {
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: { type: 'message', text: 'Hi there!', next: 'done' },
+                done: { type: 'end', outcome: 'booked', text: 'You are booked in.' },
+            },
+        });
+
+        expect(within(card('done')).getByText('Saves the lead - a time is booked')).toBeInTheDocument();
+        openStep('done');
+        expect(screen.getByRole('combobox', { name: 'What happens at the end' })).toHaveTextContent('Save the lead (a time was just booked)');
     });
 });

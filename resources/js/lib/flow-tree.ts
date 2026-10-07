@@ -39,6 +39,8 @@ export type FlowNode = {
     /** webhook steps: where to post the answers, what to read back, and what to call it. */
     url?: string;
     path?: string;
+    /** The owner's own name for the step, shown in the builder only: "Ask budget", not "Ask a Question". */
+    name?: string;
 };
 export type Flow = { start: string | null; nodes: Record<string, FlowNode> };
 
@@ -82,7 +84,7 @@ export type TreeBranch = {
     endSlot: Slot | null;
 };
 
-/** Steps that simply lead on to one next step, and so can be moved anywhere. */
+/** Steps that simply lead on to one next step. */
 export const LINEAR_TYPES = ['message', 'input', 'score', 'tag', 'assign', 'handoff', 'webhook'];
 
 type Edge = { key: string; target: string | null };
@@ -398,17 +400,33 @@ export function insertStep(flow: Flow, slot: Slot, block: FlowNode): { flow: Flo
     return { flow: withTarget(added, slot, id), id };
 }
 
-/** Every exit anywhere that led to `from` now leads to `to`. */
-function repoint(flow: Flow, from: string, to: string | null): Flow {
+/** Every exit anywhere that led to `from` now leads to `to` - except from the steps in `except`. */
+function repoint(flow: Flow, from: string, to: string | null, except?: Set<string>): Flow {
     const nodes: Record<string, FlowNode> = {};
     for (const [id, node] of Object.entries(flow.nodes)) {
         let updated = node;
-        for (const edge of edges(node)) {
-            if (edge.target === from) updated = withEdge(updated, edge.key, to);
+        if (!except?.has(id)) {
+            for (const edge of edges(node)) {
+                if (edge.target === from) updated = withEdge(updated, edge.key, to);
+            }
         }
         nodes[id] = updated;
     }
     return { start: flow.start === from ? to : flow.start, nodes };
+}
+
+/**
+ * Point a step's ways on at a different step. A booking or AI step with no
+ * path of its own for "it could not run" keeps none: an empty fallback is not
+ * a way on, it is the absence of one.
+ */
+function leadOn(node: FlowNode, from: string | null, to: string | null): FlowNode {
+    let updated = node;
+    for (const edge of edges(node)) {
+        if (edge.key === 'fallback' && (node.fallback ?? null) === null) continue;
+        if (edge.target === from) updated = withEdge(updated, edge.key, to);
+    }
+    return updated;
 }
 
 /** Where the conversation should carry on once a step is taken out, if anywhere. */
@@ -445,28 +463,85 @@ export function removeStep(flow: Flow, id: string): { flow: Flow; removed: strin
     return { flow: result, removed: [id, ...stranded] };
 }
 
-/** Whether a step can be dragged somewhere else: the ones that simply lead on. */
+/** Whether a step can be picked up and put somewhere else: anything but an ending. */
 export function isMovable(node: FlowNode | undefined): boolean {
-    return node !== undefined && LINEAR_TYPES.includes(node.type);
+    return node !== undefined && node.type !== 'end';
 }
 
 /**
- * Move a step to another place: lifted out (its neighbours joined up), then
- * put in the new place as if dropped there. Dropping a step just before or
- * just after itself changes nothing.
+ * What travels with a step when it is moved: the step itself, and everything
+ * drawn inside its paths. A question whose answers lead different ways takes
+ * those ways with it, so moving it never leaves half a conversation behind.
+ *
+ * `exit` is where the conversation carries on afterwards - the step it leads
+ * to, or where its paths meet again. `closed` means nothing can follow: an
+ * ending, or paths that each finish on their own.
+ */
+export function blockOf(root: TreeBranch, id: string): { ids: string[]; exit: string | null; closed: boolean } | null {
+    const place = locate(root, id);
+    if (!place) return null;
+    const step = place.branch.steps[place.index];
+    if (step.node.type === 'end') return { ids: [id], exit: null, closed: true };
+
+    if (step.branches.length > 0) {
+        const inner: string[] = [];
+        const collect = (from: TreeStep) => {
+            for (const branch of from.branches) {
+                for (const child of branch.steps) {
+                    inner.push(child.id);
+                    collect(child);
+                }
+            }
+        };
+        collect(step);
+        return { ids: [id, ...inner], exit: step.join, closed: step.join === null };
+    }
+
+    const paths = pathsOf(id, step.node);
+    // A question with no replies yet: nothing can follow it.
+    if (paths.length === 0) return { ids: [id], exit: null, closed: true };
+    return { ids: [id], exit: paths[0].target, closed: false };
+}
+
+/**
+ * Move a step to another place, with everything inside its paths: lifted out
+ * (its neighbours joined up), then put in the new place as if dropped there,
+ * with whatever that place led to following on from it.
+ *
+ * Changes nothing when the move makes no sense: onto itself, into its own
+ * paths, or - for a step nothing can follow - anywhere something already
+ * follows. And nothing a visitor could reach before may be cut off by it.
  */
 export function moveStep(flow: Flow, id: string, slot: Slot): Flow {
     const node = flow.nodes[id];
     if (!isMovable(node)) return flow;
-    if (targetOf(flow, slot) === id) return flow;
-    if ((slot.kind === 'exit' || slot.kind === 'answers') && slot.from === id) return flow;
-    if (slot.kind === 'join' && (slot.target === id || (slot.region.length === 1 && slot.region[0] === id))) return flow;
+    const block = blockOf(buildTree(flow).root, id);
+    if (!block) return flow;
+    const inside = new Set(block.ids);
 
-    const lifted = repoint(flow, id, node.next ?? null);
-    const place: Slot = slot.kind === 'join' ? { ...slot, region: slot.region.filter((n) => n !== id) } : slot;
+    // Just before itself, or anywhere inside itself (which includes just after).
+    if (targetOf(flow, slot) === id) return flow;
+    if ((slot.kind === 'exit' || slot.kind === 'answers') && inside.has(slot.from)) return flow;
+    if (slot.kind === 'join' && slot.region.every((n) => inside.has(n))) return flow;
+
+    // Lifted out: whatever led to it now leads to what came after it.
+    const lifted = repoint(flow, id, block.exit, inside);
+    const place: Slot = slot.kind === 'join' ? { ...slot, region: slot.region.filter((n) => !inside.has(n)) } : slot;
     const next = targetOf(lifted, place);
-    const moved: Flow = { ...lifted, nodes: { ...lifted.nodes, [id]: { ...node, next } } };
-    return withTarget(moved, place, id);
+    if (block.closed && next !== null) return flow;
+
+    // Its way out now leads to whatever the new place led to.
+    const nodes = { ...lifted.nodes };
+    if (!block.closed) {
+        const rewire = block.ids.length === 1 ? [id] : block.ids;
+        for (const n of rewire) nodes[n] = leadOn(nodes[n], block.exit, next);
+    }
+    const moved = withTarget({ ...lifted, nodes }, place, id);
+
+    const before = reachable(flow);
+    const after = reachable(moved);
+    for (const n of before) if (!after.has(n)) return flow;
+    return moved;
 }
 
 /** Where a step is drawn: its branch, and its position in that branch. */
@@ -559,7 +634,12 @@ export function withQuickReplies(flow: Flow, id: string): Flow {
     };
 }
 
-/** A copy of a step, just after it. Only steps that simply lead on can be copied. */
+/**
+ * A copy of a step, just after it. A question is copied with its replies but
+ * not its paths: every reply of the copy carries on, and the copy sits below
+ * where the original's paths meet again. An ending cannot be copied - nothing
+ * can follow one - and neither can a step whose paths never meet again.
+ */
 export function duplicateStep(flow: Flow, root: TreeBranch, id: string): { flow: Flow; id: string } | null {
     const node = flow.nodes[id];
     if (!isMovable(node)) return null;
@@ -567,8 +647,11 @@ export function duplicateStep(flow: Flow, root: TreeBranch, id: string): { flow:
     if (!slot) return null;
     const copy: FlowNode = { ...node };
     delete copy.next;
+    delete copy.otherwise;
+    delete copy.fallback;
     // An answer saved under the step's own name gets the copy's name instead.
     if (copy.field === id) delete copy.field;
+    if (copy.name) copy.name = `${copy.name} (copy)`;
     return insertStep(flow, slot, copy);
 }
 

@@ -13,7 +13,11 @@ export type Block = {
     key: string;
     group: BlockGroup;
     label: string;
+    /** A word or two for under the icon when the panel is folded to a strip. */
+    short: string;
     hint: string;
+    /** Other words people look for it by: "text field" finds Text Field, and so does "input". */
+    keywords?: string;
     make: () => FlowNode;
 };
 
@@ -41,6 +45,8 @@ export const BLOCKS: Block[] = [
         key: 'message',
         group: 'Message & Interaction',
         label: 'Send Message',
+        short: 'Message',
+        keywords: 'text say tell greeting',
         hint: 'Say something, then carry on',
         make: () => ({ type: 'message', text: 'Thanks for stopping by!' }),
     },
@@ -48,6 +54,8 @@ export const BLOCKS: Block[] = [
         key: 'question',
         group: 'Message & Interaction',
         label: 'Ask a Question',
+        short: 'Question',
+        keywords: 'choice options buttons multiple select menu',
         hint: 'Buttons to tap; each answer can lead its own way',
         make: () => ({
             type: 'choice',
@@ -61,14 +69,18 @@ export const BLOCKS: Block[] = [
     {
         key: 'open',
         group: 'Message & Interaction',
-        label: 'Collect User Input',
+        label: 'Text Field',
+        short: 'Text',
+        keywords: 'text field input box open answer free type comment',
         hint: 'Visitors type their own answer',
         make: () => ({ type: 'input', input: 'text', text: 'Tell us a little about what you need.', optional: false }),
     },
     {
         key: 'number',
         group: 'Message & Interaction',
-        label: 'Collect a Number',
+        label: 'Number Field',
+        short: 'Number',
+        keywords: 'number field input amount quantity size',
         hint: 'A number, such as team size',
         make: () => ({ type: 'input', input: 'number', text: 'How many people work at your company?', optional: false }),
     },
@@ -77,6 +89,8 @@ export const BLOCKS: Block[] = [
         key: 'first_name',
         group: 'Contact Details',
         label: 'First Name',
+        short: 'First name',
+        keywords: 'name contact',
         hint: 'Saved to the lead',
         make: () => contact('first_name', 'text', 'What is your first name?', true),
     },
@@ -84,6 +98,8 @@ export const BLOCKS: Block[] = [
         key: 'last_name',
         group: 'Contact Details',
         label: 'Last Name',
+        short: 'Last name',
+        keywords: 'surname name contact',
         hint: 'Saved to the lead',
         make: () => contact('last_name', 'text', 'And your last name?', false),
     },
@@ -91,6 +107,8 @@ export const BLOCKS: Block[] = [
         key: 'email',
         group: 'Contact Details',
         label: 'Email',
+        short: 'Email',
+        keywords: 'mail address contact',
         hint: 'Checked as a real address',
         make: () => contact('email', 'email', 'What is the best email to reach you?', true),
     },
@@ -98,6 +116,8 @@ export const BLOCKS: Block[] = [
         key: 'phone',
         group: 'Contact Details',
         label: 'Phone',
+        short: 'Phone',
+        keywords: 'mobile telephone number contact',
         hint: 'Checked as a phone number',
         make: () => contact('phone', 'phone', 'What is the best number to reach you?', false),
     },
@@ -105,6 +125,8 @@ export const BLOCKS: Block[] = [
         key: 'company',
         group: 'Contact Details',
         label: 'Company',
+        short: 'Company',
+        keywords: 'business organisation organization contact',
         hint: 'Saved to the lead',
         make: () => contact('company_name', 'company', 'What company are you with?', false),
     },
@@ -113,6 +135,8 @@ export const BLOCKS: Block[] = [
         key: 'condition',
         group: 'Logic & Flow',
         label: 'Condition',
+        short: 'If / else',
+        keywords: 'branch if else rule logic check',
         hint: 'Go one way or another on an earlier answer',
         make: () => ({ type: 'condition', field: '', operator: 'equals', value: '' }),
     },
@@ -120,6 +144,8 @@ export const BLOCKS: Block[] = [
         key: 'score',
         group: 'Logic & Flow',
         label: 'Lead Score',
+        short: 'Score',
+        keywords: 'points qualify hot lead',
         hint: 'Mark this path as a stronger lead',
         make: () => ({ type: 'score', points: 10 }),
     },
@@ -127,6 +153,8 @@ export const BLOCKS: Block[] = [
         key: 'tag',
         group: 'Logic & Flow',
         label: 'Add Tag',
+        short: 'Tag',
+        keywords: 'label mark',
         hint: 'Label the conversation',
         make: () => ({ type: 'tag', tag: 'interested' }),
     },
@@ -134,6 +162,8 @@ export const BLOCKS: Block[] = [
         key: 'webhook',
         group: 'Actions',
         label: 'Send to Your System',
+        short: 'Send out',
+        keywords: 'webhook api zapier psa integration post',
         hint: 'Post the answers to your PSA, Zapier or your own API',
         make: () => ({ type: 'webhook', url: '', field: '', path: '' }),
     },
@@ -141,6 +171,8 @@ export const BLOCKS: Block[] = [
         key: 'assign',
         group: 'Logic & Flow',
         label: 'Assign to a Teammate',
+        short: 'Assign',
+        keywords: 'owner route person teammate salesperson',
         hint: 'Who follows up, or gets the ticket',
         make: () => ({ type: 'assign', assignee_id: null }),
     },
@@ -149,6 +181,8 @@ export const BLOCKS: Block[] = [
         key: 'booking',
         group: 'Actions',
         label: 'Book a Meeting',
+        short: 'Book',
+        keywords: 'meeting calendar appointment schedule time slot',
         hint: 'Offers your free times as buttons',
         make: () => ({ type: 'booking', text: 'Pick a time that suits you:' }),
     },
@@ -156,6 +190,8 @@ export const BLOCKS: Block[] = [
         key: 'handoff',
         group: 'Actions',
         label: 'Human Handoff',
+        short: 'Person',
+        keywords: 'human agent live chat handover transfer',
         hint: 'Connects someone from your team',
         make: () => ({ type: 'handoff' }),
     },
@@ -163,6 +199,8 @@ export const BLOCKS: Block[] = [
         key: 'ai',
         group: 'Actions',
         label: 'AI Answers',
+        short: 'AI',
+        keywords: 'assistant answer bot gpt',
         hint: 'Answers questions about your business',
         make: () => ({ type: 'ai', text: 'What would you like to know?' }),
     },
@@ -171,6 +209,8 @@ export const BLOCKS: Block[] = [
         key: 'end_lead',
         group: 'End',
         label: 'End: New Lead',
+        short: 'End: lead',
+        keywords: 'finish stop close lead',
         hint: 'Saves them as a lead',
         make: () => ({ type: 'end', outcome: 'lead', text: 'Thanks! We will be in touch shortly.' }),
     },
@@ -178,6 +218,8 @@ export const BLOCKS: Block[] = [
         key: 'end_meeting',
         group: 'End',
         label: 'End: Book a Meeting',
+        short: 'End: meet',
+        keywords: 'finish stop close meeting booking appointment',
         hint: 'Offers your free times, then saves the lead',
         make: () => ({ type: 'end', outcome: 'meeting', text: 'Great, pick a time that suits you.' }),
     },
@@ -185,6 +227,8 @@ export const BLOCKS: Block[] = [
         key: 'end_support',
         group: 'End',
         label: 'End: Support Ticket',
+        short: 'End: ticket',
+        keywords: 'finish stop close support ticket help',
         hint: 'Existing customers: a ticket, never a lead',
         make: () => ({ type: 'end', outcome: 'support', text: 'Thanks, we have opened a support ticket and will reply by email.' }),
     },
@@ -206,12 +250,12 @@ export function stepKind(node: FlowNode): string {
         case 'input':
             if (node.field && CONTACT_FIELDS[node.field]) return `Collect ${CONTACT_FIELDS[node.field]}`;
             return node.input === 'number'
-                ? 'Collect a Number'
+                ? 'Number Field'
                 : node.input === 'email'
                   ? 'Collect Email'
                   : node.input === 'phone'
                     ? 'Collect Phone'
-                    : 'Collect User Input';
+                    : 'Text Field';
         case 'booking':
             return 'Book a Meeting';
         case 'handoff':
@@ -233,7 +277,24 @@ export function stepKind(node: FlowNode): string {
     }
 }
 
+/**
+ * What a step is called on its card: the owner's own name for it when they
+ * have given one, otherwise what kind of step it is.
+ */
+export function stepTitle(node: FlowNode): string {
+    return node.name?.trim() || stepKind(node);
+}
+
 /** What an End step does, in words, for its card. */
 export function outcomeLabel(outcome: string | undefined): string {
-    return outcome === 'meeting' ? 'Saves the lead, offers a meeting' : outcome === 'support' ? 'Opens a support ticket' : 'Saves them as a lead';
+    switch (outcome) {
+        case 'meeting':
+            return 'Saves the lead, offers a meeting';
+        case 'booked':
+            return 'Saves the lead - a time is booked';
+        case 'support':
+            return 'Opens a support ticket';
+        default:
+            return 'Saves them as a lead';
+    }
 }

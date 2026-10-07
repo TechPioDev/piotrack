@@ -8,7 +8,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BLOCK_GROUPS, blockByKey, BLOCKS, outcomeLabel, stepKind } from '@/lib/flow-blocks';
+import { BLOCK_GROUPS, blockByKey, BLOCKS, outcomeLabel, stepKind, stepTitle } from '@/lib/flow-blocks';
 import {
     buildTree,
     canInsert,
@@ -26,6 +26,7 @@ import {
     AlertTriangle,
     ArrowDown,
     ArrowUp,
+    Asterisk,
     ChevronsDownUp,
     ChevronsUpDown,
     Circle,
@@ -38,6 +39,7 @@ import {
     Pencil,
     Plus,
     ScanLine,
+    TextCursorInput,
     Trash2,
     X,
     ZoomIn,
@@ -69,6 +71,10 @@ type Editor = {
     move: (id: string, direction: 'up' | 'down') => void;
     canMove: (id: string) => { up: boolean; down: boolean };
     duplicate: (id: string) => void;
+    /** Whether there is somewhere to put a copy: not after an ending, nor a split that never re-joins. */
+    canDuplicate: (id: string) => boolean;
+    /** Open a step's settings with its name ready to type. */
+    rename: (id: string) => void;
     toggleRequired: (id: string) => void;
     setText: (id: string, text: string) => void;
     renameReply: (id: string, optionId: string, label: string) => void;
@@ -411,7 +417,11 @@ function InlineText({
     );
 }
 
-/** Required or optional, switched right on the card of a question the visitor types into. */
+/**
+ * Required or optional, switched right on the card of a question the visitor
+ * types into. Drawn as a switch: as a coloured "REQUIRED" badge it read as a
+ * fact about the step, not as something that could be changed.
+ */
 function RequiredToggle({ id, optional }: { id: string; optional: boolean }) {
     const { toggleRequired } = useEditor();
     return (
@@ -424,48 +434,79 @@ function RequiredToggle({ id, optional }: { id: string; optional: boolean }) {
                 optional ? 'Optional: visitors can skip it. Click to make it required.' : 'Required: visitors must answer. Click to make it optional.'
             }
             onClick={() => toggleRequired(id)}
-            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase transition-colors ${
-                optional ? 'bg-card text-muted-foreground border-slate-300 hover:border-indigo-400' : 'border-rose-500 bg-rose-500 text-white'
-            }`}
+            className="group/req text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
         >
-            {optional ? 'Optional' : 'Required'}
+            Required
+            <span
+                aria-hidden
+                className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${optional ? 'bg-slate-300 dark:bg-slate-600' : 'bg-rose-500'}`}
+            >
+                <span className={`absolute top-0.5 size-3 rounded-full bg-white shadow transition-[left] ${optional ? 'left-0.5' : 'left-[14px]'}`} />
+            </span>
         </button>
     );
 }
 
 function NodeMenu({ step }: { step: TreeStep }) {
-    const { flow, openSettings, setDragging, move, canMove, duplicate, remove, collapsed, toggleCollapsed } = useEditor();
+    const { flow, openSettings, rename, setDragging, move, canMove, duplicate, canDuplicate, toggleRequired, remove, collapsed, toggleCollapsed } =
+        useEditor();
     const id = step.id;
-    const movable = isMovable(flow.nodes[id]);
+    const node = flow.nodes[id];
+    const movable = isMovable(node);
     const can = movable ? canMove(id) : { up: false, down: false };
+    const inside = stepsInside(step);
+    // Set when "Rename" is chosen: the menu must not take the cursor back as it closes.
+    const renaming = useRef(false);
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    aria-label={`${stepKind(flow.nodes[id])} actions`}
-                    className="text-muted-foreground hover:text-foreground rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                    aria-label={`${stepTitle(node)} actions`}
+                    title="Edit, rename, move, copy or delete this step"
+                    className="text-muted-foreground hover:text-foreground rounded-md p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
                 >
                     <MoreHorizontal className="size-4" aria-hidden />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent
+                align="end"
+                className="w-56"
+                onCloseAutoFocus={(e) => {
+                    if (renaming.current) e.preventDefault();
+                    renaming.current = false;
+                }}
+            >
                 <DropdownMenuItem onSelect={() => openSettings(id)}>
-                    <Pencil className="size-3.5" aria-hidden /> Edit settings
+                    <Pencil className="size-3.5" aria-hidden /> Edit
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                    onSelect={() => {
+                        renaming.current = true;
+                        rename(id);
+                    }}
+                >
+                    <TextCursorInput className="size-3.5" aria-hidden /> Rename
+                </DropdownMenuItem>
+                {node.type === 'input' && (
+                    <DropdownMenuItem onSelect={() => toggleRequired(id)}>
+                        <Asterisk className="size-3.5" aria-hidden /> {node.optional ? 'Make it required' : 'Make it optional'}
+                    </DropdownMenuItem>
+                )}
                 {movable && (
                     <>
-                        <DropdownMenuItem onSelect={() => setDragging({ kind: 'step', id, pick: true })}>
-                            <Move className="size-3.5" aria-hidden /> Move to…
-                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem disabled={!can.up} onSelect={() => move(id, 'up')}>
                             <ArrowUp className="size-3.5" aria-hidden /> Move up
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled={!can.down} onSelect={() => move(id, 'down')}>
                             <ArrowDown className="size-3.5" aria-hidden /> Move down
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => duplicate(id)}>
+                        <DropdownMenuItem onSelect={() => setDragging({ kind: 'step', id, pick: true })}>
+                            <Move className="size-3.5" aria-hidden /> Move to another place…
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={!canDuplicate(id)} onSelect={() => duplicate(id)}>
                             <Copy className="size-3.5" aria-hidden /> Duplicate
                         </DropdownMenuItem>
                     </>
@@ -487,6 +528,11 @@ function NodeMenu({ step }: { step: TreeStep }) {
                 <DropdownMenuItem onSelect={() => remove(id)} className="text-red-600 focus:text-red-600 dark:text-red-400">
                     <Trash2 className="size-3.5" aria-hidden /> Delete
                 </DropdownMenuItem>
+                {movable && inside > 0 && (
+                    <p className="text-muted-foreground border-t px-2 pt-1.5 pb-1 text-[11px] leading-snug">
+                        Moving this step takes the {inside} {inside === 1 ? 'step' : 'steps'} in its paths with it.
+                    </p>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -549,8 +595,14 @@ function NodeCard({ step }: { step: TreeStep }) {
                 >
                     <StepIcon visual={visual} className="size-8" />
                     <span className="min-w-0 flex-1">
-                        <span className="text-foreground block truncate text-[13px] leading-tight font-semibold">{stepKind(node)}</span>
-                        {node.type === 'end' ? (
+                        <span className="text-foreground block truncate text-[13px] leading-tight font-semibold">{stepTitle(node)}</span>
+                        {node.name?.trim() ? (
+                            // Renamed: keep saying what kind of step it is.
+                            <span className="text-muted-foreground block truncate text-[11px]">
+                                {stepKind(node)}
+                                {node.type === 'end' ? ` · ${outcomeLabel(node.outcome)}` : ''}
+                            </span>
+                        ) : node.type === 'end' ? (
                             <span className="text-muted-foreground block truncate text-[11px]">{outcomeLabel(node.outcome)}</span>
                         ) : (
                             !TEXT_TYPES.includes(node.type) && <span className="text-muted-foreground block truncate text-xs">{describe(node)}</span>
@@ -1072,117 +1124,128 @@ export function FlowCanvas({ className = 'h-[calc(100vh-16rem)] min-h-[560px]', 
     const picked = dragging?.pick ? placing(flow, dragging) : null;
 
     return (
-        <div className={`bg-muted/30 relative overflow-hidden rounded-xl border ${className}`}>
-            <div
-                ref={scroller}
-                onScroll={bump}
-                onWheel={(e) => {
-                    if (!e.ctrlKey) return;
-                    e.preventDefault();
-                    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
-                }}
-                onDragOver={(e) => {
-                    // Near an edge while dragging, the board scrolls to show more.
-                    const s = scroller.current;
-                    if (!s || !dragging) return;
-                    const r = s.getBoundingClientRect();
-                    const edge = 64;
-                    const step = 16;
-                    if (e.clientY < r.top + edge) s.scrollTop -= step;
-                    else if (e.clientY > r.bottom - edge) s.scrollTop += step;
-                    if (e.clientX < r.left + edge) s.scrollLeft -= step;
-                    else if (e.clientX > r.right - edge) s.scrollLeft += step;
-                }}
-                className="h-full w-full overflow-auto overscroll-contain"
-                style={{
-                    backgroundImage: 'radial-gradient(circle, color-mix(in oklab, var(--foreground) 14%, transparent) 1px, transparent 1.3px)',
-                    backgroundSize: '20px 20px',
-                }}
-            >
-                <div ref={content} style={{ zoom }} className="mx-auto flex w-max flex-col items-center px-12 pt-20 pb-28">
-                    <div
-                        data-flow-node={startVisual.tone.dot}
-                        className={`bg-card flex w-60 items-center gap-2.5 rounded-xl border px-3 py-2.5 shadow-sm ${startVisual.tone.edge}`}
-                    >
-                        <StepIcon visual={startVisual} className="size-8" />
-                        <span>
-                            <span className="text-foreground block text-[13px] font-semibold">Start</span>
-                            <span className="text-muted-foreground block text-xs">Conversation starts here</span>
-                        </span>
-                    </div>
-                    <BranchColumn branch={root} />
-                    <Unreachable ids={unreachable} />
-                </div>
-            </div>
-
-            {picked && (
-                <div
-                    role="status"
-                    className="absolute top-3 left-1/2 z-10 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-indigo-600 py-1 pr-1 pl-1.5 text-sm text-white shadow-lg"
-                >
-                    <StepIcon visual={picked.visual} className="size-6" />
-                    <span className="truncate">
-                        Click a highlighted place for <strong className="font-semibold">{picked.label}</strong>
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setDragging(null)}
-                        className="shrink-0 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium hover:bg-white/30"
-                    >
-                        Cancel
-                    </button>
+        <div className={`bg-muted/30 flex flex-col overflow-hidden rounded-xl border ${className}`}>
+            {/* Its own strip, not a float: floating, it sat on top of whichever card was under it. */}
+            {toolbar && (
+                <div className="bg-card/80 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b px-2 py-1">
+                    <p className="text-muted-foreground hidden min-w-0 truncate pl-1 text-xs md:block">
+                        <strong className="text-foreground font-medium">Click any text</strong> to change it ·{' '}
+                        <strong className="text-foreground font-medium">drag a step</strong> to move it ·{' '}
+                        <strong className="text-foreground font-medium">⋯</strong> to rename, copy or delete
+                    </p>
+                    {toolbar}
                 </div>
             )}
+            <div className="relative min-h-0 flex-1">
+                <div
+                    ref={scroller}
+                    onScroll={bump}
+                    onWheel={(e) => {
+                        if (!e.ctrlKey) return;
+                        e.preventDefault();
+                        zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
+                    }}
+                    onDragOver={(e) => {
+                        // Near an edge while dragging, the board scrolls to show more.
+                        const s = scroller.current;
+                        if (!s || !dragging) return;
+                        const r = s.getBoundingClientRect();
+                        const edge = 64;
+                        const step = 16;
+                        if (e.clientY < r.top + edge) s.scrollTop -= step;
+                        else if (e.clientY > r.bottom - edge) s.scrollTop += step;
+                        if (e.clientX < r.left + edge) s.scrollLeft -= step;
+                        else if (e.clientX > r.right - edge) s.scrollLeft += step;
+                    }}
+                    className="h-full w-full overflow-auto overscroll-contain"
+                    style={{
+                        backgroundImage: 'radial-gradient(circle, color-mix(in oklab, var(--foreground) 14%, transparent) 1px, transparent 1.3px)',
+                        backgroundSize: '20px 20px',
+                    }}
+                >
+                    <div ref={content} style={{ zoom }} className="mx-auto flex w-max flex-col items-center px-12 pt-20 pb-28">
+                        <div
+                            data-flow-node={startVisual.tone.dot}
+                            className={`bg-card flex w-60 items-center gap-2.5 rounded-xl border px-3 py-2.5 shadow-sm ${startVisual.tone.edge}`}
+                        >
+                            <StepIcon visual={startVisual} className="size-8" />
+                            <span>
+                                <span className="text-foreground block text-[13px] font-semibold">Start</span>
+                                <span className="text-muted-foreground block text-xs">Conversation starts here</span>
+                            </span>
+                        </div>
+                        <BranchColumn branch={root} />
+                        <Unreachable ids={unreachable} />
+                    </div>
+                </div>
 
-            {toolbar && !picked && <div className="absolute top-3 right-3 z-10">{toolbar}</div>}
+                {picked && (
+                    <div
+                        role="status"
+                        className="absolute top-3 left-1/2 z-10 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full bg-indigo-600 py-1 pr-1 pl-1.5 text-sm text-white shadow-lg"
+                    >
+                        <StepIcon visual={picked.visual} className="size-6" />
+                        <span className="truncate">
+                            Click a highlighted place for <strong className="font-semibold">{picked.label}</strong>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setDragging(null)}
+                            className="shrink-0 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium hover:bg-white/30"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                )}
 
-            <div className="bg-card absolute bottom-3 left-3 flex items-center gap-0.5 rounded-lg border p-1 shadow-sm">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={() => zoomBy(-0.1)}
-                    aria-label="Zoom out"
-                    title="Zoom out (Ctrl + scroll)"
-                >
-                    <ZoomOut className="size-4" aria-hidden />
-                </Button>
-                <button
-                    type="button"
-                    onClick={() => setZoom(1)}
-                    className="text-muted-foreground hover:text-foreground w-12 text-center text-xs tabular-nums"
-                    title="Reset to 100%"
-                >
-                    {Math.round(zoom * 100)}%
-                </button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={() => zoomBy(0.1)}
-                    aria-label="Zoom in"
-                    title="Zoom in (Ctrl + scroll)"
-                >
-                    <ZoomIn className="size-4" aria-hidden />
-                </Button>
-                <span className="bg-border mx-1 h-5 w-px" aria-hidden />
-                <Button variant="ghost" size="icon" className="size-8" onClick={fit} aria-label="Fit to screen" title="Fit to screen">
-                    <ScanLine className="size-4" aria-hidden />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`size-8 ${showMap ? 'text-indigo-600 dark:text-indigo-300' : ''}`}
-                    onClick={() => setShowMap((on) => !on)}
-                    aria-label={showMap ? 'Hide the mini map' : 'Show the mini map'}
-                    aria-pressed={showMap}
-                    title="Mini map"
-                >
-                    <MapIcon className="size-4" aria-hidden />
-                </Button>
+                <div className="bg-card absolute bottom-3 left-3 flex items-center gap-0.5 rounded-lg border p-1 shadow-sm">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => zoomBy(-0.1)}
+                        aria-label="Zoom out"
+                        title="Zoom out (Ctrl + scroll)"
+                    >
+                        <ZoomOut className="size-4" aria-hidden />
+                    </Button>
+                    <button
+                        type="button"
+                        onClick={() => setZoom(1)}
+                        className="text-muted-foreground hover:text-foreground w-12 text-center text-xs tabular-nums"
+                        title="Reset to 100%"
+                    >
+                        {Math.round(zoom * 100)}%
+                    </button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => zoomBy(0.1)}
+                        aria-label="Zoom in"
+                        title="Zoom in (Ctrl + scroll)"
+                    >
+                        <ZoomIn className="size-4" aria-hidden />
+                    </Button>
+                    <span className="bg-border mx-1 h-5 w-px" aria-hidden />
+                    <Button variant="ghost" size="icon" className="size-8" onClick={fit} aria-label="Fit to screen" title="Fit to screen">
+                        <ScanLine className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`size-8 ${showMap ? 'text-indigo-600 dark:text-indigo-300' : ''}`}
+                        onClick={() => setShowMap((on) => !on)}
+                        aria-label={showMap ? 'Hide the mini map' : 'Show the mini map'}
+                        aria-pressed={showMap}
+                        title="Mini map"
+                    >
+                        <MapIcon className="size-4" aria-hidden />
+                    </Button>
+                </div>
+
+                {showMap && <MiniMap scroller={scroller} content={content} tick={tick} onClose={() => setShowMap(false)} />}
             </div>
-
-            {showMap && <MiniMap scroller={scroller} content={content} tick={tick} onClose={() => setShowMap(false)} />}
         </div>
     );
 }
