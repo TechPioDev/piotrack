@@ -44,6 +44,7 @@ class TicketService
             'body' => $data['body'],
             'priority' => $data['priority'] ?? 'normal',
             'category' => $data['category'] ?? null,
+            'topic' => $data['topic'] ?? null,
             'status' => 'open',
         ]);
 
@@ -78,6 +79,44 @@ class TicketService
         return $message;
     }
 
+    /**
+     * More from the person who raised the ticket, when they are not a user of
+     * the workspace - a client who came back to the website chat about the
+     * same thing while their ticket was still open.
+     *
+     * It joins the thread as their own words (no author, not internal) rather
+     * than opening a second ticket for somebody else to pick up. Whoever has
+     * the ticket hears about it; the client is told by email that it was
+     * added, within the same daily limit as a receipt. Nothing is said back in
+     * the chat itself: the address was typed by whoever is there, and "you
+     * already have ticket #12 open" is not theirs to learn.
+     *
+     * @return bool whether somebody already has the ticket and was told
+     */
+    public function addFromRequester(Ticket $ticket, string $body): bool
+    {
+        TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => null,
+            'body' => $body,
+            'is_internal' => false,
+        ]);
+        // Activity keeps the ticket "recent" for the next repeat request too.
+        $ticket->touch();
+
+        $this->audit->log('support.ticket.added_to', context: ['subject' => $ticket->subject],
+            resourceType: 'ticket', resourceId: (string) $ticket->id);
+
+        $this->receipt($ticket, 'added');
+
+        $assignee = $ticket->assignee_id !== null ? User::find($ticket->assignee_id) : null;
+        if ($assignee !== null) {
+            $this->notifier->toUser($assignee, new TicketNotification('replied', $ticket->subject));
+        }
+
+        return $assignee !== null;
+    }
+
     public function assign(Ticket $ticket, User $assignee): Ticket
     {
         $ticket->update(['assignee_id' => $assignee->id, 'status' => 'pending']);
@@ -109,6 +148,15 @@ class TicketService
      */
     public function acknowledge(Ticket $ticket): void
     {
+        $this->receipt($ticket, 'received');
+    }
+
+    /**
+     * An automatic note to an outside requester - "we have your request",
+     * "we have added to it" - counted against one daily limit per address.
+     */
+    private function receipt(Ticket $ticket, string $event): void
+    {
         $email = $this->externalRequester($ticket);
         if ($email === null) {
             return;
@@ -120,7 +168,7 @@ class TicketService
         }
         RateLimiter::hit($key, 86400);
 
-        $this->emailRequester($ticket, 'received', null);
+        $this->emailRequester($ticket, $event, null);
     }
 
     /**

@@ -24,6 +24,8 @@ class ChatTicketOpenedNotification extends PlatformNotification
         private readonly string $topic,
         private readonly string $priority,
         private readonly ?string $assignee,
+        /** The client came back and their new message joined a ticket already open. */
+        private readonly bool $addedTo = false,
     ) {}
 
     public function category(): string
@@ -33,6 +35,10 @@ class ChatTicketOpenedNotification extends PlatformNotification
 
     public function title(): string
     {
+        if ($this->addedTo) {
+            return 'A client has added to a support request that nobody has picked up';
+        }
+
         return in_array($this->priority, ['high', 'urgent'], true)
             ? 'Urgent support request from the website chat'
             : 'New support request from the website chat';
@@ -56,14 +62,16 @@ class ChatTicketOpenedNotification extends PlatformNotification
     /** One alert per ticket, however many times the sweep looks at it. */
     public function dedupeKey(): ?string
     {
-        return 'chat.ticket_opened:'.$this->ticketId;
+        return ($this->addedTo ? 'chat.ticket_added_to:' : 'chat.ticket_opened:').$this->ticketId;
     }
 
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
             ->subject($this->title().' (#'.$this->ticketId.')')
-            ->line('A client asked for help on the website chat, and it is now a support ticket.')
+            ->line($this->addedTo
+                ? 'A client came back to the website chat about a request that is still open, and their new message has been added to it.'
+                : 'A client asked for help on the website chat, and it is now a support ticket.')
             ->line($this->body())
             ->line($this->assignee !== null
                 ? "It is assigned to {$this->assignee}, who was already in the conversation or handles this chat."

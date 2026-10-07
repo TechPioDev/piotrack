@@ -9,7 +9,6 @@ use App\Models\ChatWidget;
 use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\Ticket;
-use App\Models\User;
 use App\Notifications\ChatTicketOpenedNotification;
 use App\Services\Delivery\TicketService;
 use App\Services\Integrations\WebhookDispatcher;
@@ -37,10 +36,12 @@ class ChatCaptureService
     ) {}
 
     /**
-     * The support ticket for an existing customer's chat: what they told us,
-     * then the whole conversation, so whoever picks it up needs nothing else.
+     * What a support request from the chat says: who asked, what about, and
+     * the whole conversation, so whoever picks it up needs nothing else.
+     *
+     * @return array{email: string|null, name: string, subject: string, body: string, priority: string, contact: Contact|null}
      */
-    private function openTicket(ChatConversation $conversation, ?string $topic): Ticket
+    private function describeRequest(ChatConversation $conversation, ?string $topic): array
     {
         $answers = $conversation->answers ?? [];
         $messages = $conversation->messages()
@@ -78,18 +79,40 @@ class ChatCaptureService
         // stranger claiming to be a client is not turned into a contact.
         $email = strtolower($text('email'));
         $email = filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : null;
-        $contact = $email !== null ? Contact::query()->whereRaw('LOWER(email) = ?', [$email])->first() : null;
 
-        return $this->tickets->open([
+        return [
+            'email' => $email,
+            'name' => $name,
             'subject' => Str::limit(sprintf('Website chat: %s from %s', $topic ?? 'support request', $name !== '' ? $name : ($text('email') ?: 'a website visitor')), 180),
             'body' => mb_substr(implode("\n", $lines)."\n\nChat transcript\n".$transcript, 0, 60000),
             'priority' => ($answers['_priority'] ?? null) === 'high' ? 'high' : 'normal',
-            'category' => 'website_chat',
-            'requester_email' => $email,
-            'requester_name' => $name !== '' ? Str::limit($name, 160, '') : null,
-            'contact_id' => $contact?->id,
-            'chat_conversation_id' => $conversation->id,
-        ]);
+            'contact' => $email !== null ? Contact::query()->whereRaw('LOWER(email) = ?', [$email])->first() : null,
+        ];
+    }
+
+    /**
+     * The ticket a repeat request belongs on, if there is one.
+     *
+     * The same client (the address they gave), asking about the same thing
+     * (the answer they picked), while a ticket from the chat is still open and
+     * has seen activity recently. Anything else - a different matter, a ticket
+     * long since gone quiet, no address to recognise them by - is a new ticket.
+     */
+    private function ticketToJoin(?string $email, ?string $topic): ?Ticket
+    {
+        $hours = (int) config('chat.ticket_merge_hours', 72);
+        if ($email === null || $hours <= 0) {
+            return null;
+        }
+
+        return Ticket::query()
+            ->where('category', 'website_chat')
+            ->whereIn('status', ['open', 'pending'])
+            ->where('requester_email', $email)
+            ->when($topic === null, fn ($query) => $query->whereNull('topic'), fn ($query) => $query->where('topic', $topic))
+            ->where('updated_at', '>=', now()->subHours($hours))
+            ->latest('id')
+            ->first();
     }
 
     /**
@@ -107,18 +130,21 @@ class ChatCaptureService
             ->filter(fn ($m) => isset($m->meta['option']))
             ->last()?->body;
 
-        return $picked !== null && trim((string) $picked) !== '' ? (string) $picked : null;
+        return $picked !== null && trim((string) $picked) !== '' ? Str::limit((string) $picked, 120, '') : null;
     }
 
     /**
-     * Make sure somebody knows a client is waiting on a ticket.
+     * Make sure somebody knows a client is waiting on a new ticket.
      *
-     * Whoever was already talking to them keeps it; failing that, whoever this
-     * chat sends its conversations to. The owners and the workspace's Teams or
-     * Slack are told either way - once, not again for an owner who was just
-     * assigned it - and the client gets a receipt with their ticket number.
+     * Who gets it, most specific first: whoever was already in the
+     * conversation - a teammate who stepped in, or an "Assign" step on the way
+     * here, which is how a flow sends billing to one person and technical to
+     * another; then whoever this ending names; then whoever the chat sends
+     * everything to. The owners and the workspace's Teams or Slack are told
+     * either way - once, not again for an owner who was just assigned it - and
+     * the client gets a receipt with their ticket number.
      */
-    private function followUpTicket(ChatWidget $widget, ChatConversation $conversation, Ticket $ticket, ?string $topic): void
+    private function followUpTicket(ChatWidget $widget, ChatConversation $conversation, Ticket $ticket, ?string $topic, ?int $endingAssigneeId): void
     {
         $organization = $widget->organization()->first();
         if ($organization === null) {
@@ -126,15 +152,15 @@ class ChatCaptureService
         }
 
         $assignee = null;
-        foreach ([$conversation->assignee_id, $widget->routing['assignee_id'] ?? null] as $candidate) {
-            // Someone who has since left the workspace cannot take it.
-            $assignee = $candidate ? $organization->members()->wherePivot('status', 'active')->find((int) $candidate) : null;
-            if ($assignee instanceof User) {
+        foreach ([$conversation->assignee_id, $endingAssigneeId, $widget->routing['assignee_id'] ?? null] as $candidate) {
+            // Only a teammate, and only one who is still here.
+            $assignee = $organization->activeMember($candidate !== null ? (int) $candidate : null);
+            if ($assignee !== null) {
                 break;
             }
         }
 
-        if ($assignee instanceof User) {
+        if ($assignee !== null) {
             $this->tickets->assign($ticket, $assignee);
         }
 
@@ -144,6 +170,25 @@ class ChatCaptureService
             $organization,
             new ChatTicketOpenedNotification($ticket->id, $topic ?? 'Support request', $ticket->priority, $assignee?->name),
             exceptUserId: $assignee?->id,
+        );
+    }
+
+    /**
+     * A repeat request was added to a ticket that is already open. Whoever has
+     * it has been told; if nobody has, the owners and the team's channels hear
+     * about it again - a client asking twice about a ticket nobody picked up is
+     * exactly the one that should not stay quiet.
+     */
+    private function followUpAddition(ChatWidget $widget, Ticket $ticket, ?string $topic, bool $someoneHasIt): void
+    {
+        $organization = $widget->organization()->first();
+        if ($organization === null || $someoneHasIt) {
+            return;
+        }
+
+        $this->notifications->toOrganizationOwners(
+            $organization,
+            new ChatTicketOpenedNotification($ticket->id, $topic ?? 'Support request', $ticket->priority, null, addedTo: true),
         );
     }
 
@@ -199,9 +244,10 @@ class ChatCaptureService
     }
 
     /**
+     * @param  int|null  $endingAssigneeId  who the ending step itself hands a support ticket to
      * @return array<string, mixed> extra payload for the widget (e.g. booking_url)
      */
-    public function complete(ChatWidget $widget, ChatConversation $conversation, string $outcome): array
+    public function complete(ChatWidget $widget, ChatConversation $conversation, string $outcome, ?int $endingAssigneeId = null): array
     {
         // Builder previews run through this same engine so a tenant tests the real
         // conversation — but they must never reach the CRM, alerts or analytics.
@@ -216,7 +262,30 @@ class ChatCaptureService
         // worked like any other support request rather than waiting in chat.
         if ($outcome === 'support') {
             $topic = $this->topicOf($conversation);
-            $ticket = $this->openTicket($conversation, $topic);
+            $request = $this->describeRequest($conversation, $topic);
+
+            // The same client back about the same thing, with a ticket still
+            // open: it joins that one. Two tickets would be two people working
+            // one problem, or one of them never picked up at all.
+            $ticket = $this->ticketToJoin($request['email'], $topic);
+            $joined = $ticket !== null;
+
+            if ($ticket !== null) {
+                $someoneHasIt = $this->tickets->addFromRequester($ticket, "More from the website chat\n".$request['body']);
+            } else {
+                $ticket = $this->tickets->open([
+                    'subject' => $request['subject'],
+                    'body' => $request['body'],
+                    'priority' => $request['priority'],
+                    'category' => 'website_chat',
+                    'topic' => $topic,
+                    'requester_email' => $request['email'],
+                    'requester_name' => $request['name'] !== '' ? Str::limit($request['name'], 160, '') : null,
+                    'contact_id' => $request['contact']?->id,
+                    'chat_conversation_id' => $conversation->id,
+                ]);
+            }
+
             $conversation->forceFill([
                 'contact_id' => $conversation->contact_id ?? $ticket->contact_id,
                 'status' => 'closed',
@@ -227,10 +296,12 @@ class ChatCaptureService
                 'chat_widget_id' => $widget->id,
                 'chat_conversation_id' => $conversation->id,
                 'type' => 'complete',
-                'meta' => ['outcome' => 'support', 'ticket_id' => $ticket->id],
+                'meta' => ['outcome' => 'support', 'ticket_id' => $ticket->id, ...($joined ? ['joined' => true] : [])],
             ]);
 
-            $this->followUpTicket($widget, $conversation, $ticket, $topic);
+            $joined
+                ? $this->followUpAddition($widget, $ticket, $topic, $someoneHasIt ?? false)
+                : $this->followUpTicket($widget, $conversation, $ticket, $topic, $endingAssigneeId);
 
             return [];
         }
@@ -390,9 +461,11 @@ class ChatCaptureService
             return null;
         }
 
-        $fixed = $widget->routing['assignee_id'] ?? null;
-        if ($fixed) {
-            return (int) $fixed;
+        // The chat's fixed owner, while they are still a teammate; someone
+        // who has left falls through to sharing the load among who remains.
+        $fixed = $organization->activeMember((int) ($widget->routing['assignee_id'] ?? 0));
+        if ($fixed !== null) {
+            return $fixed->id;
         }
 
         $members = $organization->members()->wherePivot('status', 'active')->pluck('users.id')->all();

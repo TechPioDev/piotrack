@@ -250,7 +250,8 @@ class ChatFlowEngine
                 $this->known = $answers;
                 $conversation->save();
 
-                $result = $this->capture->complete($widget, $conversation, $outcome);
+                // An ending can name who gets the support ticket it opens.
+                $result = $this->capture->complete($widget, $conversation, $outcome, ! empty($node['assignee_id']) ? (int) $node['assignee_id'] : null);
 
                 return [
                     'messages' => $this->drain(),
@@ -360,8 +361,12 @@ class ChatFlowEngine
                 break;
 
             case 'assign':
-                if (! empty($node['assignee_id'])) {
-                    $conversation->assignee_id = (int) $node['assignee_id'];
+                // Only ever a teammate. The id comes from a saved flow, and a
+                // flow saved before this was checked - or naming someone who has
+                // since left - must not hand a conversation outside the workspace.
+                $teammate = $conversation->widget?->organization()->first()?->activeMember((int) ($node['assignee_id'] ?? 0));
+                if ($teammate !== null) {
+                    $conversation->assignee_id = $teammate->id;
                 }
                 break;
 

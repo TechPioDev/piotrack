@@ -22,6 +22,8 @@ type TicketMessage = {
     id: number;
     body: string;
     is_internal: boolean;
+    /** Written by the client, not the team: a repeat request that joined this ticket. */
+    from_requester?: boolean;
     created_at: string | null;
 };
 
@@ -441,6 +443,12 @@ export default function DeliverySupport({
                                                     <div key={message.id} className={message.is_internal ? 'bg-muted/50 p-3' : 'p-3'}>
                                                         <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-2 text-xs">
                                                             <span>{formatTime(message.created_at)}</span>
+                                                            {message.from_requester && (
+                                                                <Badge variant="outline" className="gap-1">
+                                                                    <MessageSquare className="size-3" aria-hidden="true" />
+                                                                    From the client, on the website chat
+                                                                </Badge>
+                                                            )}
                                                             {message.is_internal && (
                                                                 <Badge variant="secondary" className="gap-1">
                                                                     <Lock className="size-3" aria-hidden="true" />

@@ -714,3 +714,37 @@ mail problem cannot break the chat.
 
 **Automated testing:** `ChatBookNowTest` +3 (and the no-page test now also asserts the "pick a
 time" line is gone).
+
+## Follow-up (2026-10-07): who a ticket goes to, and a client who asks twice (CHAT-085..087)
+
+Two of the three items left open on the ticket path on 24 September, and a defect found on the way.
+
+- **Defect - a conversation could be handed to anyone on the platform (CHAT-085).** Reassigning
+  in the inbox validated `exists:users,id`; a widget's default owner validated nothing; a flow's
+  Assign step was never validated at all. A workspace could therefore make a stranger the owner
+  of its conversations, and the inbox then showed that stranger's name. All three now require an
+  active member of the workspace (`Organization::activeMember`). A flow naming a non-member cannot
+  be published, and the engine ignores such an id in a flow already stored - which also covers a
+  teammate who has since left.
+- **Tickets by topic (CHAT-086).** "Assign to a Teammate" (was "Assign Salesperson") on one
+  answer's path, and "Who gets the ticket" on the support ending. Order: whoever is already in the
+  conversation, then the ending, then the chat's default owner.
+- **A repeat request joins the open ticket (CHAT-087).** Same address, same topic, a chat ticket
+  still open with activity inside `chat.ticket_merge_hours` (72; 0 switches it off). The new
+  request is added as the client's own words and marked so on the desk. Whoever has the ticket is
+  told; if nobody has, the owners and the team's channels are told again. The client gets an
+  "added to your request" email inside the same three-a-day limit as receipts.
+  **The public chat says exactly what it always said** - the address was typed by whoever is
+  there, and "ticket #12 is open for this address" is not theirs to learn.
+
+Migration `2026_10_07_090000_add_topic_to_tickets` adds one nullable column, guarded for re-runs.
+
+An existing test changed with the behaviour: four requests from one address used to be four
+tickets and are now one ticket with three additions; its point - the daily limit on automatic
+emails - is asserted both ways.
+
+**Automated testing:** `ChatTicketRoutingTest` (12), `ChatTicketFollowUpTest` +1 (13),
+`builder.test.tsx` +3.
+
+**Still open on this path:** a client's answer by email goes to the agent's mailbox, not back
+into the ticket - that needs inbound mail, which this deployment does not have.

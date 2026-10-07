@@ -107,6 +107,20 @@ it('sends at most three receipts a day to one address, however often the chat is
         reachSupportTicket($this, 'victim@elsewhere.test');
     }
 
+    // Four requests about the same thing are one ticket with three additions
+    // (CHAT-087) - and the automatic emails, "we have your request" and "we
+    // have added to it" alike, share the one daily limit.
+    expect(Ticket::withoutGlobalScope('tenant')->count())->toBe(1)
+        ->and(emailsTo('victim@elsewhere.test'))->toHaveCount(3);
+});
+
+it('keeps to the same limit when every request is a ticket of its own', function () {
+    config(['chat.ticket_merge_hours' => 0]);
+
+    foreach (range(1, 4) as $i) {
+        reachSupportTicket($this, 'victim@elsewhere.test');
+    }
+
     expect(Ticket::withoutGlobalScope('tenant')->count())->toBe(4)
         ->and(emailsTo('victim@elsewhere.test'))->toHaveCount(3);
 });

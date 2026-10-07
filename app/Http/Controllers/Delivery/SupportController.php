@@ -50,6 +50,9 @@ class SupportController extends Controller
                     'id' => $m->id,
                     'body' => $m->body,
                     'is_internal' => $m->is_internal,
+                    // Written by the client themselves - more from the website
+                    // chat on a ticket already open - not by anyone on the team.
+                    'from_requester' => $m->user_id === null && ! $m->is_internal && $t->requester_id === null && $t->requester_email !== null,
                     'created_at' => $m->created_at?->toIso8601String(),
                 ])->all(),
                 // SUPP-002: the ticket's attached documents.

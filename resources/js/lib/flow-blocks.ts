@@ -140,8 +140,8 @@ export const BLOCKS: Block[] = [
     {
         key: 'assign',
         group: 'Logic & Flow',
-        label: 'Assign Salesperson',
-        hint: 'Choose who follows up',
+        label: 'Assign to a Teammate',
+        hint: 'Who follows up, or gets the ticket',
         make: () => ({ type: 'assign', assignee_id: null }),
     },
 
@@ -223,7 +223,7 @@ export function stepKind(node: FlowNode): string {
         case 'tag':
             return 'Add Tag';
         case 'assign':
-            return 'Assign Salesperson';
+            return 'Assign to a Teammate';
         case 'condition':
             return 'Condition';
         case 'end':

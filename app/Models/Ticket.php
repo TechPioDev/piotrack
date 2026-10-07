@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $requester_name
  * @property int|null $contact_id
  * @property int|null $chat_conversation_id
+ * @property string|null $topic
  * @property string $subject
  * @property string $status
  * @property string $priority
@@ -31,6 +32,8 @@ class Ticket extends Model
         'status', 'priority', 'category', 'resolved_at',
         // Someone outside the workspace - a website visitor - who asked.
         'requester_email', 'requester_name', 'contact_id', 'chat_conversation_id',
+        // What a chat ticket was about, as the visitor picked it.
+        'topic',
     ];
 
     protected function casts(): array

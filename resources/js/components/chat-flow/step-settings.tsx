@@ -498,7 +498,7 @@ export function StepSettings({
 
                         {node.type === 'assign' && (
                             <div className="grid gap-1.5">
-                                <Label>Send the lead to</Label>
+                                <Label>Hand the conversation to</Label>
                                 <Select
                                     value={node.assignee_id ? String(node.assignee_id) : '__none'}
                                     onValueChange={(v) => onPatch({ assignee_id: v === '__none' ? null : Number(v) })}
@@ -515,6 +515,10 @@ export function StepSettings({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <p className="text-muted-foreground text-xs">
+                                    They own the lead - or the support ticket, if the conversation ends in one. Put this step on one answer’s path to
+                                    send, say, billing questions to one person and technical ones to another.
+                                </p>
                             </div>
                         )}
 
@@ -533,6 +537,32 @@ export function StepSettings({
                                         <SelectItem value="support">Open a support ticket (existing customer)</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        )}
+
+                        {node.type === 'end' && node.outcome === 'support' && (
+                            <div className="grid gap-1.5">
+                                <Label>Who gets the ticket</Label>
+                                <Select
+                                    value={node.assignee_id ? String(node.assignee_id) : '__none'}
+                                    onValueChange={(v) => onPatch({ assignee_id: v === '__none' ? null : Number(v) })}
+                                >
+                                    <SelectTrigger aria-label="Who gets the ticket">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none">Whoever this chat normally goes to</SelectItem>
+                                        {assignees.map((a) => (
+                                            <SelectItem key={a.id} value={String(a.id)}>
+                                                {a.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-muted-foreground text-xs">
+                                    Someone already in the conversation keeps it - a teammate who stepped in, or an “Assign to a Teammate” step on the
+                                    way here.
+                                </p>
                             </div>
                         )}
 

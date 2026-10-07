@@ -11,6 +11,7 @@ use App\Services\Chat\ChatFlowTemplates;
 use App\Services\Chat\DefaultChatFlow;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
+use App\Validation\TenantExists;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -161,7 +162,9 @@ class ChatWidgetController extends Controller
             'allowed_domains' => 'sometimes|array|max:20',
             'allowed_domains.*' => 'string|max:255',
             'routing' => 'sometimes|array',
-            'routing.assignee_id' => 'nullable|integer',
+            // Must be a teammate: this person becomes the owner of every lead
+            // and ticket the chat produces.
+            'routing.assignee_id' => ['nullable', 'integer', TenantExists::member()],
             // Page + behaviour targeting (§34, §35).
             'targeting' => 'sometimes|array',
             'targeting.include' => 'sometimes|array|max:50',

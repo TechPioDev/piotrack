@@ -378,4 +378,44 @@ describe('conversation builder', () => {
         expect(picker?.[1].next).toBe(ending?.[0]);
         expect(picker?.[1].fallback).toBe(ending?.[0]);
     });
+
+    /** Open a step's settings the way a person does: by its card. */
+    const openStep = (id: string) => fireEvent.click(card(id).querySelector('button[aria-pressed]') as HTMLElement);
+
+    it('lets a support ending say who gets the ticket, and asks nothing of the other endings', () => {
+        renderBuilder({
+            start: 'welcome',
+            nodes: {
+                welcome: { type: 'message', text: 'Hi there!', next: 'done' },
+                done: { type: 'end', outcome: 'support', text: 'We have opened a ticket.' },
+            },
+        });
+
+        openStep('done');
+        expect(screen.getByText('Who gets the ticket')).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'Who gets the ticket' })).toHaveTextContent('Whoever this chat normally goes to');
+    });
+
+    it('does not ask who gets a ticket on an ending that opens none', () => {
+        renderBuilder();
+
+        openStep('done');
+        expect(screen.getByText('What happens at the end')).toBeInTheDocument();
+        expect(screen.queryByText('Who gets the ticket')).not.toBeInTheDocument();
+    });
+
+    it('calls the hand-over step what it is, since it routes tickets as well as leads', () => {
+        renderBuilder({
+            start: 'route',
+            nodes: {
+                route: { type: 'assign', assignee_id: null, next: 'done' },
+                done: { type: 'end', outcome: 'support', text: 'We have opened a ticket.' },
+            },
+        });
+
+        expect(within(card('route')).getByText('Assign to a Teammate')).toBeInTheDocument();
+        openStep('route');
+        expect(screen.getByText('Hand the conversation to')).toBeInTheDocument();
+        expect(screen.getByText(/billing questions to one person and technical ones to another/)).toBeInTheDocument();
+    });
 });

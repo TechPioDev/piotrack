@@ -13,6 +13,7 @@ use App\Services\Chat\ChatConversationSummarizer;
 use App\Services\Chat\ChatPresenceService;
 use App\Support\AuditLogger;
 use App\Support\CurrentOrganization;
+use App\Validation\TenantExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -350,7 +351,9 @@ class ChatInboxController extends Controller
     {
         $data = $request->validate([
             'status' => ['sometimes', Rule::in(ChatConversation::STATUSES)],
-            'assignee_id' => 'sometimes|nullable|integer|exists:users,id',
+            // A teammate, not merely a user: "exists in users" let a conversation
+            // be handed to anyone on the platform, whose name the inbox then showed.
+            'assignee_id' => ['sometimes', 'nullable', 'integer', TenantExists::member()],
         ]);
 
         $before = ['status' => $conversation->status, 'assignee_id' => $conversation->assignee_id];

@@ -3,6 +3,7 @@
 namespace App\Services\Chat;
 
 use App\Models\BookingPage;
+use App\Support\CurrentOrganization;
 
 /**
  * Validates a conversation graph before it can be published.
@@ -26,6 +27,12 @@ class ChatFlowValidator
     private function canBook(): bool
     {
         return $this->canBook ??= BookingPage::query()->where('is_active', true)->exists();
+    }
+
+    /** Whether a user id is an active member of the workspace being edited. */
+    private function isTeammate(int $userId): bool
+    {
+        return app(CurrentOrganization::class)->get()?->activeMember($userId) !== null;
     }
 
     /**
@@ -109,6 +116,17 @@ class ChatFlowValidator
                         $this->checkTarget($nodes, (string) $id, $option['next'] ?? null, sprintf('answer "%s"', (string) $option['label'])),
                     );
                 }
+            }
+
+            // A step that hands the conversation, or the ticket it ends in, to a
+            // named person may only name a teammate. The id arrives from the
+            // browser, so "a number that happens to be a user" is not enough:
+            // it would put a stranger's name on this workspace's conversations.
+            if (in_array($type, ['assign', 'end'], true) && ! empty($node['assignee_id']) && ! $this->isTeammate((int) $node['assignee_id'])) {
+                $errors[] = [
+                    'node' => (string) $id,
+                    'message' => 'This step hands over to someone who is not in this workspace any more. Choose a teammate.',
+                ];
             }
 
             // A conversation that offers a meeting needs somewhere to send

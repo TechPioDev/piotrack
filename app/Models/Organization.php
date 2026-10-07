@@ -157,4 +157,20 @@ class Organization extends Model
             ->wherePivot('role', Role::Owner->value)
             ->wherePivot('status', 'active');
     }
+
+    /**
+     * The active member with this id, or null.
+     *
+     * The check every "hand this to user N" has to pass: a user id on its own
+     * says nothing about which workspace the person belongs to, and somebody
+     * who has since left cannot take anything.
+     */
+    public function activeMember(?int $userId): ?User
+    {
+        if ($userId === null || $userId <= 0) {
+            return null;
+        }
+
+        return $this->members()->wherePivot('status', 'active')->where('users.id', $userId)->first();
+    }
 }

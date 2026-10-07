@@ -601,7 +601,7 @@ export function describe(node: FlowNode): string {
         case 'webhook':
             return node.url ? `Send the answers to ${hostOf(node.url)}` : 'Send the answers (no address set)';
         case 'assign':
-            return node.assignee_id ? 'Route to a chosen salesperson' : 'Route automatically';
+            return node.assignee_id ? 'Hand to a chosen teammate' : 'Route automatically';
         case 'condition':
             return node.field
                 ? `If “${node.field}” ${node.operator === 'is_set' ? 'is answered' : `${node.operator ?? 'is'} ${node.value ?? ''}`.trim()}`
